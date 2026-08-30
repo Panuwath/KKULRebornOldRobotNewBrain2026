@@ -1,7 +1,9 @@
 services:
   # 1. MQTT Message Broker (Eclipse Mosquitto)
   mqtt-broker:
-    image: eclipse-mosquitto:2.0
+    build:
+      context: ./mosquitto
+      dockerfile: Dockerfile
     container_name: zenbo-mqtt-broker
     restart: unless-stopped
     ports:
@@ -11,6 +13,10 @@ services:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+    environment:
+      - MQTT_AUTH_REQUIRED=${MQTT_AUTH_REQUIRED:-true}
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_TOKEN=${MQTT_TOKEN:-}
     networks:
       - zenbo-network
 
@@ -48,6 +54,9 @@ services:
     environment:
       - MQTT_HOST=${MQTT_HOST:-mqtt-broker}
       - MQTT_PORT=1883
+      - MQTT_AUTH_REQUIRED=${MQTT_AUTH_REQUIRED:-true}
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_TOKEN=${MQTT_TOKEN:-}
       - TTS_SERVICE_URL=http://zenbo-tts-service:8000
       - COMPILER_SERVICE_URL=http://zenbo-compiler-service:5006
       - SERVER_PUBLIC_HOST=${SERVER_PUBLIC_HOST:-https://purgatively-significative-ida.ngrok-free.dev}

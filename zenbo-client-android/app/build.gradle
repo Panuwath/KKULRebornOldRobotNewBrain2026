@@ -2,6 +2,15 @@ plugins {
     id 'com.android.application'
 }
 
+def buildConfigString = { Object value ->
+    '"' + (value ?: '').toString().replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+// The device credential is injected only by the secured build environment:
+//   ./gradlew -PmqttUsername=zenbo-client -PmqttToken=<per-device-token> :app:assembleRelease
+// It must never be committed to Gradle files or source control.
+def mqttUsername = project.findProperty('mqttUsername') ?: System.getenv('MQTT_USERNAME') ?: ''
+def mqttToken = project.findProperty('mqttToken') ?: System.getenv('MQTT_TOKEN') ?: ''
+
 android {
     namespace 'com.hackathon.zenboclient'
     compileSdk 33
@@ -14,8 +23,10 @@ android {
         applicationId "com.hackathon.zenboclient"
         minSdk 23
         targetSdk 33
-        versionCode 16
-        versionName "1.7.4-keepalive"
+        versionCode 17
+        versionName "1.7.5-mqtt-token"
+        buildConfigField "String", "MQTT_USERNAME", buildConfigString(mqttUsername)
+        buildConfigField "String", "MQTT_TOKEN", buildConfigString(mqttToken)
     }
 
     buildTypes {

@@ -18,6 +18,8 @@ public class MqttManager {
     private String mBrokerUrl;
     private final String mClientId;
     private final String mTopicPrefix;
+    private final String mUsername;
+    private final String mToken;
 
     public interface MessageListener {
         void onMessageReceived(String topic, String message);
@@ -26,10 +28,13 @@ public class MqttManager {
 
     private MessageListener mListener;
 
-    public MqttManager(Context context, String brokerIp, int port, String topicPrefix, MessageListener listener) {
+    public MqttManager(Context context, String brokerIp, int port, String topicPrefix,
+                       String username, String token, MessageListener listener) {
         this.mBrokerUrl = "tcp://" + brokerIp + ":" + port;
         this.mTopicPrefix = topicPrefix;
         this.mClientId = topicPrefix.replace('/', '_') + "_client_" + System.currentTimeMillis();
+        this.mUsername = username == null ? "" : username.trim();
+        this.mToken = token == null ? "" : token;
         this.mListener = listener;
     }
 
@@ -39,6 +44,13 @@ public class MqttManager {
 
     public void connect() {
         try {
+            if (mUsername.isEmpty() || mToken.isEmpty()) {
+                Log.e(TAG, "MQTT credentials are not provisioned");
+                if (mListener != null) {
+                    mListener.onConnectionStatusChanged(false, "MQTT token is not provisioned");
+                }
+                return;
+            }
             if (mMqttClient != null && mMqttClient.isConnected()) {
                 mMqttClient.disconnect();
             }
@@ -49,6 +61,8 @@ public class MqttManager {
             options.setCleanSession(true);
             options.setConnectionTimeout(10);
             options.setKeepAliveInterval(20);
+            options.setUserName(mUsername);
+            options.setPassword(mToken.toCharArray());
 
             mMqttClient.setCallback(new MqttCallbackExtended() {
                 @Override

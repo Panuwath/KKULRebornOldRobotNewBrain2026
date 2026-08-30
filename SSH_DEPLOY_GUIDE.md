@@ -11,8 +11,9 @@ Create a local `.env` file from the following shape. Do not commit it.
 ```dotenv
 MQTT_HOST=<mqtt-host>
 MQTT_PORT=1883
-MQTT_USER=<mqtt-user>
-MQTT_PASSWORD=<mqtt-password>
+MQTT_AUTH_REQUIRED=true
+MQTT_USERNAME=<mqtt-username>
+MQTT_TOKEN=<long-random-mqtt-token>
 TTS_SERVICE_URL=http://<tts-host>:8025/api/tts/binary
 INTELSPHERE_API_URL=http://<compiler-host>:8032
 INTELSPHERE_API_KEY=<api-key>
@@ -20,9 +21,23 @@ SSH_IP_SERVER=<deployment-host>
 SSH_USER=<deployment-user>
 ```
 
-Use an SSH key or a secret manager for deployment authentication. Never put a
-password, API key, access token, or private key in source code, workflow JSON,
-or documentation.
+Use an SSH key or a secret manager for deployment authentication. Set the same
+`MQTT_USERNAME` and `MQTT_TOKEN` for Mosquitto, Core API, and the Android APK
+build; rotate the token if an APK is lost. Never put a password, API key,
+access token, or private key in source code, workflow JSON, or documentation.
+
+## Android credential injection
+
+Build the APK in a secured shell that already has the secret, or pass the two
+Gradle properties without saving them to a file:
+
+```sh
+./gradlew -PmqttUsername="$MQTT_USERNAME" -PmqttToken="$MQTT_TOKEN" :app:assembleRelease
+```
+
+The token is an Android device credential and can be recovered from a device
+that is compromised. Use a unique token for each robot in a production rollout
+and rotate it with a newly built APK when needed.
 
 ## Deploy
 

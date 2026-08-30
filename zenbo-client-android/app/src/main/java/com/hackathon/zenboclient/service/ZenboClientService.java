@@ -167,7 +167,8 @@ public class ZenboClientService extends Service implements MqttManager.MessageLi
             mMqttManager.disconnect();
         }
         mTopicPrefix = topicPrefix;
-        mMqttManager = new MqttManager(this, brokerIp, port, topicPrefix, this);
+        mMqttManager = new MqttManager(this, brokerIp, port, topicPrefix,
+                BuildConfig.MQTT_USERNAME, BuildConfig.MQTT_TOKEN, this);
         mMqttManager.connect();
     }
 

@@ -54,6 +54,12 @@ async def root():
 MQTT_HOST = os.getenv("MQTT_HOST", "mqtt-broker")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "zenbo_core_gateway")
+MQTT_AUTH_REQUIRED = os.getenv("MQTT_AUTH_REQUIRED", "true").strip().lower() in {"1", "true", "yes", "on"}
+MQTT_USERNAME = os.getenv("MQTT_USERNAME", "").strip()
+# MQTT_TOKEN is deliberately not logged, returned from an API, or persisted in
+# command history. MQTT_PASSWORD remains a migration alias for an existing
+# deployment, but new deployments must use MQTT_TOKEN.
+MQTT_TOKEN = os.getenv("MQTT_TOKEN") or os.getenv("MQTT_PASSWORD") or ""
 TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://zenbo-tts-service:8000")
 TTS_BINARY_PATH = os.getenv("TTS_BINARY_PATH", "/api/v1/tts/binary")
 COMPILER_SERVICE_URL = os.getenv("COMPILER_SERVICE_URL", "http://zenbo-compiler-service:5006")
@@ -198,10 +204,25 @@ def _remember_robot(topic: str, payload: str) -> None:
 def on_mqtt_message(client, userdata, message):
     _remember_robot(message.topic, message.payload.decode("utf-8", errors="replace"))
 
+
+def configure_mqtt_auth() -> None:
+    """Apply broker credentials before opening the MQTT connection.
+
+    When authentication is required, fail closed rather than silently creating
+    an unauthenticated control path.  The token is used only by Paho's MQTT
+    connect handshake and is never included in status, history, or logs.
+    """
+    if not MQTT_AUTH_REQUIRED:
+        return
+    if not MQTT_USERNAME or not MQTT_TOKEN:
+        raise RuntimeError("MQTT authentication is required but MQTT_USERNAME or MQTT_TOKEN is not configured")
+    mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_TOKEN)
+
 @app.on_event("startup")
 def startup_event():
     init_command_history()
     try:
+        configure_mqtt_auth()
         mqtt_client.connect(MQTT_HOST, MQTT_PORT, 60)
         mqtt_client.subscribe("zenbo/+/status/#", qos=1)
         mqtt_client.on_message = on_mqtt_message
