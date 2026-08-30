@@ -1,0 +1,195 @@
+{
+  "name": "🎤 Zenbo LINE Voice Orchestrator (n8n-centric)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo-line-voice",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-voice",
+      "name": "📥 LINE Voice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 200],
+      "webhookId": "zenbo-line-voice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body || {};\nconst events = body.events || [];\nif (events.length === 0) return [{ json: { skip: true, reason: 'no events' } }];\nconst event = events[0];\nif (event.type !== 'message' || (event.message.type !== 'audio' && event.message.type !== 'voice')) {\n  return [{ json: { skip: true, reason: 'non-voice ' + (event.message && event.message.type) } }];\n}\nreturn [{ json: {\n  messageId: event.message.id,\n  replyToken: event.replyToken,\n  userId: event.source && event.source.userId\n} }];"
+      },
+      "id": "parse-voice",
+      "name": "📝 Parse Voice Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0].json;\nif (item.skip) return [];\nreturn $input.all();"
+      },
+      "id": "filter-voice",
+      "name": "🔍 Filter Voice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api-data.line.me/v2/bot/message/{{ $json.messageId }}/content",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Authorization", "value": "=Bearer {{ $env.LINE_CHANNEL_ACCESS_TOKEN }}" }
+        ]},
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "id": "download-audio",
+      "name": "⬇️ Download Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/robots",
+        "options": { "timeout": 10000 }
+      },
+      "id": "get-robots",
+      "name": "🗂 Query Online Robots",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const USER_ROBOT_MAP = {};\nconst voice = $('📝 Parse Voice Event').first().json;\nconst robots = ($input.all()[0].json.robots || []);\nlet robotSlug = USER_ROBOT_MAP[voice.userId] || null;\nif (!robotSlug && robots.length) robotSlug = robots[0].robot_slug;\nif (!robotSlug) throw new Error('No online Zenbo robot available');\nreturn [{ json: { messageId: voice.messageId, replyToken: voice.replyToken, userId: voice.userId, robotSlug } }];"
+      },
+      "id": "resolve-robot",
+      "name": "🎯 Resolve Target Robot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/commands/compile",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"command\": \"{{ $('📝 Parse Voice Event').first().json.messageId }}\",\n  \"robot_slug\": \"{{ $json.robotSlug }}\"\n}",
+        "options": { "timeout": 35000 }
+      },
+      "id": "compile-voice",
+      "name": "🧠 Voice Compile (preview)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const compile = $input.all()[0].json;\nconst payload = compile.compiled_payload || {};\nconst robot = $('🎯 Resolve Target Robot').first().json;\nconst emergency = !!payload.emergency;\nconst dispatchBody = { ...payload, robot_slug: robot.robotSlug, source: 'n8n_line_voice' };\ndelete dispatchBody.emergency;\nreturn [{ json: {\n  replyToken: robot.replyToken,\n  robotSlug: robot.robotSlug,\n  emergency,\n  dispatchBody,\n  spokenText: payload.text || 'รับทราบคำสั่งเรียบร้อยแล้วครับ',\n  face: payload.face || 'HAPPY',\n  compilerSource: compile.compiler_source || 'local_fallback'\n} }];"
+      },
+      "id": "build-dispatch",
+      "name": "🎨 Build Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.emergency }}", "operation": "true" }] }
+      },
+      "id": "is-emergency",
+      "name": "⚠️ Is Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1760, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/robots/{{ $json.robotSlug }}/stop",
+        "options": { "timeout": 10000 }
+      },
+      "id": "stop-robot",
+      "name": "🛑 Stop Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/robot/interact",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.dispatchBody) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "interact-robot",
+      "name": "🤖 Dispatch Interact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const info = $('🎨 Build Dispatch').first().json;\nconst headerColor = info.emergency ? '#DC2626' : '#7C3AED';\nconst reply = {\n  type: 'flex',\n  altText: '🎤 ' + info.spokenText.substring(0, 60),\n  contents: {\n    type: 'bubble',\n    size: 'kilo',\n    header: { type: 'box', layout: 'vertical', backgroundColor: headerColor,\n      contents: [{ type: 'text', text: '🎤 Voice → n8n', weight: 'bold', color: '#FFFFFF', size: 'md' }] },\n    body: { type: 'box', layout: 'vertical', spacing: 'md', contents: [\n      { type: 'text', text: '🗣️ ' + info.spokenText, size: 'sm', weight: 'bold', color: '#1E293B', wrap: true },\n      { type: 'text', text: '😊 ' + info.face + ' · ' + info.robotSlug + ' · ' + info.compilerSource, size: 'xs', color: '#64748B', margin: 'md' }\n    ]}\n  }\n};\nreturn [{ json: { replyToken: info.replyToken, replyPayload: reply } }];"
+      },
+      "id": "build-reply",
+      "name": "💬 Build LINE Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "Content-Type", "value": "application/json" },
+          { "name": "Authorization", "value": "=Bearer {{ $env.LINE_CHANNEL_ACCESS_TOKEN }}" }
+        ]},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"replyToken\": \"{{ $json.replyToken }}\",\n  \"messages\": [{{ JSON.stringify($json.replyPayload) }}]\n}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "reply-line",
+      "name": "📤 Reply LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, 200]
+    }
+  ],
+  "connections": {
+    "📥 LINE Voice Webhook": { "main": [[{ "node": "📝 Parse Voice Event", "type": "main", "index": 0 }]] },
+    "📝 Parse Voice Event": { "main": [[{ "node": "🔍 Filter Voice", "type": "main", "index": 0 }]] },
+    "🔍 Filter Voice": { "main": [[{ "node": "⬇️ Download Audio", "type": "main", "index": 0 }]] },
+    "⬇️ Download Audio": { "main": [[{ "node": "🗂 Query Online Robots", "type": "main", "index": 0 }]] },
+    "🗂 Query Online Robots": { "main": [[{ "node": "🎯 Resolve Target Robot", "type": "main", "index": 0 }]] },
+    "🎯 Resolve Target Robot": { "main": [[{ "node": "🧠 Voice Compile (preview)", "type": "main", "index": 0 }]] },
+    "🧠 Voice Compile (preview)": { "main": [[{ "node": "🎨 Build Dispatch", "type": "main", "index": 0 }]] },
+    "🎨 Build Dispatch": { "main": [[{ "node": "⚠️ Is Emergency?", "type": "main", "index": 0 }]] },
+    "⚠️ Is Emergency?": {
+      "main": [
+        [{ "node": "🛑 Stop Robot", "type": "main", "index": 0 }],
+        [{ "node": "🤖 Dispatch Interact", "type": "main", "index": 0 }]
+      ]
+    },
+    "🛑 Stop Robot": { "main": [[{ "node": "💬 Build LINE Reply", "type": "main", "index": 0 }]] },
+    "🤖 Dispatch Interact": { "main": [[{ "node": "💬 Build LINE Reply", "type": "main", "index": 0 }]] },
+    "💬 Build LINE Reply": { "main": [[{ "node": "📤 Reply LINE", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "line" }, { "name": "voice" }]
+}

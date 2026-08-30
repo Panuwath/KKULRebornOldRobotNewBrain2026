@@ -1,0 +1,45 @@
+# Secrets and deployment-specific configuration
+.env
+.env.*
+.env-*
+!.env.example
+*.zip
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local tools and operating-system files
+.DS_Store
+.claude/
+.rtk/
+.venv/
+*.swp
+**/__pycache__/
+*.py[cod]
+
+# Dependency and build output
+node_modules/
+.gradle/
+**/build/
+**/local.properties
+*.apk
+*.aab
+**/*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# Runtime data, generated analysis, and local exports
+data/
+n8n_data/
+graphify-out/
+output/
+tmp/
+ประวัติการแชท/
+mosquitto/log/
+Map-Navigation/_archive/
+
+# Generated media and packet captures
+*.mp3
+*.wav
+*.pcap
+*.onnx

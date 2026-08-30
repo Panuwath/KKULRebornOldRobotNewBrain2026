@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">台北公車王</string>
+    <string name="dialog_example">歡迎使用台北公車王\n</string>
+    <string name="may_say">您可以說</string>
+    <string name="usage1">紅13</string>
+    <string name="usage2">出發時間或出發地</string>
+    <string name="usage3">紅13何時到關渡捷運站</string>
+    <string name="usage4">我要用台北公車王 重新測試</string>
+    <string name="usage5">紅35</string>
+    <string name="or_str">或</string>
+</resources>

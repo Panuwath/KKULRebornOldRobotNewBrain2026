@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <ScrollView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/activity_horizontal_margin"
+            android:paddingTop="@dimen/activity_vertical_margin"
+            android:paddingRight="@dimen/activity_horizontal_margin"
+            android:paddingBottom="@dimen/activity_vertical_margin">
+
+            <TextView
+                android:id="@+id/textview_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="25dp"
+                android:paddingBottom="25dp"
+                android:text=""
+                android:textColor="#F5DC49" />
+
+            <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_below="@+id/textview_title"
+                android:orientation="vertical"
+                android:paddingLeft="@dimen/activity_horizontal_margin"
+                android:paddingTop="@dimen/activity_vertical_margin"
+                android:paddingRight="@dimen/activity_horizontal_margin"
+                android:paddingBottom="@dimen/activity_vertical_margin"
+                android:weightSum="1">
+
+                <!-- ========remoteControlBody======== -->
+                <TextView
+                    android:id="@+id/textview_remoteControlBody"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/motion_remoteControlBody_api" />
+
+                <TableLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <Button
+                            android:id="@+id/btn_bodyForward"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_column="1"
+                            android:onClick="buttonBodyForwardClicked"
+                            android:text="@string/motion_remoteControlBody_FORWARD" />
+
+                    </TableRow>
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <Button
+                            android:id="@+id/btn_TurnLeft"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_column="0"
+                            android:onClick="buttonBodyLeftClicked"
+                            android:text="@string/motion_remoteControlBody_TURN_LEFT" />
+
+                        <Button
+                            android:id="@+id/btn_bodyStop"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_column="1"
+                            android:onClick="buttonBodyStopClicked"
+                            android:text="@string/motion_remoteControlBody_STOP" />
+
+                        <Button
+                            android:id="@+id/btn_TurnRight"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_column="2"
+                            android:onClick="buttonBodyRightClicked"
+                            android:text="@string/motion_remoteControlBody_TURN_RIGHT" />
+
+                    </TableRow>
+
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <Button
+                            android:id="@+id/btn_Backward"
+                            android:layout_column="1"
+                            android:onClick="buttonBodyBackwardClicked"
+                            android:text="@string/motion_remoteControlBody_BACKWARD" />
+
+                    </TableRow>
+
+
+                    <Space
+                        android:layout_width="1dp"
+                        android:layout_height="30dp" />
+
+                    <!-- ========remoteControlHead======== -->
+                    <TextView
+                        android:id="@+id/textview_remoteControlHead"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/motion_remoteControlHead_api" />
+
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <Button
+                            android:id="@+id/btn_headUp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_column="1"
+                            android:onClick="neckHeadUpClicked"
+                            android:text="@string/motion_remoteControlHead_UP" />
+
+                    </TableRow>
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+
+                        <Button
+                            android:id="@+id/btn_headStop"
+                            android:layout_column="1"
+                            android:onClick="neckHeadStopClicked"
+                            android:text="@string/motion_remoteControlHead_STOP" />
+
+
+                    </TableRow>
+
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <Button
+                            android:id="@+id/btn_headDown"
+                            android:layout_column="1"
+                            android:onClick="neckHeadDownClicked"
+                            android:text="@string/motion_remoteControlHead_DOWN" />
+
+                    </TableRow>
+
+                </TableLayout>
+
+            </LinearLayout>
+        </RelativeLayout>
+
+    </ScrollView>
+</LinearLayout>

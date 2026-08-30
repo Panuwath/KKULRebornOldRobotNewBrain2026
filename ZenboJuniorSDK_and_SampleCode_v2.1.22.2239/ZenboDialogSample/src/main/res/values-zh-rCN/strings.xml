@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">ZenboDialogSample</string>
+
+    <string name="dialog_start">你喜欢哪个城市？</string>
+
+    <string name="dialog_example">你可以回答:\n
+                                    * 哈囉黑色城市\n
+                                    * 哈囉白色城市\n
+    </string>
+
+    <string name="dialog_result">你选择的城市是：</string>
+</resources>

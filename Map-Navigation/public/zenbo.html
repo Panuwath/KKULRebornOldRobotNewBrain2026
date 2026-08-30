@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zenbo Kiosk - KKUL</title>
+  <script>
+    // Redirect to the main interactive map (index.html), keeping URL params
+    // so the robot team's existing links (?from=..&to=..&autostart=true) still work.
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var target = params.toString() ? ('?' + params.toString()) : '';
+      window.location.replace('/' + target);
+    })();
+  </script>
+</head>
+<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;color:#0f172a;font-family:sans-serif;">
+  <p>กำลังเปิดแผนที่นำทาง...</p>
+</body>
+</html>

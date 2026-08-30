@@ -1,0 +1,98 @@
+{
+  "name": "Zenbo AI LINE Bot Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-zenbo-webhook",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "line-zenbo-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $input.all()[0].json.body.events || [];\nif (events.length === 0) return [];\nconst event = events[0];\nconst userMessage = event.message?.text || 'สวัสดี';\nconst replyToken = event.replyToken;\nconst userId = event.source?.userId;\nreturn [{ json: { userMessage, replyToken, userId } }];"
+      },
+      "name": "Parse LINE Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://zenbo-compiler-service:5006/api/v1/compiler/text",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "command",
+              "value": "={{ $json.userMessage }}"
+            },
+            {
+              "name": "auto_dispatch",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Compiler & Dispatch Zenbo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const compilerRes = $input.all()[0].json;\nconst replyToken = $('Parse LINE Event').first().json.replyToken;\nconst textSpoken = compilerRes.compiled_command?.text || 'รับทราบคำสั่งเรียบร้อยแล้วค่ะ';\nconst face = compilerRes.compiled_command?.face || 'HAPPY';\n\nconst flexMessage = {\n  type: 'flex',\n  altText: '🤖 Zenbo Command Executed',\n  contents: {\n    type: 'bubble',\n    header: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        { type: 'text', text: '🤖 Zenbo Robot Active', weight: 'bold', color: '#2563EB', size: 'md' }\n      ]\n    },\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        { type: 'text', text: 'คำสั่งที่รับ: ' + compilerRes.input_text, size: 'sm', weight: 'bold' },\n        { type: 'text', text: 'เสียงตอบสนอง: ' + textSpoken, size: 'xs', color: '#475569', margin: 'md' },\n        { type: 'text', text: 'สีหน้า: ' + face + ' | สถานะ: กำลังดำเนินการ', size: 'xs', color: '#10B981', margin: 'xs' }\n      ]\n    }\n  }\n};\n\nreturn [{ json: { replyToken, flexMessage } }];"
+      },
+      "name": "Build LINE Reply Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "LINE Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse LINE Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LINE Event": {
+      "main": [
+        [
+          {
+            "node": "Compiler & Dispatch Zenbo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compiler & Dispatch Zenbo": {
+      "main": [
+        [
+          {
+            "node": "Build LINE Reply Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

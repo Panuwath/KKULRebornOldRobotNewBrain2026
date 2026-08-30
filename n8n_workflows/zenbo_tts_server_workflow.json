@@ -1,0 +1,131 @@
+{
+  "name": "🔊 Zenbo TTS via n8n — Server TTS (8025)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo-tts",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-tts",
+      "name": "📥 TTS Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "zenbo-tts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body ?? $json;\nreturn [{\n  json: {\n    text: b.text || 'Bookyพร้อมครับ',\n    voice: b.voice || 'th_m_2',\n    age: b.age || 10,\n    speed: b.speed || 0.96,\n    replyToken: b.replyToken || null,\n    publishToMqtt: b.publishToMqtt !== false\n  }\n}];"
+      },
+      "id": "parse-tts",
+      "name": "📝 Parse TTS Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.101.118.149:8025/api/tts/binary",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.text }}\",\n  \"voice\": \"{{ $json.voice }}\",\n  \"age\": {{ $json.age }},\n  \"speed\": {{ $json.speed }},\n  \"natural_mode\": true\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "call-tts",
+      "name": "🎙️ Call Server TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0];\nconst binary = item.binary || {};\nconst hasAudio = binary && Object.keys(binary).length > 0;\nconst info = $('📝 Parse TTS Request').first().json;\n\nreturn [{\n  json: {\n    hasAudio: hasAudio,\n    text: info.text,\n    voice: info.voice,\n    age: info.age,\n    publishToMqtt: info.publishToMqtt\n  },\n  binary: binary\n}];"
+      },
+      "id": "check-audio",
+      "name": "📦 Prepare Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const info = $('📝 Parse TTS Request').first().json;\nconst item = $input.all()[0];\nconst binary = item.binary || {};\nconst firstKey = Object.keys(binary)[0];\n\nlet payload = {\n  type: 'speak',\n  text: info.text,\n  voice: info.voice,\n  age: info.age,\n  source: 'n8n-tts'\n};\n\nif (firstKey && binary[firstKey]) {\n  payload.audio_file_name = binary[firstKey].fileName || 'zenbo-tts.wav';\n  payload.audio_mime_type = binary[firstKey].mimeType || 'audio/wav';\n  payload.audio_base64 = binary[firstKey].data || '';\n}\n\nreturn [{ json: payload }];"
+      },
+      "id": "build-mqtt",
+      "name": "🎨 Build MQTT Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "topic": "zenbo/audio",
+        "message": "={{ JSON.stringify($json) }}",
+        "options": {
+          "qos": 1,
+          "retain": false
+        }
+      },
+      "id": "mqtt-audio",
+      "name": "📡 MQTT zenbo/audio",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [1300, 300],
+      "credentials": {
+        "mqtt": {
+          "id": "vFZ4IDOfufWTtfrj",
+          "name": "Zenbo-Mosquitto-149"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, text: $('📝 Parse TTS Request').first().json.text, voice: $('📝 Parse TTS Request').first().json.voice } }}",
+        "options": {}
+      },
+      "id": "resp-tts",
+      "name": "📤 Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1520, 300]
+    }
+  ],
+  "connections": {
+    "📥 TTS Webhook": {
+      "main": [[{ "node": "📝 Parse TTS Request", "type": "main", "index": 0 }]]
+    },
+    "📝 Parse TTS Request": {
+      "main": [[{ "node": "🎙️ Call Server TTS", "type": "main", "index": 0 }]]
+    },
+    "🎙️ Call Server TTS": {
+      "main": [[{ "node": "📦 Prepare Audio", "type": "main", "index": 0 }]]
+    },
+    "📦 Prepare Audio": {
+      "main": [[{ "node": "🎨 Build MQTT Payload", "type": "main", "index": 0 }]]
+    },
+    "🎨 Build MQTT Payload": {
+      "main": [[{ "node": "📡 MQTT zenbo/audio", "type": "main", "index": 0 }]]
+    },
+    "📡 MQTT zenbo/audio": {
+      "main": [[{ "node": "📤 Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "tts" }]
+}

@@ -1,0 +1,79 @@
+{
+  "name": "🤖 Zenbo Connect — Bookyพร้อมครับ (MQTT zenbo/cmd/interact)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo-connect",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-connect",
+      "name": "📥 Connect Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "zenbo-connect"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body ?? $json;\n\nconst payload = {\n  text: 'Bookyพร้อมครับ',\n  audio_url: input.audio_url || '',\n  face: 'HAPPY',\n  motion: null,\n  head: null,\n  action: null,\n  wheel_lights: {\n    mode: 'breathing',\n    color: '0x00D031',\n    brightness: 10\n  }\n};\n\nreturn [{ json: payload }];"
+      },
+      "id": "norm-connect",
+      "name": "🎨 Build InteractCommand",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "topic": "zenbo/cmd/interact",
+        "message": "={{ JSON.stringify($json) }}",
+        "options": {
+          "qos": 1,
+          "retain": false
+        }
+      },
+      "id": "mqtt-connect",
+      "name": "📡 MQTT zenbo/cmd/interact",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "credentials": {
+        "mqtt": {
+          "id": "vFZ4IDOfufWTtfrj",
+          "name": "Zenbo-Mosquitto-149"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Bookyพร้อมครับ', topic: 'zenbo/cmd/interact' } }}",
+        "options": {}
+      },
+      "id": "resp-connect",
+      "name": "📤 Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "📥 Connect Webhook": {
+      "main": [[{ "node": "🎨 Build InteractCommand", "type": "main", "index": 0 }]]
+    },
+    "🎨 Build InteractCommand": {
+      "main": [[{ "node": "📡 MQTT zenbo/cmd/interact", "type": "main", "index": 0 }]]
+    },
+    "📡 MQTT zenbo/cmd/interact": {
+      "main": [[{ "node": "📤 Respond OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "connect" }]
+}

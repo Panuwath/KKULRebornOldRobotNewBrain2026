@@ -1,0 +1,138 @@
+{
+  "name": "🎤 Zenbo LINE Bot — Voice Command",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-zenbo-voice",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-voice",
+      "name": "📥 LINE Voice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "line-zenbo-voice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body || {};\nconst events = body.events || [];\n\nif (events.length === 0) {\n  throw new Error('No LINE events');\n}\n\nconst event = events[0];\n\nif (event.type !== 'message' || (event.message.type !== 'audio' && event.message.type !== 'voice')) {\n  return [{ json: { skip: true, reason: 'Not voice/audio message: ' + (event.message?.type || 'unknown') } }];\n}\n\nreturn [{\n  json: {\n    messageId: event.message.id,\n    replyToken: event.replyToken,\n    userId: event.source?.userId\n  }\n}];"
+      },
+      "id": "parse-voice",
+      "name": "📝 Parse Voice Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0].json;\nif (item.skip) return [];\nreturn $input.all();"
+      },
+      "id": "filter-voice",
+      "name": "🔍 Filter Voice Only",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api-data.line.me/v2/bot/message/{{ $json.messageId }}/content",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-audio",
+      "name": "⬇️ Download LINE Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COMPILER_SERVICE_URL }}/api/v1/compiler/voice",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"audio_url\": \"={{ $env.LINE_AUDIO_BASE_URL }}/{{ $json.messageId }}/content\",\n  \"auto_dispatch\": true\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "call-compiler-voice",
+      "name": "🎙️ Voice → IntelSphere Compiler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const compilerRes = $input.all()[0].json;\nconst payload = compilerRes.compiled_payload || {};\nconst replyToken = $('📝 Parse Voice Event').first().json.replyToken;\n\nconst textSpoken = payload.text || 'รับทราบคำสั่งเรียบร้อยแล้วค่ะ';\nconst transcript = compilerRes.transcript || '(no transcript)';\nconst face = payload.face || 'HAPPY';\n\nconst reply = {\n  type: 'flex',\n  altText: '🎤 Zenbo heard: ' + transcript.substring(0, 60),\n  contents: {\n    type: 'bubble',\n    size: 'kilo',\n    header: {\n      type: 'box',\n      layout: 'vertical',\n      backgroundColor: '#7C3AED',\n      contents: [{\n        type: 'text',\n        text: '🎤 Voice → IntelSphere',\n        weight: 'bold',\n        color: '#FFFFFF',\n        size: 'md'\n      }]\n    },\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      spacing: 'md',\n      contents: [\n        { type: 'text', text: '🎧 ได้ยิน: \"' + transcript + '\"', size: 'xs', color: '#64748B', wrap: true },\n        { type: 'separator', margin: 'sm' },\n        { type: 'text', text: '🗣️ ' + textSpoken, size: 'sm', weight: 'bold', color: '#1E293B', wrap: true },\n        { type: 'text', text: '😊 ' + face + ' | ✅ Done', size: 'xs', color: '#10B981', margin: 'md' }\n      ]\n    }\n  }\n};\n\nreturn [{ json: { replyToken: replyToken, replyPayload: reply } }];"
+      },
+      "id": "build-reply-voice",
+      "name": "🎨 Build Voice Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"replyToken\": \"{{ $json.replyToken }}\",\n  \"messages\": [{{ JSON.stringify($json.replyPayload) }}]\n}",
+        "options": {}
+      },
+      "id": "reply-line-voice",
+      "name": "📤 Reply LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 300]
+    }
+  ],
+  "connections": {
+    "📥 LINE Voice Webhook": {
+      "main": [[{ "node": "📝 Parse Voice Event", "type": "main", "index": 0 }]]
+    },
+    "📝 Parse Voice Event": {
+      "main": [[{ "node": "🔍 Filter Voice Only", "type": "main", "index": 0 }]]
+    },
+    "🔍 Filter Voice Only": {
+      "main": [[{ "node": "⬇️ Download LINE Audio", "type": "main", "index": 0 }]]
+    },
+    "⬇️ Download LINE Audio": {
+      "main": [[{ "node": "🎙️ Voice → IntelSphere Compiler", "type": "main", "index": 0 }]]
+    },
+    "🎙️ Voice → IntelSphere Compiler": {
+      "main": [[{ "node": "🎨 Build Voice Reply", "type": "main", "index": 0 }]]
+    },
+    "🎨 Build Voice Reply": {
+      "main": [[{ "node": "📤 Reply LINE", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "line" }, { "name": "voice" }, { "name": "intelsphere" }]
+}

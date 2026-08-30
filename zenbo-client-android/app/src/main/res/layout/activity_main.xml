@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#0F172A"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🤖"
+        android:textSize="72sp"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Zenbo Client Bridge"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:gravity="center"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/text_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="กำลังเชื่อมต่อ..."
+        android:textSize="15sp"
+        android:textColor="#94A3B8"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/text_speech_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ข้อความที่ Zenbo พูด"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#F9A8D4"
+        android:gravity="center"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/text_speech"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="72dp"
+        android:text="รอข้อความจาก LIFF..."
+        android:textSize="20sp"
+        android:textColor="#FFFFFF"
+        android:gravity="center"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/text_client_ip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Client IP: checking…"
+        android:textSize="14sp"
+        android:textColor="#CBD5E1"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btn_connect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="เชื่อมต่อใหม่"
+        android:padding="16dp"
+        android:backgroundTint="#22C55E"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/text_broker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="12sp"
+        android:textColor="#64748B"
+        android:gravity="center" />
+</LinearLayout>

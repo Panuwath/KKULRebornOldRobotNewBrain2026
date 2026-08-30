@@ -1,0 +1,17 @@
+{
+  "name": "zenbo-hackathon",
+  "version": "1.0.0",
+  "description": "Zenbo Hackathon AI & Cloud Control Platform",
+  "scripts": {
+    "graphify": "graphify build",
+    "caveman": "caveman",
+    "test": "echo \"All services ready\""
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.6.1"
+  },
+  "devDependencies": {
+    "@caveman-ai/cli": "^1.3.1",
+    "@nodesify/graphify": "^0.4.0"
+  }
+}

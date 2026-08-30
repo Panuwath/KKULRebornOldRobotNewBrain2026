@@ -1,0 +1,8 @@
+node_modules
+_archive
+opencode.json
+.env-deploy
+.git
+*.md
+__pycache__
+*.pyc

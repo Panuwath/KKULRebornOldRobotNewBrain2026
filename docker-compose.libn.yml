@@ -1,0 +1,23 @@
+services:
+  zenbo-core-api:
+    # The host already supplies the shared broker, Thai TTS, and compiler.
+    # Do not start duplicate services or bind their ports on libn.
+    depends_on: []
+    environment:
+      MQTT_HOST: ${MQTT_HOST:-mosquitto-server}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-zenbo_liff_core_gateway}
+      TTS_SERVICE_URL: ${TTS_SERVICE_URL:-http://host.docker.internal:8025}
+      TTS_BINARY_PATH: ${TTS_BINARY_PATH:-/api/tts/binary}
+      COMPILER_SERVICE_URL: ${COMPILER_SERVICE_URL:-http://host.docker.internal:8030}
+      COMPILER_API_MODE: ${COMPILER_API_MODE:-shared_v1}
+      SERVER_PUBLIC_HOST: ${SERVER_PUBLIC_HOST:-https://libn.kku.ac.th}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+networks:
+  # Reuse the broker's existing network: this host has exhausted its Docker
+  # subnet pool, so creating a separate bridge would fail.
+  zenbo-network:
+    external: true
+    name: lib_default

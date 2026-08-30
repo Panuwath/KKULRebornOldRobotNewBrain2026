@@ -1,0 +1,96 @@
+services:
+  # 1. MQTT Message Broker (Eclipse Mosquitto)
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: zenbo-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PORT:-1883}:1883"   # MQTT TCP Protocol
+      - "${MQTT_WS_PORT:-9001}:9001"   # MQTT WebSocket
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - zenbo-network
+
+  # 2. Neural Voice TTS Service
+  zenbo-tts-service:
+    build:
+      context: ./services/tts-service
+      dockerfile: Dockerfile
+    container_name: zenbo-tts-service
+    restart: unless-stopped
+    ports:
+      - "${TTS_PORT:-8000}:8000"
+    volumes:
+      - ./shared_audio:/app/audio_cache
+    environment:
+      - AUDIO_CACHE_DIR=/app/audio_cache
+    networks:
+      - zenbo-network
+
+  # 3. Core API Gateway & LIFF Web Server
+  zenbo-core-api:
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+    container_name: zenbo-core-api
+    restart: unless-stopped
+    ports:
+      - "${CORE_API_PORT:-5005}:5005"
+    volumes:
+      - ./services/liff-app:/app/liff-app
+      - ./data:/app/data
+    depends_on:
+      - mqtt-broker
+      - zenbo-tts-service
+    environment:
+      - MQTT_HOST=${MQTT_HOST:-mqtt-broker}
+      - MQTT_PORT=1883
+      - TTS_SERVICE_URL=http://zenbo-tts-service:8000
+      - COMPILER_SERVICE_URL=http://zenbo-compiler-service:5006
+      - SERVER_PUBLIC_HOST=${SERVER_PUBLIC_HOST:-https://purgatively-significative-ida.ngrok-free.dev}
+      - LIFF_DIR=/app/liff-app
+      - COMMAND_HISTORY_DB=/app/data/command_history.sqlite3
+    networks:
+      - zenbo-network
+
+  # 4. Natural Language & Voice Compiler Service
+  zenbo-compiler-service:
+    build:
+      context: ./services/compiler-service
+      dockerfile: Dockerfile
+    container_name: zenbo-compiler-service
+    restart: unless-stopped
+    ports:
+      - "${COMPILER_PORT:-5006}:5006"
+    depends_on:
+      - zenbo-core-api
+    environment:
+      - CORE_API_URL=http://zenbo-core-api:5005
+      - KKU_INTELSPHERE_API_URL=https://gen.ai.kku.ac.th/api/v1/chat/completions
+      - KKU_API_KEY=${kku_intellisphere_api:-${KKU_API_KEY:-}}
+      - KKU_INTELSPHERE_MODEL=${KKU_INTELSPHERE_MODEL:-gpt-5.6-luna}
+    networks:
+      - zenbo-network
+
+  # 5. Model Context Protocol (MCP) Server
+  zenbo-mcp-server:
+    build:
+      context: ./services/mcp-server
+      dockerfile: Dockerfile
+    container_name: zenbo-mcp-server
+    restart: unless-stopped
+    ports:
+      - "${MCP_PORT:-8088}:8088"
+    depends_on:
+      - zenbo-core-api
+    environment:
+      - CORE_API_URL=http://zenbo-core-api:5005
+    networks:
+      - zenbo-network
+
+networks:
+  zenbo-network:
+    driver: bridge

@@ -1,0 +1,85 @@
+{
+  "name": "🧪 Zenbo Dev — REST API Test Compiler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo-test",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-test",
+      "name": "📥 Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "zenbo-test"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body || {};\nconst command = body.command || 'เซนโบ แนะนำตัวหน่อย';\n\nreturn [{\n  json: {\n    command: command,\n    auto_dispatch: body.auto_dispatch !== false\n  }\n}];"
+      },
+      "id": "parse-test",
+      "name": "📝 Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COMPILER_SERVICE_URL }}/api/v1/compiler/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"command\": \"={{ $json.command }}\",\n  \"auto_dispatch\": {{ $json.auto_dispatch }}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-compiler",
+      "name": "🧠 IntelSphere Compiler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.all()[0].json;\nconst payload = res.compiled_payload || {};\n\nconst report = {\n  input: res.original_command || '(none)',\n  status: res.status || 'unknown',\n  output: {\n    text: payload.text || '',\n    voice: payload.voice || 'female_sweet',\n    face: payload.face || 'HAPPY',\n    motion: payload.motion || null,\n    head: payload.head || null,\n    action: payload.action || null,\n    lights: payload.wheel_lights || null,\n    emergency: payload.emergency || false\n  },\n  dispatch: res.dispatch_result || null,\n  raw: JSON.stringify(payload)\n};\n\nreturn [{ json: report }];"
+      },
+      "id": "format-result",
+      "name": "📊 Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "📤 Respond JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    }
+  ],
+  "connections": {
+    "📥 Test Webhook": {
+      "main": [[{ "node": "📝 Parse Command", "type": "main", "index": 0 }]]
+    },
+    "📝 Parse Command": {
+      "main": [[{ "node": "🧠 IntelSphere Compiler", "type": "main", "index": 0 }]]
+    },
+    "🧠 IntelSphere Compiler": {
+      "main": [[{ "node": "📊 Format Result", "type": "main", "index": 0 }]]
+    },
+    "📊 Format Result": {
+      "main": [[{ "node": "📤 Respond JSON", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "dev" }, { "name": "test" }]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "kku-intelsphere": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "KKU IntelSphere",
+      "options": {
+        "baseURL": "https://gen.ai.kku.ac.th/api/v1",
+        "apiKey": "{env:KKU_API_KEY}"
+      },
+      "models": {
+        "claude-sonnet-5": { "name": "Claude Sonnet 5" },
+        "deepseek-v4-pro": { "name": "Deepseek V4 Pro" },
+        "deepseek-v4-flash": { "name": "Deepseek V4 Flash" },
+        "gemini-3.7-flash": { "name": "Gemini 3.7 Flash" },
+        "gemini-3.5-flash-lite": { "name": "Gemini 3.5 Flash Lite" },
+        "llama-4-maverick": { "name": "Meta AI Llama 4 Maverick" },
+        "llama-4-scout": { "name": "Meta AI Llama 4 Scout" },
+        "minimax-m3": { "name": "MiniMax M3" },
+        "mistral-small-2603": { "name": "Mistral Small" },
+        "mistral-large-2512": { "name": "Mistral Large" },
+        "mistral-medium-3": { "name": "Mistral Medium" },
+        "kimi-k3": { "name": "MoonshotAI Kimi K3" },
+        "nova-2-lite-v1": { "name": "Nova (AWS) 2 Lite" },
+        "nova-pro-v1": { "name": "Nova (AWS) Pro" },
+        "gpt-5.6-luna": { "name": "OpenAI GPT 5.6 Luna" },
+        "gpt-5.6-terra": { "name": "OpenAI GPT 5.6 Terra" },
+        "qwen3.7-plus": { "name": "Qwen 3.7 Plus" },
+        "qwen3.7-max": { "name": "Qwen 3.7 Max" },
+        "qwen3.6-flash": { "name": "Qwen 3.6 Flash" },
+        "grok-4.5": { "name": "xAI Grok 4.5" }
+      }
+    }
+  }
+}

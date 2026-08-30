@@ -1,0 +1,99 @@
+{
+  "name": "🔊 Zenbo TTS Gateway (unified via core-api)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo-tts",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-tts",
+      "name": "📥 TTS Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 200],
+      "webhookId": "zenbo-tts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body ?? $json;\nreturn [{ json: {\n  text: b.text || 'Bookyพร้อมครับ',\n  voice_profile: b.voice_profile || 'male_child',\n  face: b.face || 'HAPPY',\n  robot_slug: b.robot_slug || null,\n  replyToken: b.replyToken || null\n} }];"
+      },
+      "id": "parse-tts",
+      "name": "📝 Parse TTS Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0].json;\nif (item.robot_slug) return [{ json: item }];\nreturn [{ json: { needRobot: true, item } }];"
+      },
+      "id": "check-robot",
+      "name": "🎯 Check Robot Slug",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/robots",
+        "options": { "timeout": 10000 }
+      },
+      "id": "get-robots",
+      "name": "🗂 Query Online Robots",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('🎯 Check Robot Slug').first().json;\nconst robots = ($input.all()[0].json.robots || []);\nconst robot_slug = prev.item.robot_slug || (robots.length ? robots[0].robot_slug : null);\nif (!robot_slug) throw new Error('No online Zenbo robot for TTS');\nreturn [{ json: { ...prev.item, robot_slug } }];"
+      },
+      "id": "resolve-robot",
+      "name": "🎯 Resolve Robot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/robot/interact",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.text }}\",\n  \"voice_profile\": \"{{ $json.voice_profile }}\",\n  \"face\": \"{{ $json.face }}\",\n  \"robot_slug\": \"{{ $json.robot_slug }}\",\n  \"source\": \"n8n_tts\"\n}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "dispatch-tts",
+      "name": "🤖 Dispatch TTS (interact)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, robot_slug: $('🎯 Resolve Robot').first().json.robot_slug, text: $('📝 Parse TTS Request').first().json.text, voice_profile: $('📝 Parse TTS Request').first().json.voice_profile } }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "📤 Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1320, 200]
+    }
+  ],
+  "connections": {
+    "📥 TTS Webhook": { "main": [[{ "node": "📝 Parse TTS Request", "type": "main", "index": 0 }]] },
+    "📝 Parse TTS Request": { "main": [[{ "node": "🎯 Check Robot Slug", "type": "main", "index": 0 }]] },
+    "🎯 Check Robot Slug": { "main": [[{ "node": "🗂 Query Online Robots", "type": "main", "index": 0 }]] },
+    "🗂 Query Online Robots": { "main": [[{ "node": "🎯 Resolve Robot", "type": "main", "index": 0 }]] },
+    "🎯 Resolve Robot": { "main": [[{ "node": "🤖 Dispatch TTS (interact)", "type": "main", "index": 0 }]] },
+    "🤖 Dispatch TTS (interact)": { "main": [[{ "node": "📤 Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "callerPolicy": "workflowsFromSameOwner" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "tts" }, { "name": "orchestrator" }]
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Zenbo Command History</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/liff/liff-config.js"></script>
+  <script src="/liff/liff.js"></script>
+  <style>
+    html { background: #020617; }
+    body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 font-sans text-white">
+  <header class="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur">
+    <div class="mx-auto flex max-w-2xl items-center justify-between gap-3">
+      <a href="/liff/" class="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-bold text-slate-100 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"><i class="fa-solid fa-chevron-left mr-2 text-slate-400" aria-hidden="true"></i>หน้าหลัก</a>
+      <a href="/liff/command/" class="inline-flex min-h-11 items-center rounded-lg bg-violet-700 px-3 text-xs font-bold text-white hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-300"><i class="fa-solid fa-wand-magic-sparkles mr-1.5" aria-hidden="true"></i>สั่งด้วยคำพูด</a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-2xl p-4 pb-10">
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl" aria-labelledby="history-title">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 id="history-title" class="text-lg font-bold"><i class="fa-solid fa-clock-rotate-left mr-2 text-emerald-400" aria-hidden="true"></i>ประวัติคำสั่ง Zenbo</h1>
+          <p class="mt-1 text-xs leading-relaxed text-slate-400">แสดงเวลาที่ Gateway รับคำสั่งและส่ง MQTT แล้ว ไม่ใช่หลักฐานว่าหุ่นยนต์ทำงานเสร็จ</p>
+        </div>
+        <button id="refresh" type="button" class="min-h-11 rounded-xl bg-slate-700 px-3 text-xs font-bold hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-300"><i class="fa-solid fa-rotate mr-1.5" aria-hidden="true"></i>รีเฟรช</button>
+      </div>
+      <label for="robot-filter" class="mt-4 block text-xs font-semibold text-slate-300">กรอง Zenbo</label>
+      <select id="robot-filter" class="mt-2 min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-white focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+        <option value="">ทุก Zenbo</option>
+      </select>
+      <p id="history-status" class="mt-3 min-h-5 text-xs text-slate-400" role="status" aria-live="polite">กำลังโหลดประวัติ...</p>
+    </section>
+
+    <section class="mt-4" aria-label="รายการประวัติคำสั่ง">
+      <ol id="history-list" class="space-y-3"></ol>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE = `${window.location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
+    window.ZenboLiff.init();
+    const historyList = document.getElementById('history-list');
+    const historyStatus = document.getElementById('history-status');
+    const robotFilter = document.getElementById('robot-filter');
+
+    function summarize(payload) {
+      if (payload.emergency) return 'หยุดฉุกเฉิน';
+      if (payload.text) return `พูด: ${payload.text}`;
+      if (payload.remote_control) return `จอย: ${payload.remote_control.body || payload.remote_control.head || 'STOP'}`;
+      if (payload.wheel_lights) return `ไฟล้อ: ${payload.wheel_lights.mode || 'breathing'} ${payload.wheel_lights.color || ''}`;
+      if (payload.youtube) return 'เปิด YouTube และเต้น';
+      if (payload.action) return payload.action.stop ? 'หยุด action' : `ท่าทาง: ${payload.action.action_id}`;
+      if (payload.motion) return 'เคลื่อนที่';
+      if (payload.head || payload.head_sequence) return 'ขยับศีรษะ';
+      if (payload.face) return `สีหน้า: ${payload.face}`;
+      if (payload.behavior) return `พฤติกรรม: ${payload.behavior.action}`;
+      if (payload.vision) return `Vision: ${payload.vision.action}`;
+      return 'คำสั่ง Zenbo';
+    }
+
+    function render(items) {
+      if (!items.length) {
+        historyList.innerHTML = '<li class="rounded-2xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-400">ยังไม่มีคำสั่งที่บันทึกไว้</li>';
+        return;
+      }
+      historyList.innerHTML = '';
+      items.forEach(item => {
+        const row = document.createElement('li');
+        row.className = 'rounded-2xl border border-slate-800 bg-slate-900 p-4';
+        const time = new Date(item.created_at_ms).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'medium' });
+        const latency = item.accepted_latency_ms == null ? '—' : `${item.accepted_latency_ms} ms`;
+        row.innerHTML = `<div class="flex flex-wrap items-start justify-between gap-2"><div><p class="text-sm font-bold text-slate-100"></p><p class="mt-1 text-[11px] text-slate-400"></p></div><span class="rounded-full border px-2 py-1 text-[10px] font-bold"></span></div><dl class="mt-3 grid grid-cols-2 gap-2 border-t border-slate-800 pt-3 text-[11px]"><div><dt class="text-slate-500">Zenbo</dt><dd class="mt-0.5 break-all text-slate-200"></dd></div><div><dt class="text-slate-500">Gateway รับคำสั่ง</dt><dd class="mt-0.5 text-slate-200"></dd></div><div><dt class="text-slate-500">Surface</dt><dd class="mt-0.5 text-slate-200"></dd></div><div><dt class="text-slate-500">เวลา API</dt><dd class="mt-0.5 text-slate-200"></dd></div></dl>`;
+        const values = row.querySelectorAll('p, span, dd');
+        values[0].textContent = summarize(item.payload || {});
+        values[1].textContent = time;
+        values[2].textContent = item.status === 'MQTT_PUBLISHED' ? 'ส่ง MQTT แล้ว' : 'สั่งหยุดแล้ว';
+        values[2].className = `rounded-full border px-2 py-1 text-[10px] font-bold ${item.status === 'MQTT_PUBLISHED' ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : 'border-red-500/40 bg-red-950/30 text-red-200'}`;
+        values[3].textContent = item.robot_slug || 'ทุกเครื่อง';
+        values[4].textContent = time;
+        values[5].textContent = item.source || 'liff';
+        values[6].textContent = latency;
+        historyList.appendChild(row);
+      });
+    }
+
+    async function loadRobots() {
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/robots`);
+        const data = await response.json();
+        (data.robots || []).forEach(robot => {
+          const option = document.createElement('option'); option.value = robot.robot_slug; option.textContent = `${robot.robot_slug} · ${robot.client_ip || 'unknown IP'}`; robotFilter.appendChild(option);
+        });
+      } catch (_) { /* History remains usable without robot discovery. */ }
+    }
+    async function loadHistory() {
+      historyStatus.textContent = 'กำลังโหลดประวัติ...';
+      try {
+        const query = robotFilter.value ? `?robot_slug=${encodeURIComponent(robotFilter.value)}` : '';
+        const response = await fetch(`${API_BASE}/api/v1/command-history${query}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+        render(data.items || []);
+        historyStatus.textContent = `พบ ${(data.items || []).length} รายการล่าสุด`;
+      } catch (error) {
+        historyList.innerHTML = '';
+        historyStatus.textContent = `โหลดประวัติไม่สำเร็จ: ${error.message}`;
+        historyStatus.className = 'mt-3 min-h-5 text-xs text-red-300';
+      }
+    }
+    document.getElementById('refresh').addEventListener('click', loadHistory);
+    robotFilter.addEventListener('change', loadHistory);
+    loadRobots();
+    loadHistory();
+  </script>
+</body>
+</html>

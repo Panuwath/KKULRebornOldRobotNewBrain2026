@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-100 text-slate-900 antialiased">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KKUL Smart Navigator - สำนักหอสมุด มหาวิทยาลัยขอนแก่น</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              glow: '#059669'
+            }
+          },
+          fontFamily: {
+            sans: ['Sarabun', 'Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="h-full flex flex-col overflow-hidden select-none bg-slate-100 text-slate-900 text-[15px]">
+
+  <!-- MAIN APP CONTAINER (no top header — full-height map & sidebar) -->
+  <!-- md:flex-row so tablets / Zenbo (1280x800) get the two-pane layout -->
+  <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+    <!-- LEFT SIDEBAR: Route Control & Step Timeline (LIGHT THEME) -->
+    <!-- Width tuned for the 1280x800 (16:10) Zenbo kiosk screen -->
+    <aside class="w-full md:w-80 xl:w-80 bg-white border-r border-slate-300 flex flex-col z-20 shadow-md shrink-0 h-[45vh] md:h-full transition-all">
+
+      <!-- Route Selector Card -->
+      <div class="p-4 border-b border-slate-200 space-y-3 bg-white">
+        
+        <!-- Quick Search Row -->
+        <div class="flex items-center gap-2">
+          <button id="btnOpenSearchHeader" class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-800 hover:text-slate-950 text-xs font-bold flex items-center gap-2 transition-all shadow-xs">
+            <i data-lucide="search" class="w-4 h-4 text-emerald-600"></i>
+            <span>ค้นหาห้อง / จุดบริการ...</span>
+            <kbd class="ml-auto px-1.5 py-0.5 rounded bg-white border border-slate-300 text-[10px] text-slate-600 font-mono font-bold shadow-xs">Ctrl+K</kbd>
+          </button>
+        </div>
+
+        <!-- Start & Destination Selection Box -->
+        <div class="relative bg-slate-50 rounded-2xl p-3.5 border border-slate-300 space-y-2.5 shadow-inner">
+          <!-- Start Point -->
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-emerald-100 border-2 border-emerald-600 flex items-center justify-center shrink-0">
+              <span class="w-3 h-3 rounded-full bg-emerald-600 animate-pulse"></span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <label class="text-xs text-slate-600 font-bold uppercase tracking-wider block">จุดเริ่มต้น (Start Point)</label>
+              <button id="btnSelectStart" class="w-full text-left text-sm font-bold text-slate-900 truncate hover:text-emerald-700 py-1 transition-colors flex items-center justify-between group">
+                <span id="startNameDisplay" class="truncate">ประตูทางเข้าหลัก Main Entrance (ชั้น 2)</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-hover:text-emerald-600 shrink-0 ml-1"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Swap Button -->
+          <div class="relative flex items-center justify-center py-0.5">
+            <div class="w-full border-t border-dashed border-slate-300"></div>
+            <button id="btnSwapRoute" title="สลับจุดเริ่มต้นและปลายทาง" class="absolute w-8 h-8 rounded-full bg-white hover:bg-slate-100 border border-slate-300 hover:border-emerald-600 flex items-center justify-center text-slate-700 hover:text-emerald-700 transition-all shadow-sm">
+              <i data-lucide="arrow-up-down" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Destination Point -->
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-rose-100 border-2 border-rose-600 flex items-center justify-center shrink-0">
+              <i data-lucide="map-pin" class="w-4 h-4 text-rose-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <label class="text-xs text-slate-600 font-bold uppercase tracking-wider block">จุดหมายปลายทาง (Destination)</label>
+              <button id="btnSelectDestination" class="w-full text-left text-sm font-bold text-slate-900 truncate hover:text-rose-700 py-1 transition-colors flex items-center justify-between group">
+                <span id="destNameDisplay" class="truncate">3206 เคาน์เตอร์บริการยืม-คืน (ชั้น 2)</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-hover:text-rose-600 shrink-0 ml-1"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Row -->
+        <div class="flex items-center gap-2">
+          <button id="btnFindRoute" class="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all">
+            <i data-lucide="navigation-2" class="w-4 h-4"></i>
+            <span>ค้นหาเส้นทางนำทาง</span>
+          </button>
+          <button id="btnClearRoute" title="ล้างเส้นทาง" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 transition-colors">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Route Summary & Metrics Bar -->
+      <div id="routeSummaryBar" class="px-4 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1.5 text-slate-800">
+            <i data-lucide="footprints" class="w-4 h-4 text-emerald-700"></i>
+            <span id="summaryDistance" class="font-bold text-emerald-800 text-sm">-- m</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-slate-800">
+            <i data-lucide="clock" class="w-4 h-4 text-teal-700"></i>
+            <span id="summaryTime" class="font-bold text-slate-900 text-sm">~-- นาที</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 text-slate-600">
+          <i data-lucide="layers" class="w-4 h-4 text-slate-500"></i>
+          <span id="summarySteps" class="font-bold text-slate-800 text-xs">0 ขั้นตอน</span>
+        </div>
+      </div>
+
+      <!-- Step-by-Step Timeline List -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3" id="timelineContainer">
+        <div class="text-center py-10 text-slate-500 space-y-2">
+          <i data-lucide="map" class="w-10 h-10 mx-auto text-slate-400"></i>
+          <p class="text-sm font-semibold">เลือกจุดเริ่มต้นและปลายทางเพื่อดูขั้นตอนนำทาง</p>
+        </div>
+      </div>
+
+      <!-- Bottom-Left Menu: API Docs -->
+      <div class="p-3 border-t border-slate-200 bg-white shrink-0">
+        <a href="docs.html" target="_blank" class="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 hover:text-indigo-700 text-xs font-bold transition-all shadow-xs">
+          <i data-lucide="code-2" class="w-4 h-4 text-indigo-600"></i>
+          <span>API Docs</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5 text-slate-400 ml-auto"></i>
+        </a>
+      </div>
+    </aside>
+
+    <!-- RIGHT / CENTER: FIXED MAP VIEWPORT (LIGHT THEME) -->
+    <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-100">
+
+      <!-- FLOORS BAR (FLOORS 1 TO 6) -->
+      <div class="absolute top-3 left-4 right-4 md:right-auto z-20 flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border border-slate-300 shadow-md overflow-x-auto">
+        <span class="text-xs font-bold text-slate-700 px-2.5 hidden sm:inline flex items-center gap-1">
+          <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
+          <span>เลือกชั้น:</span>
+        </span>
+        <div class="flex items-center gap-1" id="floorButtonGroup">
+          <button data-floor="1" class="floor-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all">ชั้น 1</button>
+          <button data-floor="2" class="floor-btn px-3.5 py-1.5 rounded-xl text-xs font-bold active-floor transition-all">ชั้น 2 <span class="text-xs text-emerald-100 font-normal">(ทางเข้า)</span></button>
+          <button data-floor="3" class="floor-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all">ชั้น 3</button>
+          <button data-floor="4" class="floor-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all">ชั้น 4</button>
+          <button data-floor="5" class="floor-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all">ชั้น 5</button>
+          <button data-floor="6" class="floor-btn px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all">ชั้น 6</button>
+        </div>
+      </div>
+
+      <!-- Current Floor Badge Info -->
+      <div class="absolute top-3 right-4 z-20 hidden sm:flex items-center gap-2">
+        <div class="px-4 py-1.5 rounded-xl bg-white border border-slate-300 shadow-sm text-xs font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span id="currentFloorTitle">ชั้น 2 - โถงต้อนรับและทางเข้าหลัก</span>
+        </div>
+      </div>
+
+      <!-- FIXED RESPONSIVE MAP CONTAINER (FIT 100% NO ZOOM) -->
+      <!-- Tuned padding for the 1280x800 Zenbo kiosk screen -->
+      <div class="flex-1 w-full h-full flex items-center justify-center p-2 pt-12 sm:pt-12 pb-2 overflow-hidden bg-slate-100">
+        
+        <!-- Fixed Ratio Wrapper (1685 x 1191 Aspect Ratio) -->
+        <div class="relative w-full h-full flex items-center justify-center max-w-full max-h-full">
+          <!-- width:min(...) caps the map so its height never exceeds the visible map area.
+               padding-bottom preserves the 1685:1191 ratio WITHOUT aspect-ratio (Chrome 87+),
+               so it also works on the Zenbo's Chrome 86. -->
+          <div class="relative max-w-full max-h-full rounded-2xl overflow-hidden shadow-xl border border-slate-300 bg-white" style="width:min(100%, calc((100vh - 3.5rem) * 1.41478));">
+            <div class="relative w-full" style="padding-bottom:70.683%;">
+
+            <!-- Floor Base Clean Original Map from /data/map/ -->
+            <img id="mapFloorImage" src="data/map/page_4.png" alt="KKUL Clean Floor Map" class="absolute top-0 left-0 w-full h-full object-contain pointer-events-none select-none">
+
+            <!-- SVG Interactive Navigation & Overlay Layer (Fixed 1685x1191 Coordinate Space) -->
+            <svg id="mapSvgOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-auto" viewBox="0 0 1685 1191" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <filter id="glow-route" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="8" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+
+                <filter id="glow-marker" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <g id="svgCorridorsLayer"></g>
+              <path id="svgRouteGlow" d="" fill="none" stroke="#059669" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+              <path id="svgRouteFlow" d="" fill="none" stroke="#059669" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="14 8"></path>
+              <g id="svgCheckpointsLayer"></g>
+              <g id="svgStairJumpsLayer"></g>
+              <g id="svgPinsLayer"></g>
+            </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Floor Jump Transition Banner -->
+        <div id="stairJumpBanner" class="hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white px-5 py-3 rounded-2xl shadow-xl border border-emerald-300/40 flex items-center gap-3.5 animate-bounce-short">
+          <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg">
+            🪜
+          </div>
+          <div>
+            <div class="font-bold text-sm flex items-center gap-1.5">
+              <span>เส้นทางมีการเปลี่ยนชั้น!</span>
+              <span id="stairJumpFloorBadge" class="px-2.5 py-0.5 rounded-full bg-black/30 text-xs font-mono text-emerald-100">ชั้น 2 → ชั้น 4</span>
+            </div>
+            <p id="stairJumpText" class="text-xs text-emerald-100">กดปุ่มเพื่อสลับมุมมองไปยังชั้นเป้าหมายทันที</p>
+          </div>
+          <button id="btnExecuteFloorJump" class="ml-2 px-3.5 py-2 rounded-xl bg-white text-slate-900 font-bold text-xs hover:bg-emerald-50 transition-colors shadow-sm">
+            สลับชั้นทันที ➔
+          </button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- SMART SEARCH & ROOM PICKER MODAL (SARABUN TYPOGRAPHY) -->
+  <div id="searchModal" class="hidden fixed top-0 left-0 right-0 bottom-0 z-50 flex items-start justify-center pt-6 sm:pt-10 px-4 bg-slate-900/60 backdrop-blur-xs transition-opacity">
+    <div class="w-full max-w-2xl bg-white rounded-3xl border border-slate-300 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="p-4 bg-white border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-slate-800">เลือกตำแหน่งสำหรับ:</span>
+          <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-300 text-xs font-bold">
+            <button id="targetModeStart" class="px-3.5 py-1.5 rounded-lg text-slate-700 hover:text-slate-950 font-bold transition-all">🟢 จุดเริ่มต้น</button>
+            <button id="targetModeDest" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold shadow-xs transition-all">🔴 จุดหมาย</button>
+          </div>
+        </div>
+        <button id="btnCloseSearchModal" class="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- STEP 1: FLOOR SELECTOR BAR -->
+      <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
+            <span>ขั้นตอนที่ 1: เลือกชั้น (Select Floor)</span>
+          </span>
+          <span id="selectedFloorIndicator" class="text-xs text-emerald-800 font-bold">แสดงทุกชั้น</span>
+        </div>
+        <div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-0.5" id="modalFloorSelector">
+          <button data-floor="all" class="modal-floor-tab active px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shrink-0 shadow-xs border border-emerald-600 transition-all">
+            🏢 ทุกชั้น
+          </button>
+          <button data-floor="1" class="modal-floor-tab px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shrink-0 border border-slate-300 transition-all">
+            ชั้น 1
+          </button>
+          <button data-floor="2" class="modal-floor-tab px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shrink-0 border border-slate-300 transition-all">
+            ชั้น 2 <span class="text-xs text-slate-500 font-normal">(ทางเข้า)</span>
+          </button>
+          <button data-floor="3" class="modal-floor-tab px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shrink-0 border border-slate-300 transition-all">
+            ชั้น 3
+          </button>
+          <button data-floor="4" class="modal-floor-tab px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shrink-0 border border-slate-300 transition-all">
+            ชั้น 4
+          </button>
+          <button data-floor="5" class="modal-floor-tab px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shrink-0 border border-slate-300 transition-all">
+            ชั้น 5
+          </button>
+          <button data-floor="6" class="modal-floor-tab px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shrink-0 border border-slate-300 transition-all">
+            ชั้น 6
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: SEARCH INPUT -->
+      <div class="px-5 py-3.5 bg-white border-b border-slate-200 flex items-center gap-3">
+        <i data-lucide="search" class="w-5 h-5 text-emerald-600 shrink-0"></i>
+        <input id="modalSearchInput" type="text" placeholder="ขั้นตอนที่ 2: พิมพ์ชื่อห้อง หรือรหัสห้อง (เช่น 1102, ดอกคูน, บายศรี, ห้องน้ำ)..." class="flex-1 bg-transparent border-none text-slate-900 text-sm focus:outline-none placeholder:text-slate-400 font-medium">
+        <button id="btnClearSearchInput" class="hidden p-1 rounded-md text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto custom-scrollbar text-xs">
+        <button data-cat="all" class="chip-filter active px-3.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 font-bold shrink-0 border border-emerald-300">ทั้งหมด</button>
+        <button data-cat="restroom" class="chip-filter px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold shrink-0 border border-slate-300">🚻 ห้องน้ำ</button>
+        <button data-cat="meeting" class="chip-filter px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold shrink-0 border border-slate-300">👥 ห้องประชุม</button>
+        <button data-cat="learning" class="chip-filter px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold shrink-0 border border-slate-300">📚 มุมอ่านหนังสือ</button>
+        <button data-cat="stairs" class="chip-filter px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold shrink-0 border border-slate-300">🪜 บันได / ลิฟต์</button>
+        <button data-cat="service" class="chip-filter px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold shrink-0 border border-slate-300">ℹ️ จุดบริการ</button>
+      </div>
+
+      <!-- Results List -->
+      <div id="searchResultsList" class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-2.5 min-h-[300px] bg-slate-50"></div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-600 font-medium">
+        <span id="searchResultCountText" class="font-bold text-slate-800">แสดงรายการทั้งหมด</span>
+        <span>กด <kbd class="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-xs text-slate-700 font-mono font-bold">Esc</kbd> เพื่อปิด</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="map.js"></script>
+  <script src="search.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

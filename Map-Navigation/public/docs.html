@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-100 text-slate-900">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KKUL Navigation REST API Documentation & Zenbo Robot Integration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * { font-family: 'Sarabun', sans-serif; }
+    code, pre { font-family: 'Fira Code', monospace !important; }
+  </style>
+</head>
+<body class="h-full overflow-y-auto bg-slate-100 text-slate-900 text-[15px]">
+
+  <!-- Header (Sarabun Typography) -->
+  <header class="border-b border-slate-300 bg-white px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-xs">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-300 flex items-center justify-center">
+        <i data-lucide="code-2" class="w-5 h-5 text-indigo-700"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+          <span>KKUL Navigation REST API</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 border border-indigo-300 text-xs text-indigo-800 font-mono font-bold">Zenbo Robot Edition</span>
+        </h1>
+        <p class="text-xs text-slate-600 font-medium">API Documentation & Integration Guide สำหรับทีมหุ่นยนต์ Zenbo และระบบภายนอก</p>
+      </div>
+    </div>
+    <a href="index.html" class="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-800 flex items-center gap-2 transition-colors border border-slate-300 shadow-xs">
+      <i data-lucide="arrow-left" class="w-4 h-4 text-slate-700"></i>
+      <span>กลับสู่แผนที่หลัก</span>
+    </a>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-5xl mx-auto p-6 space-y-8 pb-20">
+
+    <!-- Zenbo Team Integration Highlight Box -->
+    <div class="p-6 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-emerald-50 border-2 border-indigo-300 space-y-4 shadow-md">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-indigo-100 border border-indigo-300 flex items-center justify-center text-2xl">
+          🤖
+        </div>
+        <div>
+          <h2 class="text-base font-bold text-indigo-950">คู่มือการเชื่อมต่อสำหรับทีมหุ่นยนต์ Asus Zenbo</h2>
+          <p class="text-xs sm:text-sm text-slate-700 font-medium">รับค่า <code class="text-emerald-700 font-mono font-bold">from</code> และ <code class="text-emerald-700 font-mono font-bold">to</code> เพื่อส่งคืน <b>Display URL บนจอ Zenbo</b> และ <b>Text คำพูดภาษาไทย (TTS Speech Text)</b></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="p-4 rounded-2xl bg-white border border-slate-300 space-y-2 shadow-xs">
+          <span class="font-bold text-emerald-800 flex items-center gap-1.5 text-sm">
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            <span>1. สิ่งที่ทีม Zenbo ส่งมา (Inputs):</span>
+          </span>
+          <ul class="list-disc list-inside text-slate-800 space-y-1 font-mono text-xs">
+            <li><code class="text-indigo-800 font-bold">from</code>: รหัสห้อง/ชื่อ (เช่น <code class="text-emerald-700">"1102"</code>, <code class="text-emerald-700">"r3200"</code>, <code class="text-emerald-700">"ทางเข้าหลัก"</code>)</li>
+            <li><code class="text-indigo-800 font-bold">to</code>: รหัสห้อง/ชื่อ (เช่น <code class="text-emerald-700">"1401"</code>, <code class="text-emerald-700">"ห้องน้ำ"</code>, <code class="text-emerald-700">"บายศรี"</code>)</li>
+          </ul>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white border border-slate-300 space-y-2 shadow-xs">
+          <span class="font-bold text-amber-800 flex items-center gap-1.5 text-sm">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            <span>2. สิ่งที่ระบบส่งคืนให้ทีม Zenbo (Outputs):</span>
+          </span>
+          <ul class="list-disc list-inside text-slate-800 space-y-1 font-mono text-xs">
+            <li><code class="text-amber-800 font-bold">zenbo_display_url</code>: URL เปิดจอหุ่นยนต์พร้อมเส้นทางทันที</li>
+            <li><code class="text-amber-800 font-bold">speech_text</code>: ข้อความเสียงพูดรวมสำหรับ Zenbo TTS</li>
+            <li><code class="text-amber-800 font-bold">step_speeches</code>: อาร์เรย์ข้อความเสียงพูดแยกทีละสเต็ป</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Endpoints List -->
+    <div class="space-y-6">
+
+      <!-- Endpoint: Zenbo Dedicated Navigation -->
+      <div class="p-5 rounded-2xl bg-white border border-slate-300 space-y-4 shadow-sm">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold font-mono text-xs border border-emerald-300">GET / POST</span>
+            <code class="text-sm font-bold text-slate-900">/api/zenbo/navigate</code>
+          </div>
+          <span class="text-xs px-3 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold">Zenbo Dedicated</span>
+        </div>
+        
+        <p class="text-xs sm:text-sm text-slate-700">
+          คำนวณเส้นทางและส่งคืนลิงก์หน้าจอ Zenbo (`zenbo_display_url`) และชุดข้อความภาษาไทยสำหรับสังเคราะห์เสียงพูด (`speech_text` & `step_speeches`)
+        </p>
+
+        <!-- Live Sandbox -->
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800">Live Test Sandbox:</span>
+            <button onclick="testZenboRoute()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs">
+              <i data-lucide="play" class="w-4 h-4"></i>
+              <span>ทดสอบยิง API (Execute)</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="text-xs text-slate-700 font-bold block mb-1">From (จุดเริ่มต้น - รหัสห้อง/ชื่อ):</label>
+              <input id="testZenboFrom" value="1102" class="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono text-slate-900 font-bold">
+            </div>
+            <div>
+              <label class="text-xs text-slate-700 font-bold block mb-1">To (จุดหมาย - รหัสห้อง/ชื่อ/ห้องน้ำ):</label>
+              <input id="testZenboTo" value="1401" class="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono text-slate-900 font-bold">
+            </div>
+          </div>
+          <pre id="resZenbo" class="hidden p-3 rounded-lg bg-slate-900 text-emerald-400 text-xs overflow-x-auto max-h-72 custom-scrollbar border border-slate-800"></pre>
+        </div>
+      </div>
+
+      <!-- Endpoint: Search Rooms -->
+      <div class="p-5 rounded-2xl bg-white border border-slate-300 space-y-4 shadow-sm">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 rounded-lg bg-sky-100 text-sky-900 font-bold font-mono text-xs border border-sky-300">GET</span>
+            <code class="text-sm font-bold text-slate-900">/api/rooms</code>
+          </div>
+          <span class="text-xs text-slate-600 font-medium">ค้นหารายชื่อห้องและสถานที่ทั้งหมด</span>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800">Live Test:</span>
+            <button onclick="testRooms()" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs">
+              <i data-lucide="play" class="w-4 h-4"></i>
+              <span>ดึงข้อมูลห้อง</span>
+            </button>
+          </div>
+          <input id="testQuery" placeholder="คำค้นหา เช่น 1102 หรือ ดอกคูน หรือ ห้องน้ำ" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-900">
+          <pre id="resRooms" class="hidden p-3 rounded-lg bg-slate-900 text-sky-300 text-xs overflow-x-auto max-h-60 custom-scrollbar border border-slate-800"></pre>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    async function testZenboRoute() {
+      const from = document.getElementById('testZenboFrom').value;
+      const to = document.getElementById('testZenboTo').value;
+      const resBox = document.getElementById('resZenbo');
+      resBox.classList.remove('hidden');
+      resBox.textContent = 'กำลังคำนวณเส้นทาง...';
+      try {
+        const res = await fetch(`api/zenbo/navigate?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+        const data = await res.json();
+        resBox.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        resBox.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    async function testRooms() {
+      const q = document.getElementById('testQuery').value;
+      const resBox = document.getElementById('resRooms');
+      resBox.classList.remove('hidden');
+      resBox.textContent = 'กำลังโหลด...';
+      try {
+        const res = await fetch(`api/rooms?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        resBox.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        resBox.textContent = 'Error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

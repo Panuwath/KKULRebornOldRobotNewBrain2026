@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Booky Command Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/liff/liff-config.js"></script>
+  <script src="/liff/liff.js"></script>
+  <style>
+    html { background: #020617; }
+    body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-white font-sans">
+  <header class="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur">
+    <div class="mx-auto flex max-w-2xl items-center justify-between gap-3">
+      <a href="/liff/" class="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-slate-100 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300"><i class="fa-solid fa-chevron-left text-slate-400"></i> Zenbo Control</a>
+      <div class="flex items-center gap-2">
+        <a href="https://lib.kku.ac.th/map/" target="_blank" rel="noopener noreferrer" aria-label="เปิดแผนที่หอสมุด" class="inline-flex min-h-11 items-center rounded-lg bg-cyan-700 px-3 text-xs font-bold text-white hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-300"><i class="fa-solid fa-map-location-dot mr-1.5" aria-hidden="true"></i><span class="hidden sm:inline">แผนที่</span></a>
+        <a href="/liff/history/" class="inline-flex min-h-11 items-center rounded-lg bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"><i class="fa-solid fa-clock-rotate-left mr-1.5" aria-hidden="true"></i>ประวัติ</a>
+        <a href="/liff/control/" class="inline-flex min-h-11 items-center rounded-lg bg-blue-700 px-3 text-xs font-bold text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"><i class="fa-solid fa-gamepad mr-1.5" aria-hidden="true"></i>จอยสติ๊ก</a>
+        <span class="hidden rounded-full border border-violet-500/40 bg-violet-950/50 px-2 py-1 text-[11px] text-violet-200 sm:inline">Command Studio</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-2xl space-y-4 p-4 pb-10">
+    <section class="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/80 to-slate-900 p-5 shadow-xl shadow-violet-950/20">
+      <div class="flex items-start gap-3">
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-xl">🤖</div>
+        <div>
+          <h1 class="text-lg font-bold">สั่ง Booky ด้วยภาษาธรรมชาติ</h1>
+          <p class="mt-1 text-xs leading-relaxed text-slate-300">พูดหรือพิมพ์คำสั่ง แล้วให้ KKU IntelSphere สกัดเป็น JSON ก่อนยืนยันส่ง</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <label for="robot-select" class="mb-2 block text-xs font-semibold text-slate-300">เลือก Zenbo</label>
+      <select id="robot-select" class="min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-white focus:border-violet-400 focus:outline-none">
+        <option value="">กำลังค้นหา Zenbo...</option>
+      </select>
+      <p id="robot-status" role="status" class="mt-2 text-[11px] text-slate-400">ต้องเลือก Zenbo ก่อนวิเคราะห์คำสั่ง</p>
+    </section>
+
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <label for="command-text" class="mb-2 block text-xs font-semibold text-slate-300">คำสั่ง</label>
+      <textarea id="command-text" rows="5" maxlength="1000" placeholder="เช่น ให้ Zenbo กล่าวต้อนรับ ส่ายหัว แล้วยิ้มแย้ม" class="w-full resize-none rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm leading-relaxed text-white focus:border-violet-400 focus:outline-none"></textarea>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button id="voice-button" type="button" onclick="toggleVoiceInput()" aria-pressed="false" class="min-h-12 rounded-xl border border-slate-600 bg-slate-800 text-sm font-bold text-slate-100 hover:bg-slate-700 active:scale-95"><i id="voice-icon" class="fa-solid fa-microphone mr-1"></i><span id="voice-label">พูดเป็นข้อความ</span></button>
+        <button id="analyse-button" type="button" onclick="analyseCommand()" class="min-h-12 rounded-xl bg-violet-600 text-sm font-bold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i><span id="analyse-label">วิเคราะห์คำสั่ง</span></button>
+      </div>
+      <p id="input-status" role="status" aria-live="polite" class="mt-2 min-h-4 text-[11px] text-slate-400">คำสั่งจะยังไม่ถูกส่งจนกด “ยืนยันส่งให้ Zenbo”</p>
+    </section>
+
+    <section id="preview-card" hidden class="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-bold text-emerald-200"><i class="fa-solid fa-code mr-1"></i> JSON ที่วิเคราะห์ได้</h2>
+        <span id="compiler-source" class="rounded-full bg-slate-900 px-2 py-1 text-[10px] text-slate-300"></span>
+      </div>
+      <p id="preview-summary" class="mt-2 text-xs leading-relaxed text-slate-200"></p>
+      <pre id="json-preview" class="mt-3 max-h-72 overflow-auto rounded-xl border border-slate-700 bg-slate-950 p-3 text-[11px] leading-relaxed text-emerald-200"></pre>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" onclick="clearPreview()" class="min-h-11 rounded-xl border border-slate-600 bg-slate-800 text-xs font-bold text-white hover:bg-slate-700">แก้คำสั่ง</button>
+        <button id="dispatch-button" type="button" onclick="dispatchPreview()" class="min-h-11 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"><i class="fa-solid fa-paper-plane mr-1"></i><span id="dispatch-label">ยืนยันส่งให้ Zenbo</span></button>
+      </div>
+      <p id="dispatch-status" role="status" aria-live="polite" class="mt-2 min-h-4 text-[11px] text-emerald-200"></p>
+    </section>
+
+    <section class="rounded-2xl border border-red-500/30 bg-red-950/20 p-4">
+      <div class="flex items-center justify-between gap-3">
+        <div><h2 class="text-sm font-bold text-red-200">หยุดทันที</h2><p class="mt-1 text-[11px] text-red-100/70">หยุดเสียง ท่าเต้น และการเคลื่อนไหวของ Zenbo ที่เลือก</p></div>
+        <button type="button" onclick="stopRobot()" class="min-h-12 min-w-24 rounded-xl bg-red-600 px-3 text-xs font-bold text-white hover:bg-red-500 active:scale-95"><i class="fa-solid fa-hand mr-1"></i>หยุด</button>
+      </div>
+    </section>
+
+    <details class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-xs text-slate-400">
+      <summary class="cursor-pointer font-semibold text-slate-300">ข้อจำกัดคำสั่ง YouTube</summary>
+      <p class="mt-2 leading-relaxed">รองรับเฉพาะลิงก์ HTTPS ของ YouTube/YouTube Short พร้อมวนท่าเต้นจนกดหยุด หรือครบเวลาที่ JSON ระบุไว้ ระบบปัจจุบันยังไม่มี YouTube Player callback จึงตรวจ “เพลงจบ” แบบแม่นยำไม่ได้</p>
+    </details>
+  </main>
+
+  <script>
+    const API_BASE = `${window.location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
+    let selectedRobot = '';
+    let compiledPayload = null;
+    let recognition = null;
+    let listening = false;
+    window.ZenboLiff.init();
+
+    const status = (id, message, isError = false) => {
+      const element = document.getElementById(id);
+      element.textContent = message;
+      element.className = `mt-2 min-h-4 text-[11px] ${isError ? 'text-red-300' : 'text-slate-400'}`;
+    };
+
+    async function loadRobots() {
+      const select = document.getElementById('robot-select');
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/robots`);
+        const data = await response.json();
+        const robots = data.robots || [];
+        select.innerHTML = '<option value="">เลือก Zenbo ที่ออนไลน์...</option>';
+        robots.forEach(robot => {
+          const option = document.createElement('option');
+          option.value = robot.robot_slug;
+          option.textContent = `${robot.robot_slug} · ${robot.client_ip || 'unknown IP'} · ${robot.version_name || 'client'}`;
+          select.appendChild(option);
+        });
+        status('robot-status', robots.length ? 'เลือก Zenbo ที่ต้องการสั่งงาน' : 'ยังไม่พบ Zenbo ออนไลน์', !robots.length);
+      } catch (error) {
+        status('robot-status', 'ติดต่อ Core API ไม่ได้', true);
+      }
+    }
+
+    document.getElementById('robot-select').addEventListener('change', event => {
+      selectedRobot = event.target.value;
+      clearPreview();
+      status('robot-status', selectedRobot ? `พร้อมวิเคราะห์สำหรับ ${selectedRobot}` : 'ต้องเลือก Zenbo ก่อนวิเคราะห์คำสั่ง', !selectedRobot);
+    });
+
+    function setListening(next) {
+      listening = next;
+      const button = document.getElementById('voice-button');
+      document.getElementById('voice-label').textContent = next ? 'หยุดฟัง' : 'พูดเป็นข้อความ';
+      document.getElementById('voice-icon').className = next ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1';
+      button.setAttribute('aria-pressed', String(next));
+      button.className = next ? 'min-h-12 rounded-xl border border-red-400 bg-red-600 text-sm font-bold text-white active:scale-95 animate-pulse' : 'min-h-12 rounded-xl border border-slate-600 bg-slate-800 text-sm font-bold text-slate-100 hover:bg-slate-700 active:scale-95';
+    }
+
+    function disableVoiceInput() {
+      listening = false;
+      recognition = null;
+      const button = document.getElementById('voice-button');
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
+      button.title = 'LINE บน iPhone ไม่รองรับการแปลงเสียงเป็นข้อความ';
+      document.getElementById('voice-label').textContent = 'พิมพ์คำสั่งแทน';
+      document.getElementById('voice-icon').className = 'fa-solid fa-keyboard mr-1';
+      button.className = 'min-h-12 rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-slate-400 opacity-70 cursor-not-allowed';
+      status('input-status', 'LINE บน iPhone ไม่รองรับ Voice-to-Text ในขณะนี้ — พิมพ์คำสั่งแล้วกดวิเคราะห์ได้เลย');
+    }
+
+    function toggleVoiceInput() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return disableVoiceInput();
+      if (listening && recognition) return recognition.stop();
+      recognition = new SpeechRecognition();
+      recognition.lang = 'th-TH';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      let finalText = '';
+      recognition.onstart = () => { setListening(true); status('input-status', 'กำลังฟัง... คำพูดจะแสดงในช่องคำสั่ง'); };
+      recognition.onresult = event => {
+        let interim = '';
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const text = event.results[index][0].transcript;
+          if (event.results[index].isFinal) finalText += text; else interim += text;
+        }
+        document.getElementById('command-text').value = `${finalText}${interim}`.trim();
+      };
+      recognition.onerror = event => {
+        if (event.error === 'service-not-allowed') return disableVoiceInput();
+        status('input-status', event.error === 'not-allowed' ? 'กรุณาอนุญาตไมโครโฟนในเบราว์เซอร์' : `รับเสียงไม่สำเร็จ: ${event.error}`, true);
+      };
+      recognition.onend = () => {
+        recognition = null;
+        if (!document.getElementById('voice-button').disabled) setListening(false);
+      };
+      recognition.start();
+    }
+
+    async function analyseCommand() {
+      const command = document.getElementById('command-text').value.trim();
+      if (!selectedRobot) return status('input-status', 'เลือก Zenbo ก่อนวิเคราะห์คำสั่ง', true);
+      if (!command) return status('input-status', 'พิมพ์หรือพูดคำสั่งก่อนวิเคราะห์', true);
+      const button = document.getElementById('analyse-button');
+      button.disabled = true;
+      document.getElementById('analyse-label').textContent = 'กำลังวิเคราะห์...';
+      status('input-status', 'กำลังส่งข้อความให้ Compiler วิเคราะห์ — ยังไม่ส่งหุ่นยนต์');
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/commands/compile`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({command, robot_slug: selectedRobot}) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+        compiledPayload = data.compiled_payload;
+        document.getElementById('json-preview').textContent = JSON.stringify(compiledPayload, null, 2);
+        document.getElementById('compiler-source').textContent = data.compiler_source === 'kku_intelsphere' ? 'KKU IntelSphere' : data.compiler_source === 'shared_v1' ? 'Shared Zenbo compiler' : 'Local fallback';
+        document.getElementById('preview-summary').textContent = compiledPayload.emergency ? 'ตรวจพบคำสั่งหยุด — ยืนยันเพื่อหยุด Zenbo ที่เลือก' : 'ตรวจ JSON แล้วกดยืนยันเมื่อพร้อมส่งไปยัง Zenbo';
+        document.getElementById('preview-card').hidden = false;
+        status('input-status', 'วิเคราะห์เสร็จแล้ว — ตรวจ JSON ก่อนยืนยันส่ง');
+      } catch (error) {
+        status('input-status', `วิเคราะห์ไม่สำเร็จ: ${error.message}`, true);
+      } finally {
+        button.disabled = false;
+        document.getElementById('analyse-label').textContent = 'วิเคราะห์คำสั่ง';
+      }
+    }
+
+    function clearPreview() {
+      compiledPayload = null;
+      document.getElementById('preview-card').hidden = true;
+      document.getElementById('dispatch-status').textContent = '';
+    }
+
+    async function dispatchPreview() {
+      if (!compiledPayload || !selectedRobot) return;
+      const button = document.getElementById('dispatch-button');
+      button.disabled = true;
+      document.getElementById('dispatch-label').textContent = 'กำลังส่ง...';
+      const result = document.getElementById('dispatch-status');
+      try {
+        let response;
+        if (compiledPayload.emergency) {
+          response = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, {method: 'POST'});
+        } else {
+          const payload = {...compiledPayload, robot_slug: selectedRobot, source: 'liff_command'};
+          Object.assign(payload, window.ZenboLiff.identity());
+          delete payload.emergency;
+          response = await fetch(`${API_BASE}/api/v1/robot/interact`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || data.detail || `HTTP ${response.status}`);
+        result.textContent = compiledPayload.emergency ? 'ส่งคำสั่งหยุดแล้ว' : 'ส่ง JSON ให้ Zenbo แล้ว';
+        result.className = 'mt-2 min-h-4 text-[11px] text-emerald-200';
+      } catch (error) {
+        result.textContent = `ส่งไม่สำเร็จ: ${error.message}`;
+        result.className = 'mt-2 min-h-4 text-[11px] text-red-300';
+      } finally {
+        button.disabled = false;
+        document.getElementById('dispatch-label').textContent = 'ยืนยันส่งให้ Zenbo';
+      }
+    }
+
+    async function stopRobot() {
+      if (!selectedRobot) return status('robot-status', 'เลือก Zenbo ก่อนกดหยุด', true);
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, {method: 'POST'});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+        status('robot-status', 'ส่งคำสั่งหยุดไปยัง Zenbo แล้ว');
+      } catch (error) {
+        status('robot-status', `สั่งหยุดไม่สำเร็จ: ${error.message}`, true);
+      }
+    }
+
+    loadRobots();
+  </script>
+</body>
+</html>

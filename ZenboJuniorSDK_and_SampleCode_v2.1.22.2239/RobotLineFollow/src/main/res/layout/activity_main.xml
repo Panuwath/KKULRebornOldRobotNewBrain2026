@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+
+    <ScrollView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context=".MainActivity">
+
+            <TextView
+                android:id="@+id/textview_step1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1. Manually setup line and Zenbo Junior:"
+                android:textColor="#FFFFFF" />
+
+            <ImageView
+                android:id="@+id/imageView_step1"
+                android:layout_width="650dp"
+                android:layout_height="200dp"
+                android:layout_below="@+id/textview_step1"
+                android:layout_centerHorizontal="true"
+                android:src="@drawable/line_follow_illu_s" />
+
+            <TextView
+                android:id="@+id/textview_step2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/imageView_step1"
+                android:text="2. Press to start line follower:"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/buttonStart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/textview_step2"
+                android:layout_centerHorizontal="true"
+                android:text="START" />
+
+            <TextView
+                android:id="@+id/textview_setbehavior"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/buttonStart"
+                android:text="3. Press to take a u-turn after starting line follower:"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/textview_setbehavior"
+                android:layout_centerHorizontal="true"
+                android:text="U_TURN" />
+
+            <TextView
+                android:id="@+id/textview_rule"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/button"
+                android:text="Rule: \n
+                1. Black: Speed L1 \n
+                2. Blue: Speed L3 \n
+                3. Pattern(Green-Blue-Green): U_TURN (pattern start with Yellow) \n
+                4. Button click: U_TURN \n
+                5. Red: Stop and then set face/TTS/playAction "
+                android:textColor="#FFFFFF" />
+
+
+        </RelativeLayout>
+    </ScrollView>
+</LinearLayout>

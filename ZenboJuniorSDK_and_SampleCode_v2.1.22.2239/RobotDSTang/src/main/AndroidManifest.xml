@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.asus.ds.tangpoetry">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/tangpoetry"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <meta-data
+            android:name="zenbo_ds_domainuuid"
+            android:value="346241F0B8984AD09CD921ED8E52B9FA" />
+        <meta-data
+            android:name="zenbo_ds_version_346241F0B8984AD09CD921ED8E52B9FA"
+            android:value="0.0.1" />
+        <meta-data android:name="zenbo_ds_package"
+            android:value="com.asus.ds.tangpoetry"/>
+
+        <meta-data android:name="zenbo_ds_auto_update" android:value="true"/>
+
+        <activity
+            android:name=".emotionChatBotPortal"
+            android:label="@string/title_activity_emotion_chat_bot_portal"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="com.asus.intent.category.ZENBO" />
+                <category android:name="com.asus.intent.category.ZENBO_LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+    </application>
+
+</manifest>

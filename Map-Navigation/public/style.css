@@ -1,0 +1,135 @@
+/* KKUL Smart Indoor Navigation - Google Font Sarabun Typography & Clean Light UI */
+
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #334155;
+  --border-color: #cbd5e1;
+  --brand-primary: #059669;
+  --brand-glow: #10b981;
+}
+
+* {
+  font-family: 'Sarabun', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: 'Sarabun', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* High-Legibility Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animated Navigation Dash-Flow Polyline */
+.route-dash-animated {
+  stroke-dasharray: 14, 8;
+  animation: routeDashMove 1s linear infinite;
+}
+
+/* Pulsing marker ring (CSS opacity animation - works on old Chrome/WebView) */
+.pin-pulse {
+  animation: pinPulse 1.8s ease-out infinite;
+  transform-origin: center;
+}
+
+@keyframes pinPulse {
+  0% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes routeDashMove {
+  from {
+    stroke-dashoffset: 22;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 3D Floor Buttons */
+.floor-btn {
+  background: #ffffff;
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  font-weight: 700;
+}
+.floor-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+.floor-btn.active-floor {
+  background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+  color: #ffffff !important;
+  border-color: #059669;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+  font-weight: 800;
+}
+.floor-btn.in-route {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2.5px rgba(16, 185, 129, 0.35);
+}
+
+/* Bouncy Short Animation */
+@keyframes bounceShort {
+  0%, 100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, -6px);
+  }
+}
+.animate-bounce-short {
+  animation: bounceShort 2s infinite ease-in-out;
+}
+
+/* Pulse animation for quick action */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+.btn-toilet {
+  animation: pulseGlow 2.5s infinite;
+}

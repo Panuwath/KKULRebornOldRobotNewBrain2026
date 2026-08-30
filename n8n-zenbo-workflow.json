@@ -1,0 +1,182 @@
+{
+  "name": "Zenbo Bridge",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo/webhook",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook (LINE)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "zenbo-webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://zenbo-nl-compiler:8030/v1/dispatch",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({ command: { action: $json.action || 'audio', text: $json.text, voice: $json.voice || 'th_m_1', age: $json.age || 20, speed: $json.speed || 0.96, face: $json.face }, send: true, robot_slugs: [$json.robot_slug || 'zenbo1'] }) }}"
+      },
+      "id": "2",
+      "name": "Dispatch to Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.targets[0].published }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Check Published",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "content": "✅ ส่งคำสั่งไป Zenbo เรียบร้อย: {{ $json.command.text || $json.command.action }}"
+      },
+      "id": "4",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "content": "❌ ส่งไม่สำเร็จ: {{ JSON.stringify($json) }}"
+      },
+      "id": "5",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "topic": "zenbo/status/#",
+        "qos": 1,
+        "options": {}
+      },
+      "id": "6",
+      "name": "MQTT Trigger (Status)",
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [250, 550],
+      "credentials": {
+        "mqtt": "mosquitto"
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "content": "Zenbo Status: {{ $json.topic }} → {{ JSON.stringify($json.payload) }}"
+      },
+      "id": "7",
+      "name": "Format Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [500, 550]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.reply_webhook || 'https://libn.kku.ac.th/webhook/zenbo-status' }}",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({ topic: $json.topic, payload: $json.payload, timestamp: new Date().toISOString() }) }}"
+      },
+      "id": "8",
+      "name": "Forward Status to LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [750, 550],
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "Webhook (LINE)": {
+      "main": [
+        [
+          {
+            "node": "Dispatch to Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch to Gateway": {
+      "main": [
+        [
+          {
+            "node": "Check Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Published": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MQTT Trigger (Status)": {
+      "main": [
+        [
+          {
+            "node": "Format Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Status": {
+      "main": [
+        [
+          {
+            "node": "Forward Status to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "1"
+}

@@ -1,0 +1,103 @@
+{
+  "name": "📡 Zenbo Robot Status Monitor (MQTT → LINE/Webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "topic": "zenbo/+/status/#",
+        "qos": 1,
+        "options": {}
+      },
+      "id": "mqtt-trigger",
+      "name": "📡 MQTT Status Trigger",
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [0, 200],
+      "credentials": { "mqtt": { "id": "vFZ4IDOfufWTtfrj", "name": "Zenbo-Mosquitto-149" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const topic = $json.topic || '';\nlet payload = {};\ntry { payload = typeof $json.payload === 'string' ? JSON.parse($json.payload) : ($json.payload || {}); } catch (e) {}\n// slug = everything between 'zenbo/' and '/status/'\nconst parts = topic.split('/');\nconst slug = parts.length >= 4 ? parts.slice(1, -2).join('/') : 'unknown';\nconst kind = parts[parts.length - 1] || 'status';\nreturn [{ json: {\n  robot_slug: payload.robot_slug || slug,\n  kind,\n  client_ip: payload.client_ip || payload.ip || null,\n  version_name: payload.version_name || payload.app || null,\n  state: payload.state || null,\n  error_code: payload.code || null,\n  ts: new Date().toISOString()\n} }];"
+      },
+      "id": "normalize",
+      "name": "🧾 Normalize Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $json.kind }}", "operation": "equals", "value2": "connection" }
+          ]
+        }
+      },
+      "id": "is-connection",
+      "name": "🔌 Is Connection Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const n = $input.all()[0].json;\nreturn [{ json: {\n  notify: true,\n  text: `${n.robot_slug} ${n.state === 'connected' ? '🟢 เชื่อมต่อแล้ว' : '🔴 หลุดการเชื่อมต่อ'} · ${n.client_ip || 'no IP'} · ${n.version_name || ''}`,\n  robot_slug: n.robot_slug\n} }];"
+      },
+      "id": "build-conn-alert",
+      "name": "🔔 Build Connection Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const n = $input.all()[0].json;\nconst relevant = ['vision', 'error', 'action_done', 'robot_state'];\nreturn [{ json: {\n  notify: relevant.includes(n.kind),\n  text: `${n.robot_slug} · ${n.kind}: ${JSON.stringify(n)}`,\n  robot_slug: n.robot_slug\n} }];"
+      },
+      "id": "build-status",
+      "name": "🔔 Build Status Note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json).filter(j => j.notify);\nreturn items.length ? items.map(j => ({ json: j })) : [];"
+      },
+      "id": "filter-notify",
+      "name": "🚦 Filter Notify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.STATUS_FORWARD_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "forward",
+      "name": "📤 Forward Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 200]
+    }
+  ],
+  "connections": {
+    "📡 MQTT Status Trigger": { "main": [[{ "node": "🧾 Normalize Status", "type": "main", "index": 0 }]] },
+    "🧾 Normalize Status": { "main": [[{ "node": "🔌 Is Connection Event?", "type": "main", "index": 0 }]] },
+    "🔌 Is Connection Event?": {
+      "main": [
+        [{ "node": "🔔 Build Connection Alert", "type": "main", "index": 0 }],
+        [{ "node": "🔔 Build Status Note", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔔 Build Connection Alert": { "main": [[{ "node": "🚦 Filter Notify", "type": "main", "index": 0 }]] },
+    "🔔 Build Status Note": { "main": [[{ "node": "🚦 Filter Notify", "type": "main", "index": 0 }]] },
+    "🚦 Filter Notify": { "main": [[{ "node": "📤 Forward Status", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "monitor" }, { "name": "mqtt" }]
+}

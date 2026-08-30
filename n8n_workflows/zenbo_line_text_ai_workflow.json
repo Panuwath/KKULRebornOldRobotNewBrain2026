@@ -1,0 +1,109 @@
+{
+  "name": "🤖 Zenbo LINE Bot — Text Command (IntelSphere AI)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-zenbo-ai",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "wh-line",
+      "name": "📥 LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "line-zenbo-ai"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body || {};\nconst events = body.events || [];\n\nif (events.length === 0) {\n  throw new Error('No LINE events');\n}\n\nconst event = events[0];\n\nif (event.type !== 'message' || event.message.type !== 'text') {\n  return [{ json: { skip: true, reason: 'Non-text message: ' + (event.message?.type || 'unknown') } }];\n}\n\nreturn [{\n  json: {\n    userMessage: event.message.text,\n    replyToken: event.replyToken,\n    userId: event.source?.userId,\n    groupId: event.source?.groupId || null,\n    messageId: event.message.id\n  }\n}];"
+      },
+      "id": "parse-event",
+      "name": "📝 Parse LINE Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0].json;\nif (item.skip) {\n  return [];\n}\nreturn $input.all();"
+      },
+      "id": "filter-text",
+      "name": "🔍 Filter Text Only",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.COMPILER_SERVICE_URL }}/api/v1/compiler/text",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"command\": \"={{ $json.userMessage }}\",\n  \"auto_dispatch\": true\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-compiler",
+      "name": "🧠 IntelSphere Compiler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const compilerRes = $input.all()[0].json;\nconst payload = compilerRes.compiled_payload || {};\nconst replyToken = $('📝 Parse LINE Event').first().json.replyToken;\n\nconst textSpoken = payload.text || 'รับทราบคำสั่งเรียบร้อยแล้วค่ะ';\nconst face = payload.face || 'HAPPY';\nconst status = payload.emergency ? '🛑 EMERGENCY STOP' : '✅ Working';\n\nconst details = [];\nif (payload.motion) details.push('🚶 เดิน: x=' + payload.motion.x + 'm');\nif (payload.head) details.push('🔄 หัว: yaw=' + payload.head.yaw + '° pitch=' + payload.head.pitch + '°');\nif (payload.wheel_lights) details.push('💡 ไฟ: ' + payload.wheel_lights.mode);\nif (payload.action) details.push('🎬 Action #' + payload.action.action_id);\n\nconst reply = {\n  type: 'flex',\n  altText: '🤖 ' + textSpoken.substring(0, 60),\n  contents: {\n    type: 'bubble',\n    size: 'kilo',\n    header: {\n      type: 'box',\n      layout: 'vertical',\n      backgroundColor: payload.emergency ? '#DC2626' : '#2563EB',\n      contents: [{\n        type: 'text',\n        text: '🤖 Zenbo | IntelSphere AI',\n        weight: 'bold',\n        color: '#FFFFFF',\n        size: 'md'\n      }]\n    },\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      spacing: 'md',\n      contents: [\n        {\n          type: 'text',\n          text: '💬 \"' + compilerRes.original_command + '\"',\n          size: 'xs',\n          color: '#64748B',\n          wrap: true\n        },\n        { type: 'separator', margin: 'sm' },\n        {\n          type: 'text',\n          text: '🗣️ ' + textSpoken,\n          size: 'sm',\n          weight: 'bold',\n          color: '#1E293B',\n          wrap: true\n        },\n        {\n          type: 'box',\n          layout: 'horizontal',\n          spacing: 'sm',\n          margin: 'md',\n          contents: [\n            { type: 'text', text: '😊 ' + face, size: 'xs', color: '#475569', flex: 1 },\n            { type: 'text', text: status, size: 'xs', color: payload.emergency ? '#DC2626' : '#10B981', flex: 1, align: 'end' }\n          ]\n        }\n      ].concat(details.map(function(d) {\n        return { type: 'text', text: d, size: 'xs', color: '#6366F1', margin: 'sm' };\n      }))\n    }\n  }\n};\n\nreturn [{ json: { replyToken: replyToken, replyPayload: reply } }];"
+      },
+      "id": "build-reply",
+      "name": "🎨 Build LINE Flex Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"replyToken\": \"{{ $json.replyToken }}\",\n  \"messages\": [{{ JSON.stringify($json.replyPayload) }}]\n}",
+        "options": {}
+      },
+      "id": "reply-line",
+      "name": "📤 Reply LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 300]
+    }
+  ],
+  "connections": {
+    "📥 LINE Webhook": {
+      "main": [[{ "node": "📝 Parse LINE Event", "type": "main", "index": 0 }]]
+    },
+    "📝 Parse LINE Event": {
+      "main": [[{ "node": "🔍 Filter Text Only", "type": "main", "index": 0 }]]
+    },
+    "🔍 Filter Text Only": {
+      "main": [[{ "node": "🧠 IntelSphere Compiler", "type": "main", "index": 0 }]]
+    },
+    "🧠 IntelSphere Compiler": {
+      "main": [[{ "node": "🎨 Build LINE Flex Card", "type": "main", "index": 0 }]]
+    },
+    "🎨 Build LINE Flex Card": {
+      "main": [[{ "node": "📤 Reply LINE", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "line" }, { "name": "intelsphere" }]
+}

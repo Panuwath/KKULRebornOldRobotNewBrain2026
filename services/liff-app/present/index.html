@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <title>Booky Present Mode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/liff/liff-config.js"></script>
+  <script src="/liff/liff.js"></script>
+  <style>
+    html { background: #020617; }
+    body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 pb-10 font-sans text-white">
+  <header class="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur">
+    <div class="mx-auto flex max-w-5xl items-center justify-between gap-3">
+      <a href="/liff/" class="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold hover:bg-slate-800"><i class="fa-solid fa-chevron-left mr-2"></i>หน้าหลัก</a>
+      <div class="flex items-center gap-3"><a href="https://lib.kku.ac.th/map/" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center rounded-xl bg-cyan-700 px-3 text-xs font-bold text-white hover:bg-cyan-600"><i class="fa-solid fa-map-location-dot mr-1.5"></i><span class="hidden sm:inline">แผนที่</span></a><div class="text-right"><h1 class="text-base font-bold">✨ Booky Present Mode</h1><p class="text-[11px] text-slate-400">เลือกฉากสำเร็จรูป แล้วตรวจข้อความก่อนเริ่ม</p></div></div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-5xl space-y-5 p-4">
+    <section class="rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-950/60 to-slate-900 p-5 shadow-xl">
+      <div class="flex items-start gap-3"><div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-500 text-xl">🤖</div><div><h2 class="text-lg font-bold">เลือกการนำเสนอที่พร้อมใช้</h2><p class="mt-1 text-xs leading-relaxed text-slate-300">คำสั่งที่พร้อมใช้จะพูด แสดงสีหน้า และไฟล้อโดยไม่สั่งฐานเคลื่อนที่อัตโนมัติ โหมดทดลองจะถูกล็อกเพื่อความปลอดภัย</p></div></div>
+      <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end"><label class="text-xs font-semibold text-slate-300">Zenbo ที่จะนำเสนอ<select id="robot" class="mt-2 min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-white"><option value="">กำลังค้นหา Zenbo...</option></select></label><button id="refresh" class="min-h-12 rounded-xl bg-slate-700 px-4 text-sm font-bold hover:bg-slate-600"><i class="fa-solid fa-rotate mr-1"></i>ค้นหาใหม่</button></div>
+      <p id="robot-status" class="mt-2 min-h-5 text-xs text-slate-400" role="status">เลือก Zenbo ก่อนเริ่ม presentation</p>
+    </section>
+
+    <section aria-label="เลือกหมวดการนำเสนอ"><div id="categories" class="flex gap-2 overflow-x-auto pb-1"></div></section>
+    <section><div id="catalog" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"></div><p id="catalog-status" class="mt-3 text-center text-xs text-slate-400">กำลังโหลด preset...</p></section>
+
+    <section id="detail" hidden class="rounded-2xl border border-violet-400/30 bg-slate-900 p-5 shadow-xl">
+      <div class="flex items-start justify-between gap-3"><div class="flex items-start gap-3"><div id="detail-icon" class="grid h-12 w-12 place-items-center rounded-2xl bg-violet-600 text-2xl"></div><div><h2 id="detail-title" class="text-lg font-bold"></h2><p id="detail-description" class="mt-1 text-xs leading-relaxed text-slate-300"></p></div></div><button id="close-detail" class="min-h-10 rounded-lg px-3 text-slate-300 hover:bg-slate-800" aria-label="ปิด">✕</button></div>
+      <label class="mt-4 block text-xs font-semibold text-slate-300">ส่งให้ Zenbo<select id="robot-detail" class="mt-2 min-h-12 w-full rounded-xl border border-violet-400/40 bg-slate-950 px-3 text-sm text-white"><option value="">เลือก Zenbo ที่ออนไลน์...</option></select></label>
+      <p id="detail-robot-hint" class="mt-2 min-h-5 text-xs text-amber-200" role="status">เลือก Zenbo ก่อนตรวจข้อความและเริ่ม Presentation</p>
+      <div id="fields" class="mt-4 grid gap-3 sm:grid-cols-2"></div>
+      <div id="gate" hidden class="mt-4 rounded-xl border border-amber-400/30 bg-amber-950/30 p-3 text-sm text-amber-100"></div>
+      <div id="camera-preview-note" hidden class="mt-4 rounded-xl border border-sky-400/30 bg-sky-950/25 p-3 text-xs leading-relaxed text-sky-100"><p class="font-bold"><i class="fa-solid fa-camera mr-1"></i>พรีวิวกล้อง Zenbo</p><p class="mt-1">เมื่อยืนยันเริ่ม ระบบจะเปิดการตรวจจับใบหน้าและพรีวิวบนหน้าจอ Zenbo เพื่อจัดเฟรม ภาพจะไม่ถูกส่งมายัง LIFF และยังไม่ถูกบันทึก</p></div>
+      <div id="ready-actions" class="mt-5 grid gap-2 sm:grid-cols-2"><button id="preview" class="min-h-12 rounded-xl bg-violet-600 text-sm font-bold hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"><i class="fa-solid fa-eye mr-1"></i>ตรวจข้อความก่อนเริ่ม</button><button id="start" disabled class="min-h-12 rounded-xl bg-emerald-600 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"><i class="fa-solid fa-play mr-1"></i>ยืนยันเริ่ม Presentation</button></div>
+      <div id="preview-box" hidden class="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-950/25 p-3"><p class="text-xs font-bold text-emerald-200">สิ่งที่ Booky จะพูด/ทำ</p><p id="preview-text" class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-100"></p><p id="preview-safety" class="mt-2 text-[11px] text-emerald-100/80"></p></div>
+      <p id="action-status" class="mt-3 min-h-5 text-xs text-slate-400" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="rounded-2xl border border-red-500/30 bg-red-950/20 p-4"><div class="flex items-center justify-between gap-3"><div><h2 class="font-bold text-red-100"><i class="fa-solid fa-hand mr-1"></i>หยุดทันที</h2><p class="mt-1 text-[11px] text-red-100/70">หยุดเสียง ท่าเต้น และการเคลื่อนไหวของ Zenbo ที่เลือก</p></div><button id="stop" class="min-h-12 rounded-xl bg-red-600 px-5 text-sm font-bold hover:bg-red-500">หยุด</button></div></section>
+    <p class="text-center text-[11px] leading-relaxed text-slate-500">“ส่ง MQTT แล้ว” หมายถึง Gateway รับคำสั่ง ไม่ใช่ยืนยันว่าหุ่นทำงานเสร็จ โหมดเดินตามแผนที่, ติดตาม, นิทาน, เกม และเพลง/เต้น จะเปิดเมื่อผ่าน safety gate และ telemetry จาก Zenbo</p>
+  </main>
+
+  <script>
+    window.ZenboLiff.init();
+    const API = `${location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
+    let presets = [], selectedPreset = null, selectedCategory = 'ทั้งหมด', previewed = false;
+    const $ = id => document.getElementById(id);
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    function setStatus(text, error=false) { const e=$('action-status'); e.textContent=text; e.className=`mt-3 min-h-5 text-xs ${error?'text-red-300':'text-slate-400'}`; }
+    function selectedRobot() { return $('robot-detail').value || $('robot').value; }
+    function setRobot(value) { const next=value||''; $('robot').value=next; $('robot-detail').value=next; previewed=false; $('preview-box').hidden=true; updateButtons(); if(selectedPreset&&selectedPreset.availability==='ready') setStatus(next?'กรอกข้อมูล (ถ้ามี) แล้วกดตรวจข้อความก่อนเริ่ม':'เลือก Zenbo ในช่อง “ส่งให้ Zenbo” ก่อนตรวจข้อความ'); }
+    function fieldsPayload() { const output={}; (selectedPreset.fields || []).forEach(field => output[field.name] = $('field-'+field.name).value.trim()); return output; }
+    function requestBody() { return {preset_id:selectedPreset.id, robot_slug:selectedRobot(), variables:fieldsPayload()}; }
+
+    async function loadRobots() {
+      const button=$('refresh'); button.disabled=true;
+      try { const response=await fetch(`${API}/api/v1/robots`); const data=await response.json(); const old=selectedRobot(); const options='<option value="">เลือก Zenbo ที่ออนไลน์...</option>'+(data.robots||[]).map(robot=>`<option value="${escapeHtml(robot.robot_slug)}">${escapeHtml(robot.robot_slug)} · ${escapeHtml(robot.client_ip||'ไม่ทราบ IP')}</option>`).join(''); $('robot').innerHTML=options; $('robot-detail').innerHTML=options; setRobot(old); $('robot-status').textContent=data.count?`พบ ${data.count} เครื่อง · เลือกเครื่องที่จะสั่งงาน`:'ยังไม่พบ Zenbo online'; }
+      catch(error) { $('robot-status').textContent=`โหลด Zenbo ไม่สำเร็จ: ${error.message}`; }
+      finally { button.disabled=false; updateButtons(); }
+    }
+    async function loadPresets() {
+      try { const response=await fetch(`${API}/api/v1/presentations`); const data=await response.json(); if(!response.ok) throw Error('โหลด catalog ไม่สำเร็จ'); presets=data.presets||[]; renderCategories(); renderCatalog(); $('catalog-status').textContent=`มี ${presets.length} preset · พร้อมใช้ ${presets.filter(p=>p.availability==='ready').length} รายการ`; }
+      catch(error) { $('catalog-status').textContent=error.message; }
+    }
+    function renderCategories() { const categories=['ทั้งหมด', ...new Set(presets.map(p=>p.category))]; $('categories').innerHTML=categories.map(category=>`<button data-category="${escapeHtml(category)}" class="category min-h-10 shrink-0 rounded-full border px-3 text-xs font-bold ${category===selectedCategory?'border-violet-400 bg-violet-600':'border-slate-700 bg-slate-900 text-slate-300'}">${escapeHtml(category)}</button>`).join(''); document.querySelectorAll('.category').forEach(button=>button.onclick=()=>{selectedCategory=button.dataset.category;renderCategories();renderCatalog();}); }
+    function renderCatalog() { const visible=presets.filter(p=>selectedCategory==='ทั้งหมด'||p.category===selectedCategory); $('catalog').innerHTML=visible.map(preset=>`<button data-preset="${escapeHtml(preset.id)}" class="min-h-40 rounded-2xl border p-3 text-left transition active:scale-[.98] ${preset.availability==='ready'?'border-slate-700 bg-slate-900 hover:border-violet-400 hover:bg-slate-800':'border-slate-800 bg-slate-900/50 opacity-75'}"><div class="flex items-start justify-between gap-2"><span class="text-2xl">${preset.icon}</span><span class="rounded-full px-2 py-1 text-[10px] font-bold ${preset.availability==='ready'?'bg-emerald-950 text-emerald-200':'bg-amber-950 text-amber-200'}">${preset.availability==='ready'?'พร้อมใช้':'รอพัฒนา'}</span></div><h3 class="mt-3 text-sm font-bold leading-snug">${escapeHtml(preset.title)}</h3><p class="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-400">${escapeHtml(preset.description)}</p><p class="mt-3 text-[10px] text-slate-500">${preset.duration_seconds?`ประมาณ ${preset.duration_seconds} วินาที`:'โหมดโต้ตอบ'}</p></button>`).join(''); document.querySelectorAll('[data-preset]').forEach(button=>button.onclick=()=>openPreset(button.dataset.preset)); }
+    function openPreset(id) { selectedPreset=presets.find(p=>p.id===id); previewed=false; $('detail').hidden=false; $('detail-icon').textContent=selectedPreset.icon; $('detail-title').textContent=selectedPreset.title; $('detail-description').textContent=selectedPreset.description; $('fields').innerHTML=(selectedPreset.fields||[]).map(field=>`<label class="text-xs font-semibold text-slate-300">${escapeHtml(field.label)}<input id="field-${escapeHtml(field.name)}" type="${field.input_type==='url'?'url':'text'}" placeholder="${escapeHtml(field.placeholder||'')}" maxlength="${field.max_length}" value="${escapeHtml(field.default||'')}" class="mt-2 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-white"></label>`).join(''); $('gate').hidden=selectedPreset.availability==='ready'; $('gate').textContent=selectedPreset.gate_reason||'โหมดนี้ยังไม่พร้อมใช้งาน'; $('camera-preview-note').hidden=!selectedPreset.camera_preview; $('ready-actions').style.display=selectedPreset.availability==='ready'?'':'none'; $('preview-box').hidden=true; setStatus(selectedPreset.availability==='ready'?(selectedRobot()?'กรอกข้อมูล (ถ้ามี) แล้วกดตรวจข้อความก่อนเริ่ม':'เลือก Zenbo ในช่อง “ส่งให้ Zenbo” ก่อนตรวจข้อความ'):'โหมดนี้ยังถูกล็อกเพื่อความปลอดภัย'); updateButtons(); $('detail').scrollIntoView({behavior:'smooth',block:'start'}); }
+    function updateButtons() { const hasRobot=Boolean(selectedRobot()); const usable=selectedPreset&&selectedPreset.availability==='ready'&&hasRobot; $('preview').disabled=!usable; $('start').disabled=!usable||!previewed; if(selectedPreset) { $('detail-robot-hint').textContent=hasRobot?`จะส่งคำสั่งให้ ${selectedRobot()}`:'เลือก Zenbo ในรายการนี้ก่อนตรวจข้อความและเริ่ม Presentation'; $('detail-robot-hint').className=`mt-2 min-h-5 text-xs ${hasRobot?'text-emerald-200':'text-amber-200'}`; } }
+    const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+    async function waitForYoutubeStatus(robotSlug, sentAtMs) { for(let attempt=0; attempt<12; attempt+=1) { await pause(1000); try { const response=await fetch(`${API}/api/v1/robots`); const data=await response.json(); const robot=(data.robots||[]).find(item=>item.robot_slug===robotSlug); const event=robot&&robot.last_event; if(!event||event.kind!=='youtube'||event.received_at_ms<sentAtMs) continue; const state=event.data&&event.data.state||'UNKNOWN'; const message=event.data&&event.data.message||''; const detail=message?` (${message})`:''; const isError=['ERROR','REJECTED','PLAYER_TIMEOUT'].includes(state); setStatus(`YouTube บน Zenbo: ${state}${detail}`,isError); return; } catch(error) { /* keep waiting for the robot's status event */ } } setStatus('ยังไม่ได้รับสถานะจาก YouTube บน Zenbo — ตรวจหน้าจอหุ่นหรือเชื่อมต่ออินเทอร์เน็ต',true); }
+    async function previewPresentation() { if(!selectedRobot()) return setStatus('เลือก Zenbo ก่อนตรวจข้อความ',true); $('preview').disabled=true; setStatus('กำลังสร้าง preview...'); try { const response=await fetch(`${API}/api/v1/presentations/preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(requestBody())}); const data=await response.json(); if(!response.ok) throw Error(data.detail?.message||data.detail?.code||'สร้าง preview ไม่สำเร็จ'); const command=data.command||{}; $('preview-text').textContent=command.text||(command.youtube?`จะเปิด YouTube: ${command.youtube.url}`:'ไม่มีข้อความเสียง'); $('preview-safety').textContent=command.navigation?'แสดงแผนที่และพูดคำแนะนำเท่านั้น — ไม่สั่งเดินอัตโนมัติ':command.vision?'จะเปิดพรีวิวตรวจจับใบหน้าบนหน้าจอ Zenbo — ไม่ส่งหรือบันทึกภาพ':command.youtube?'เปิดเฉพาะเพลงจาก YouTube — ไม่มีคำสั่งเต้น':'ไม่มีคำสั่งเคลื่อนฐานอัตโนมัติใน preset นี้'; $('preview-box').hidden=false; previewed=true; setStatus('ตรวจข้อความแล้ว กดยืนยันเพื่อส่งให้ Zenbo'); } catch(error) { previewed=false; setStatus(error.message,true); } finally { updateButtons(); } }
+    async function startPresentation() { if(!previewed) return; $('start').disabled=true; setStatus('กำลังส่ง preset ให้ Zenbo...'); try { const sentAtMs=Date.now(); const response=await fetch(`${API}/api/v1/presentations/start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(requestBody())}); const data=await response.json(); if(!response.ok) throw Error(data.detail?.message||data.detail?.code||'ส่งไม่สำเร็จ'); if(selectedPreset.id==='youtube-play') { setStatus(`Gateway รับคำสั่งแล้ว (history #${data.history_id || '-'}) — กำลังรอสถานะ YouTube จาก Zenbo`); waitForYoutubeStatus(selectedRobot(), sentAtMs); } else setStatus(selectedPreset.camera_preview?`Gateway รับคำสั่งแล้ว (history #${data.history_id || '-'}) — Zenbo จะเปิดพรีวิวตรวจจับใบหน้าบนหน้าจอหุ่น; ยังไม่บันทึกภาพ`:`Gateway รับคำสั่งแล้ว (history #${data.history_id || '-'}) — รอสถานะจาก Zenbo`,false); } catch(error) { setStatus(error.message,true); } finally { updateButtons(); } }
+    async function stopRobot() { if(!selectedRobot()) return setStatus('เลือก Zenbo ก่อนสั่งหยุด',true); $('stop').disabled=true; try { const response=await fetch(`${API}/api/v1/robots/${encodeURIComponent(selectedRobot())}/stop`,{method:'POST'}); if(!response.ok) throw Error('ส่งคำสั่งหยุดไม่สำเร็จ'); setStatus('ส่งคำสั่งหยุดแล้ว'); } catch(error) { setStatus(error.message,true); } finally { $('stop').disabled=false; } }
+    $('robot').onchange=event=>setRobot(event.target.value); $('robot-detail').onchange=event=>setRobot(event.target.value); $('refresh').onclick=loadRobots; $('preview').onclick=previewPresentation; $('start').onclick=startPresentation; $('stop').onclick=stopRobot; $('close-detail').onclick=()=>{$('detail').hidden=true;selectedPreset=null;}; loadRobots(); loadPresets();
+  </script>
+</body>
+</html>
