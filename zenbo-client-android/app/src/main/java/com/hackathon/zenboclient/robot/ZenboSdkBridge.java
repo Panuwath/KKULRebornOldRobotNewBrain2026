@@ -229,13 +229,11 @@ public class ZenboSdkBridge implements RobotMotionBridge {
 
     @Override
     public void moveBody(float x, float y, float theta, int speedLevel) {
-        if (mRobotAPI == null) return;
-        try {
-            MotionControl.SpeedLevel.Body speed = MotionControl.SpeedLevel.Body.getBody(speedLevel);
-            mRobotAPI.motion.moveBody(x, y, theta, speed);
-        } catch (Exception e) {
-            Log.e(TAG, "moveBody failed: " + e.getMessage(), e);
-        }
+        if (!isReady()) throw new IllegalStateException("Robot API is not ready");
+        if (speedLevel < 1 || speedLevel > 7) throw new IllegalArgumentException("Invalid body level");
+        MotionControl.SpeedLevel.Body speed = MotionControl.SpeedLevel.Body.getBody(speedLevel);
+        if (speed == null) throw new IllegalArgumentException("Missing body level");
+        mRobotAPI.motion.moveBody(x, y, theta, speed);
     }
 
     public void moveHead(float yawDegrees, float pitchDegrees, int speedLevel) {
@@ -497,8 +495,11 @@ public class ZenboSdkBridge implements RobotMotionBridge {
     public void emergencyStop() {
         if (mRobotAPI != null) {
             try {
-                mRobotAPI.motion.stopMoving();
-                mRobotAPI.cancelCommandAll();
+                try {
+                    mRobotAPI.motion.stopMoving();
+                } finally {
+                    mRobotAPI.cancelCommandAll();
+                }
             } catch (Exception e) {
                 Log.e(TAG, "emergencyStop failed: " + e.getMessage(), e);
             }

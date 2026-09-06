@@ -95,3 +95,8 @@ for (let level = 1; level <= 7; level += 1) {
 assert.equal(networkWrites, 0);
 
 console.log('Zenbo drive control tests passed');
+
+assert.equal(drive.deriveState({robotSelected: true, nowMs: 10000,
+  capability: {...freshCapability, reported_at_ms: 11000}}).reason, 'STALE_HEARTBEAT');
+assert.equal(drive.deriveState({robotSelected: true, nowMs: 10000,
+  capability: {...freshCapability, supported: 'false'}}).enabled, false);

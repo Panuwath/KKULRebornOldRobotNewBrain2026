@@ -1,5 +1,13 @@
 package com.hackathon.zenboclient.service;
 
+import com.hackathon.zenboclient.drive.SpeedLevelDriveController;
+import com.hackathon.zenboclient.drive.SdkDriveActuator;
+import com.hackathon.zenboclient.drive.RelativeMotionEnvelopeMapper;
+import android.os.SystemClock;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -60,6 +68,9 @@ private static final String LIBRARY_RAG_URL = "https://lib.kku.ac.th/rag/";
     private String mActiveEndpointType = "LAN";
     private boolean mIsFallbackAttempt = false;
     private int mConnectionFailureCount = 0;
+    private long mLegacyMotionUntilMs;
+    private SpeedLevelDriveController mRelativeController;
+    private final ScheduledExecutorService mRelativeDeadline = Executors.newSingleThreadScheduledExecutor();
     private final Handler mFallbackHandler = new Handler(Looper.getMainLooper());
 
     private MqttManager mMqttManager;
@@ -207,6 +218,22 @@ void onFailed(String message);
         startInstalledApkDigest();
 
         mSdkBridge = new ZenboSdkBridge();
+        mRelativeController = new SpeedLevelDriveController(new SdkDriveActuator(mSdkBridge),
+                () -> SystemClock.elapsedRealtime(),
+                (task, delay) -> mRelativeDeadline.schedule(task, Math.max(0, delay), TimeUnit.MILLISECONDS));
+        mRelativeController.setStopListener((command, reason) -> {
+            java.util.Map<String, Object> ack = new java.util.LinkedHashMap<>();
+            ack.put("command_id", command.commandId);
+            ack.put("control_mode", "RELATIVE_BODY");
+            ack.put("state", "SDK_STOP_REQUESTED");
+            ack.put("stop_reason", reason);
+            ack.put("requested_speed_level", command.requestedSpeedLevel);
+            ack.put("policy_max_speed_level", command.policyMaxSpeedLevel);
+            ack.put("effective_speed_level", null);
+            ack.put("received_at_ms", System.currentTimeMillis());
+            ack.put("physical_stop_verified", false);
+            publishStatus("motion_ack", new com.google.gson.GsonBuilder().serializeNulls().create().toJson(ack));
+        });
         try {
             mSdkBridge.init(getApplicationContext(), new ZenboSdkBridge.ActionCallback() {
                 @Override
@@ -923,7 +950,12 @@ void onFailed(String message);
      * sound duplicated and creates an avoidable race with the Thai TTS audio.
      */
     private void executeInteractCommand(final InteractCommand cmd) {
+        if (cmd != null && cmd.motion != null && "RELATIVE_BODY".equals(cmd.motion.controlMode)) {
+            executeRelativeMotion(cmd);
+            return;
+        }
         if (cmd == null) return;
+        if (mRelativeController != null && mRelativeController.isActive()) mRelativeController.cancel("OTHER_COMMAND");
         executeAcceptedInteractCommand(cmd);
     }
 
@@ -973,8 +1005,7 @@ void onFailed(String message);
                 && !cmd.remoteControl.body.trim().isEmpty();
         if (cmd.motion != null && !hasRemoteBody) {
             if ("RELATIVE_BODY".equals(cmd.motion.controlMode)) {
-                publishStatus("command", "{\"state\":\"REJECTED\",\"id\":\""
-                        + escapeJson(cmd.commandId) + "\",\"reject_reason\":\"RELATIVE_MOTION_DISABLED\"}");
+                executeRelativeMotion(cmd);
             } else {
                 safeMoveBody(cmd.motion);
             }
@@ -1488,6 +1519,11 @@ void onFailed(String message);
     }
 
     private void cancelRobotSequences() {
+        if (SystemClock.elapsedRealtime() < mLegacyMotionUntilMs && mSdkBridge != null) {
+            mSdkBridge.emergencyStop();
+        }
+        mLegacyMotionUntilMs = 0;
+        if (mRelativeController != null && mRelativeController.isActive()) mRelativeController.cancel();
         if (mSpeechGestureController != null) mSpeechGestureController.stop();
         mHeadSequenceHandler.removeCallbacksAndMessages(null);
         mScenarioScriptHandler.removeCallbacksAndMessages(null);
@@ -1501,6 +1537,7 @@ void onFailed(String message);
 
     private void handleRemoteControl(InteractCommand.RemoteControlData remote) {
         if (remote == null || mSdkBridge == null) return;
+        if (mRelativeController != null && mRelativeController.isActive()) mRelativeController.cancel();
         if (!mSdkBridge.isReady()) {
             publishStatus("remote", "{\"state\":\"SDK_NOT_READY\"}");
             return;
@@ -1646,6 +1683,60 @@ void onFailed(String message);
                 + ",\"hardware_sensor_coverage\":" + (mSafetyMonitor != null && mSafetyMonitor.hasRequiredCoverage()) + "}");
     }
 
+    private void relativeAck(InteractCommand cmd, String state, String reason,
+                             Integer effective, long receivedAt) {
+        java.util.Map<String, Object> ack = new java.util.LinkedHashMap<>();
+        ack.put("command_id", cmd.commandId);
+        ack.put("control_mode", "RELATIVE_BODY");
+        ack.put("state", state);
+        ack.put("requested_speed_level", cmd.motion.speed);
+        ack.put("policy_max_speed_level", Math.min(mMaxMotionSpeed,
+                cmd.policy == null ? 1 : cmd.policy.maxBodySpeedLevel));
+        ack.put("effective_speed_level", effective);
+        ack.put("reject_reason", reason);
+        ack.put("received_at_ms", receivedAt);
+        ack.put("sdk_submitted_at_ms", effective == null ? null : System.currentTimeMillis());
+        ack.put("physical_velocity_verified", false);
+        ack.put("apk_version", BuildConfig.VERSION_NAME);
+        ack.put("apk_sha256", mInstalledApkSha256);
+        publishStatus("motion_ack", new com.google.gson.GsonBuilder().serializeNulls().create().toJson(ack));
+    }
+
+    private void executeRelativeMotion(InteractCommand cmd) {
+        long receivedAt = System.currentTimeMillis();
+        relativeAck(cmd, "APK_RECEIVED", null, null, receivedAt);
+        String reason = null;
+        if (!BuildConfig.RELATIVE_MOTION_ENABLED) reason = "RELATIVE_MOTION_DISABLED";
+        else if (!BuildConfig.SAFETY_MONITOR_ENABLED || mSafetyMonitor == null
+                || !mSafetyMonitor.hasRequiredCoverage() || !mCollisionGuardEnabled
+                || !mFallGuardEnabled || isMotionInterlocked()) reason = "FIELD_NOT_READY";
+        else if (!mSdkBridge.isReady()) reason = "ROBOT_API_NOT_READY";
+        else if (System.currentTimeMillis() < mRemoteBodyControlActiveUntilMs
+                || SystemClock.elapsedRealtime() < mLegacyMotionUntilMs) reason = "MOTION_BUSY";
+        if (reason != null) {
+            relativeAck(cmd, "REJECTED", reason, null, receivedAt);
+            return;
+        }
+        try {
+            SpeedLevelDriveController.Command wire = RelativeMotionEnvelopeMapper.from(cmd);
+            // Translate once to a monotonic deadline. Never extend the local hard limit.
+            long remaining = Math.max(0, Math.min(wire.expiresAtMs - receivedAt, 3000));
+            SpeedLevelDriveController.Command bounded = new SpeedLevelDriveController.Command(
+                    wire.commandId, wire.sourceSessionId, wire.sourceSeq,
+                    SystemClock.elapsedRealtime() + remaining,
+                    wire.xMeters, wire.yMeters, wire.thetaDegrees, wire.requestedSpeedLevel,
+                    Math.min(wire.policyMaxSpeedLevel, mMaxMotionSpeed),
+                    Math.min(wire.policyMaxDistanceMeters, mMaxMotionDistanceM),
+                    Math.min(wire.hardStopAfterMs, Math.min(mAutoStopMs, 3000)));
+            SpeedLevelDriveController.Acknowledgement ack = mRelativeController.submit(bounded);
+            relativeAck(cmd, ack.state == SpeedLevelDriveController.State.ACTUATOR_ACCEPTED
+                    ? "SDK_SUBMITTED" : ack.state.name(),
+                    ack.rejectReason == null ? null : ack.rejectReason.name(), ack.effectiveSpeedLevel, receivedAt);
+        } catch (RuntimeException error) {
+            relativeAck(cmd, "REJECTED", "INVALID_COMMAND", null, receivedAt);
+        }
+    }
+
     private boolean isMotionInterlocked() {
         if (!mBaseMotionEnabled) return true;
         if (!mCollisionGuardEnabled && !mFallGuardEnabled) return false;
@@ -1655,6 +1746,10 @@ void onFailed(String message);
 
     private void safeMoveBody(InteractCommand.MotionData motion) {
         if (motion == null || mSdkBridge == null) return;
+        if (mRelativeController != null && mRelativeController.isActive()) {
+            publishSafetyBlocked("RELATIVE_MOTION_BUSY");
+            return;
+        }
         if (System.currentTimeMillis() < mRemoteBodyControlActiveUntilMs) {
             // Do not arm a second watchdog and cut an in-progress joystick
             // movement. The remote-control deadman remains responsible.
@@ -1677,6 +1772,7 @@ void onFailed(String message);
         int targetSpeed = motion.speed > 0 ? motion.speed : 5;
         mSdkBridge.moveBody(motion.x, motion.y, motion.theta, Math.min(Math.max(1, targetSpeed), Math.min(7, mMaxMotionSpeed)));
         int dynamicWatchdogMs = Math.max(mAutoStopMs, (int) ((distance / 0.2f + Math.abs(motion.theta) / 25f) * 1000f) + 4000);
+        mLegacyMotionUntilMs = SystemClock.elapsedRealtime() + dynamicWatchdogMs;
         mMotionGuardHandler.postDelayed(mMotionGuardStopRunnable, dynamicWatchdogMs);
         publishScenarioStatus(mActiveMotionScenarioRunId, "MOTION_STARTED");
         publishStatus("safety", "{\"state\":\"MOTION_ALLOWED_WITH_WATCHDOG\",\"timeout_ms\":" + dynamicWatchdogMs + "}");
@@ -1788,6 +1884,7 @@ void onFailed(String message);
     @Override
     public void onConnectionStatusChanged(boolean isConnected, String statusMsg) {
         Log.d(TAG, "Status changed (" + mActiveEndpointType + "): " + statusMsg);
+        if (!isConnected && mRelativeController != null && mRelativeController.isActive()) mRelativeController.cancel("DISCONNECTED");
         if (isConnected) {
             mConnectionFailureCount = 0;
             mIsFallbackAttempt = false;
@@ -1933,9 +2030,11 @@ void onFailed(String message);
                 ? mTopicPrefix.substring("zenbo/".length()) : mTopicPrefix;
         boolean robotApiReady = mSdkBridge != null && mSdkBridge.isReady();
         boolean safetyMonitorActive = mSafetyMonitor != null;
-        // The bounded controller is not wired into the production MQTT path yet.
+        // Compiled integration is OFF until the installed artifact passes calibration.
         // Advertise the executable capability, not merely compiled helper classes.
-        boolean canonicalRelativeMotionEnabled = false;
+        boolean canonicalRelativeMotionEnabled = BuildConfig.RELATIVE_MOTION_ENABLED
+                && BuildConfig.SAFETY_MONITOR_ENABLED && robotApiReady && safetyMonitorActive
+                && mSafetyMonitor.hasRequiredCoverage();
         int policyMaxSpeedLevel = Math.min(7, Math.max(1, mMaxMotionSpeed));
         boolean apkDigestReady = InstalledApkDigest.isSha256(mInstalledApkSha256);
         String apkHashField = apkDigestReady
@@ -2044,6 +2143,8 @@ void onFailed(String message);
     @Override
     public void onDestroy() {
         stopHeartbeat();
+        if (mRelativeController != null && mRelativeController.isActive()) mRelativeController.cancel();
+        mRelativeDeadline.shutdownNow();
         cancelRemoteControlSafety();
         mMotionGuardHandler.removeCallbacks(mMotionGuardStopRunnable);
         if (mSafetyMonitor != null) mSafetyMonitor.stop();

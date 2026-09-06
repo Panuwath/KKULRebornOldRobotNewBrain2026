@@ -15,6 +15,13 @@ public final class SpeedLevelDriveController {
         void schedule(Runnable task, long delayMs);
     }
 
+    public interface StopListener {
+        void onStop(Command command, String reason);
+    }
+
+    private StopListener stopListener;
+    public synchronized void setStopListener(StopListener listener) { stopListener = listener; }
+
     public enum State {
         ACTUATOR_ACCEPTED,
         REJECTED,
@@ -27,7 +34,9 @@ public final class SpeedLevelDriveController {
         OUT_OF_ORDER,
         SPEED_EXCEEDS_POLICY,
         DISTANCE_EXCEEDS_POLICY,
-        INVALID_COMMAND
+        INVALID_COMMAND,
+        MOTION_BUSY,
+        ACTUATOR_ERROR
     }
 
     public static final class Command {
@@ -103,43 +112,63 @@ public final class SpeedLevelDriveController {
         if (rejection != null) {
             return rejected(command, rejection);
         }
-        if (active != null && changed(active, command)) {
-            actuator.stop();
-            active = null;
+        if (active != null) {
+            remember(command); // A QoS retry must not start a previously rejected step later.
+            return rejected(command, RejectReason.MOTION_BUSY);
         }
         remember(command);
         active = command;
         final long deadlineGeneration = ++generation;
-        actuator.moveRelative(command.xMeters, command.yMeters, command.thetaDegrees,
-                command.requestedSpeedLevel);
+        try {
+            actuator.moveRelative(command.xMeters, command.yMeters, command.thetaDegrees,
+                    command.requestedSpeedLevel);
+        } catch (RuntimeException error) {
+            active = null;
+            generation++;
+            actuator.stop();
+            return rejected(command, RejectReason.ACTUATOR_ERROR);
+        }
         long delayMs = Math.min(command.hardStopAfterMs, command.expiresAtMs - clock.nowMs());
-        scheduler.schedule(new Runnable() {
-            @Override
-            public void run() {
-                stopAtDeadline(deadlineGeneration);
-            }
-        }, delayMs);
+        try {
+            scheduler.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    stopAtDeadline(deadlineGeneration);
+                }
+            }, delayMs);
+        } catch (RuntimeException error) {
+            stopWithReason("DEADLINE_SCHEDULER_ERROR");
+            return rejected(command, RejectReason.ACTUATOR_ERROR);
+        }
         return new Acknowledgement(command.commandId, State.ACTUATOR_ACCEPTED,
                 command.requestedSpeedLevel, command.policyMaxSpeedLevel,
                 command.requestedSpeedLevel, null);
     }
 
     public synchronized Acknowledgement stop(String commandId) {
-        generation++;
-        active = null;
-        actuator.stop();
+        stopWithReason("EXPLICIT_STOP");
         return new Acknowledgement(commandId, State.STOPPED, 0, 0, null, null);
     }
 
-    public synchronized void cancel() {
-        stop(null);
+    public synchronized void cancel() { cancel("CANCELLED"); }
+
+    public synchronized void cancel(String reason) { stopWithReason(reason); }
+
+    private void stopWithReason(String reason) {
+        Command previous = active;
+        generation++;
+        active = null;
+        try { actuator.stop(); }
+        finally {
+            if (previous != null && stopListener != null) stopListener.onStop(previous, reason);
+        }
     }
 
     private RejectReason validate(Command command) {
         if (command == null || blank(command.commandId) || blank(command.sourceSessionId)
                 || command.sourceSeq < 0 || command.hardStopAfterMs <= 0
                 || !Float.isFinite(command.xMeters) || !Float.isFinite(command.yMeters)
-                || !Float.isFinite(command.thetaDegrees)
+                || !Float.isFinite(command.thetaDegrees) || Math.abs(command.thetaDegrees) > 360f
                 || command.requestedSpeedLevel < 1 || command.requestedSpeedLevel > 7
                 || command.policyMaxSpeedLevel < 1 || command.policyMaxSpeedLevel > 7
                 || !Float.isFinite(command.policyMaxDistanceMeters)
@@ -169,18 +198,11 @@ public final class SpeedLevelDriveController {
         lastSequenceBySession.put(command.sourceSessionId, command.sourceSeq);
     }
 
-    private boolean changed(Command previous, Command next) {
-        return previous.requestedSpeedLevel != next.requestedSpeedLevel
-                || Float.compare(previous.xMeters, next.xMeters) != 0
-                || Float.compare(previous.yMeters, next.yMeters) != 0
-                || Float.compare(previous.thetaDegrees, next.thetaDegrees) != 0;
-    }
+    public synchronized boolean isActive() { return active != null; }
 
     private synchronized void stopAtDeadline(long deadlineGeneration) {
         if (active == null || generation != deadlineGeneration) return;
-        generation++;
-        active = null;
-        actuator.stop();
+        stopWithReason("HARD_DEADLINE");
     }
 
     private Acknowledgement rejected(Command command, RejectReason reason) {

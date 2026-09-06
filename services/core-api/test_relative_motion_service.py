@@ -113,3 +113,23 @@ def test_expired_permit_never_publishes():
     assert result["published"] is False
     assert result["acknowledgement"]["reject_reason"] == "COMMAND_EXPIRED"
     assert published == []
+
+
+@pytest.mark.parametrize("last_seen", [True, "10", float("nan"), float("inf"), 11])
+def test_invalid_or_future_heartbeat_fails_closed(last_seen):
+    with pytest.raises(MotionGateError) as error:
+        dispatch(robot={**robot(), "last_seen": last_seen})
+    assert error.value.code == "STALE_HEARTBEAT"
+
+
+@pytest.mark.parametrize("key,value", [
+    ("max_body_speed", True), ("max_body_speed", 7.5),
+    ("max_distance_m", float("nan")), ("max_distance_m", True),
+    ("auto_stop_ms", True), ("auto_stop_ms", float("inf")),
+])
+def test_invalid_heartbeat_limits_never_publish(key, value):
+    target = robot()
+    target["motion"]["body_relative"][key] = value
+    with pytest.raises(MotionGateError) as error:
+        dispatch(robot=target)
+    assert error.value.code == "CAPABILITY_LIMITS_MISSING"

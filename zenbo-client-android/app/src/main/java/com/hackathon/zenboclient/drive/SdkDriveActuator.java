@@ -15,13 +15,17 @@ public final class SdkDriveActuator implements DriveActuator {
 
     @Override
     public void moveRelative(float xMeters, float yMeters, float thetaDegrees, int speedLevel) {
-        if (!bridge.isReady()) return;
+        if (speedLevel < 1 || speedLevel > 7 || !Float.isFinite(xMeters)
+                || !Float.isFinite(yMeters) || !Float.isFinite(thetaDegrees)
+                || Math.abs(thetaDegrees) > 360f) {
+            throw new IllegalArgumentException("Invalid bounded motion");
+        }
+        if (!bridge.isReady()) throw new IllegalStateException("Robot API is not ready");
         bridge.moveBody(xMeters, yMeters, thetaDegrees, speedLevel);
     }
 
     @Override
     public void stop() {
-        if (!bridge.isReady()) return;
         bridge.emergencyStop();
     }
 }

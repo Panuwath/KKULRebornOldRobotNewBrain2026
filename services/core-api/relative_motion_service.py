@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Callable, Dict
 
@@ -31,8 +32,11 @@ def dispatch_relative_motion(
         raise MotionGateError(403, "TARGET_UNAUTHORIZED", "Operator authorization is required")
     if not robot or robot.get("robot_slug") != robot_slug:
         raise MotionGateError(409, "ROBOT_OFFLINE", "Target robot is offline")
-    last_seen_ms = int(float(robot.get("last_seen", 0)) * 1000)
-    if last_seen_ms <= 0 or now_ms - last_seen_ms > heartbeat_ttl_ms:
+    last_seen = robot.get("last_seen", 0)
+    if type(last_seen) not in (int, float) or not math.isfinite(last_seen):
+        raise MotionGateError(409, "STALE_HEARTBEAT", "Invalid heartbeat timestamp")
+    last_seen_ms = int(last_seen * 1000)
+    if last_seen_ms <= 0 or last_seen_ms > now_ms or now_ms - last_seen_ms > heartbeat_ttl_ms:
         raise MotionGateError(409, "STALE_HEARTBEAT", "Target heartbeat is stale")
     capability = (robot.get("motion") or {}).get("body_relative")
     if not isinstance(capability, dict) or capability.get("supported") is not True:
@@ -43,16 +47,16 @@ def dispatch_relative_motion(
         raise MotionGateError(409, "OPERATION_PERMIT_REQUIRED", "A matching operation permit is required")
 
     capability_cap = capability.get("policy_max_speed_level")
-    if not isinstance(capability_cap, int) or capability_cap < 1:
+    if type(capability_cap) is not int or not 1 <= capability_cap <= 7:
         raise MotionGateError(409, "CAPABILITY_POLICY_MISSING", "Capability policy cap is unavailable")
     heartbeat_max_speed = capability.get("max_body_speed")
     heartbeat_max_distance = capability.get("max_distance_m")
     heartbeat_auto_stop = capability.get("auto_stop_ms")
-    if not isinstance(heartbeat_max_speed, (int, float)) or heartbeat_max_speed < 1:
+    if type(heartbeat_max_speed) is not int or not 1 <= heartbeat_max_speed <= 7:
         raise MotionGateError(409, "CAPABILITY_LIMITS_MISSING", "Heartbeat max body speed is unavailable")
-    if not isinstance(heartbeat_max_distance, (int, float)) or heartbeat_max_distance <= 0:
+    if type(heartbeat_max_distance) not in (int, float) or not math.isfinite(heartbeat_max_distance) or heartbeat_max_distance <= 0:
         raise MotionGateError(409, "CAPABILITY_LIMITS_MISSING", "Heartbeat max distance is unavailable")
-    if not isinstance(heartbeat_auto_stop, (int, float)) or heartbeat_auto_stop <= 0:
+    if type(heartbeat_auto_stop) is not int or heartbeat_auto_stop <= 0:
         raise MotionGateError(409, "CAPABILITY_LIMITS_MISSING", "Heartbeat auto-stop is unavailable")
     effective_policy = policy.model_copy(
         update={

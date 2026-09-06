@@ -1244,7 +1244,7 @@ def record_command_history(robot_slug: Optional[str], source: Optional[str], sta
     )
 
 
-def _remember_robot(topic: str, payload: str) -> None:
+def _remember_robot(topic: str, payload: str, retained: bool = False) -> None:
     """Keep the latest retained/heartbeat status for each robot prefix."""
     parts = topic.split("/")
     if len(parts) < 3 or parts[0] != "zenbo" or parts[-2] != "status":
@@ -1256,17 +1256,23 @@ def _remember_robot(topic: str, payload: str) -> None:
         data = json.loads(payload)
     except json.JSONDecodeError:
         data = {"raw": payload}
+    if not isinstance(data, dict):
+        return
     with robot_registry_lock:
         existing = robot_registry.get(slug, {})
         robot = {
             **existing,
             "robot_slug": slug,
             "topic": topic,
-            "last_seen": time.time(),
+            "last_seen": existing.get("last_seen", 0),
         }
         event_kind = parts[-1]
         if event_kind == "heartbeat":
             robot.update(data)
+            # Capability freshness only advances on a live heartbeat. Other
+            # telemetry and retained broker replay cannot renew motion eligibility.
+            robot["robot_slug"] = slug
+            robot["last_seen"] = 0 if retained else time.time()
         else:
             event = {
                 "kind": event_kind,
@@ -1284,6 +1290,15 @@ def _remember_robot(topic: str, payload: str) -> None:
                     # retaining it in the command-history audit trail.
                     robot.pop("last_safety_stop", None)
         robot_registry[slug] = robot
+    if event_kind == "motion_ack" and data.get("command_id"):
+        try:
+            record_command_history(slug, "apk_motion_ack", str(data.get("state", "UNKNOWN")),
+                                   {"acknowledgement": data, "evidence": "APK_REPORTED",
+                                    "physical_velocity_verified": False,
+                                    "apk_version": robot.get("version_name"),
+                                    "apk_sha256": robot.get("apk_sha256")})
+        except Exception:
+            print("[motion_ack] audit persistence failed", flush=True)
     if event_kind == "camera" and isinstance(data, dict):
         sid = data.get("session_id") or data.get("sessionId")
         if sid:
@@ -1329,7 +1344,8 @@ def _record_scenario_client_event(event: Dict[str, Any]) -> None:
 
 
 def on_mqtt_message(client, userdata, message):
-    _remember_robot(message.topic, message.payload.decode("utf-8", errors="replace"))
+    _remember_robot(message.topic, message.payload.decode("utf-8", errors="replace"),
+                    retained=bool(getattr(message, "retain", False)))
 
 
 def configure_mqtt_auth() -> None:
