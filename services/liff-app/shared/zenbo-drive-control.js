@@ -7,6 +7,17 @@
   var LEVELS = [1, 2, 3, 4, 5, 6, 7];
   var LABELS = ['ช้ามาก', 'ช้า', 'นุ่มนวล', 'ปานกลาง', 'เร็ว', 'เร็วมาก', 'เร็วสุด'];
 
+  function capabilityFromRobot(robot) {
+    var body = robot && robot.motion && robot.motion.body_relative;
+    if (!body || typeof body !== 'object') return null;
+    return {
+      supported: body.supported === true,
+      robot_api_ready: robot.robot_api_ready === true,
+      reported_at_ms: robot.heartbeat_received_at_ms,
+      policy_max_speed_level: body.policy_max_speed_level
+    };
+  }
+
   function deriveState(options) {
     options = options || {};
     var mode = options.mode || 'relative';
@@ -18,7 +29,7 @@
     if (!capability) return { enabled: false, reason: 'CAPABILITY_MISSING', cap: 0 };
     if (capability.supported !== true) return { enabled: false, reason: 'UNSUPPORTED', cap: 0 };
     if (capability.robot_api_ready !== true) return { enabled: false, reason: 'ROBOT_API_NOT_READY', cap: 0 };
-    if (!Number.isFinite(capability.reported_at_ms)
+    if (!Number.isFinite(capability.reported_at_ms) || capability.reported_at_ms <= 0
         || capability.reported_at_ms > nowMs
         || nowMs - capability.reported_at_ms > staleAfterMs) {
       return { enabled: false, reason: 'STALE_HEARTBEAT', cap: 0 };
@@ -150,6 +161,7 @@
 
   return {
     LEVELS: LEVELS.slice(),
+    capabilityFromRobot: capabilityFromRobot,
     createModel: createModel,
     createMotionRequest: createMotionRequest,
     deriveState: deriveState,

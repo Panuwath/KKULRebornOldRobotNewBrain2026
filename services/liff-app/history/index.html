@@ -129,6 +129,59 @@
       return 'คำสั่ง Zenbo';
     }
 
+    const motionLabels = {MQTT_PUBLISHED: 'Gateway ส่ง MQTT แล้ว', ACCEPTED: 'Gateway รับคำสั่งแล้ว',
+      APK_RECEIVED: 'APK รับคำสั่งแล้ว', SDK_SUBMITTED: 'ส่งเข้า SDK แล้ว', REJECTED: 'ปฏิเสธคำสั่ง',
+      SDK_STOP_REQUESTED: 'ร้องขอหยุดผ่าน SDK แล้ว', STOP_PUBLISHED: 'ส่งคำสั่งหยุดแล้ว'};
+
+    function addCommandTrace(row, robotSlug, commandId) {
+      if (!robotSlug || !commandId) return;
+      const details = document.createElement('details');
+      details.className = 'mt-3 border-t border-slate-800 pt-3 text-xs text-slate-300';
+      const summary = document.createElement('summary');
+      summary.className = 'cursor-pointer py-2 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300';
+      summary.textContent = 'ดูลำดับการรับคำสั่ง';
+      const content = document.createElement('div');
+      content.setAttribute('aria-live', 'polite');
+      details.append(summary, content);
+      let loaded = false;
+      let loading = false;
+      details.addEventListener('toggle', async () => {
+        if (!details.open || loaded || loading) return;
+        loading = true;
+        content.textContent = 'กำลังโหลดลำดับคำสั่ง...';
+        try {
+          const response = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(robotSlug)}/commands/${encodeURIComponent(commandId)}/trace`);
+          if (!response.ok) throw new Error(response.status === 404 ? 'ยังไม่พบข้อมูลคำสั่ง' : `HTTP ${response.status}`);
+          const trace = await response.json();
+          content.textContent = '';
+          const note = document.createElement('p');
+          note.className = 'my-2 text-slate-400';
+          note.textContent = 'เรียงตามเวลาที่ Gateway บันทึก ไม่ใช่หลักฐานว่าหุ่นเคลื่อนที่หรือหยุดจริง';
+          content.appendChild(note);
+          const events = document.createElement('ol');
+          events.className = 'space-y-2';
+          (trace.events || []).forEach(event => {
+            const entry = document.createElement('li');
+            const ack = event.payload?.acknowledgement;
+            const reason = ack?.reject_reason || ack?.stop_reason;
+            entry.textContent = `${new Date(event.created_at_ms).toLocaleTimeString('th-TH')} · ${motionLabels[event.status] || event.status}${reason ? ' · ' + reason : ''}`;
+            events.appendChild(entry);
+          });
+          content.appendChild(events);
+          if (trace.events_truncated) {
+            const truncated = document.createElement('p');
+            truncated.className = 'mt-2 text-amber-300';
+            truncated.textContent = 'แสดงเฉพาะ 100 เหตุการณ์ล่าสุดของคำสั่งนี้';
+            content.appendChild(truncated);
+          }
+          loaded = true;
+        } catch (error) {
+          content.textContent = `โหลดไม่สำเร็จ: ${error.message} — ปิดแล้วเปิดอีกครั้งเพื่อลองใหม่`;
+        } finally { loading = false; }
+      });
+      row.appendChild(details);
+    }
+
     function render(items) {
       if (!items.length) {
         historyList.innerHTML = '<li class="rounded-2xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-400">ยังไม่มีคำสั่งที่บันทึกไว้</li>';
@@ -144,9 +197,6 @@
         const values = row.querySelectorAll('p, span, dd');
         values[0].textContent = summarize(item.payload || {});
         values[1].textContent = time;
-        const motionLabels = {MQTT_PUBLISHED: 'Gateway ส่ง MQTT แล้ว', APK_RECEIVED: 'APK รับคำสั่งแล้ว',
-          SDK_SUBMITTED: 'ส่งเข้า SDK แล้ว', REJECTED: 'ปฏิเสธคำสั่ง', SDK_STOP_REQUESTED: 'ร้องขอหยุดผ่าน SDK แล้ว',
-          STOP_PUBLISHED: 'ส่งคำสั่งหยุดแล้ว'};
         values[2].textContent = motionLabels[item.status] || item.status;
         values[2].className = `rounded-full border px-2 py-1 text-[10px] font-bold ${item.status === 'MQTT_PUBLISHED' ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : 'border-red-500/40 bg-red-950/30 text-red-200'}`;
         values[3].textContent = item.robot_slug || 'ทุกเครื่อง';
@@ -164,6 +214,8 @@
           artifact.textContent = `APK: ${ack.apk_version || item.payload.apk_version || '—'} · SHA256: ${ack.apk_sha256 || item.payload.apk_sha256 || '—'}`;
           row.appendChild(artifact);
         }
+        addCommandTrace(row, item.robot_slug,
+          item.payload?.command_id || ack?.command_id || item.payload?.envelope?.command_id);
         historyList.appendChild(row);
       });
     }

@@ -109,3 +109,35 @@ def test_unknown_source_table_fails_closed(postgres, tmp_path):
         conn.execute('CREATE TABLE unknown_data (id INTEGER)')
     with pytest.raises(RuntimeError, match='Missing PostgreSQL'):
         copy_database(source, apply=True)
+
+
+def test_relative_trace_jsonb_links_gateway_and_apk_receipts(postgres):
+    from command_history_repository import append_command
+    from command_trace import trace_command
+    append_command("booky", "relative_motion", "MQTT_PUBLISHED", {
+        "envelope": {"command_id": "pg-trace"}})
+    append_command("booky", "apk_motion_ack", "SDK_STOP_REQUESTED", {
+        "acknowledgement": {"command_id": "pg-trace"}, "apk_sha256": "a" * 64})
+    append_command("other", "apk_motion_ack", "REJECTED", {"command_id": "pg-trace"})
+    trace = trace_command("pg-trace", "booky")
+    assert [event["status"] for event in trace["events"]] == ["MQTT_PUBLISHED", "SDK_STOP_REQUESTED"]
+    assert trace["payload"]["apk_sha256"] == "a" * 64
+    assert trace["physical_motion_verified"] is False
+    # Existing PG schema stores TEXT; also support deployments using native JSONB.
+    postgres.execute("ALTER TABLE command_history ALTER COLUMN payload_json TYPE jsonb USING payload_json::jsonb")
+    assert trace_command("pg-trace", "booky")["events"] == trace["events"]
+
+
+def test_field_rollout_jsonb_roundtrip_and_rollback_gate(postgres):
+    import field_permit
+    import field_rollout
+    actor = {"sub": "pg-operator", "role": "operator"}
+    permit = field_permit.issue("booky", actor["sub"], level_max=3)
+    session = field_rollout.start("booky", permit["permit_id"], actor)
+    session = field_rollout.transition(session["session_id"], "booky", actor, session["revision"])
+    assert session["state"] == "SIMULATED_L1"
+    assert field_rollout.authorize_preview(session["session_id"], "booky", permit["permit_id"], actor, 1)
+    session = field_rollout.transition(session["session_id"], "booky", actor, session["revision"], rollback=True)
+    with pytest.raises(field_rollout.RolloutError, match="SESSION_TERMINAL"):
+        field_rollout.authorize_preview(session["session_id"], "booky", permit["permit_id"], actor, 1)
+    assert session["physical_authorized"] is False

@@ -1268,11 +1268,19 @@ def _remember_robot(topic: str, payload: str, retained: bool = False) -> None:
         }
         event_kind = parts[-1]
         if event_kind == "heartbeat":
+            # Every heartbeat must supply its own readiness evidence. A legacy
+            # or incomplete heartbeat must not renew an earlier executable claim.
+            for key in ("motion", "robot_api_ready", "safety_guard", "safety_monitor",
+                        "safety_monitor_active", "artifact", "apk_sha256", "version_name",
+                        "applied_policy", "boot_session_id", "heartbeat_seq", "timestamp_ms",
+                        "liveness", "capabilities", "client_id"):
+                robot.pop(key, None)
             robot.update(data)
             # Capability freshness only advances on a live heartbeat. Other
             # telemetry and retained broker replay cannot renew motion eligibility.
             robot["robot_slug"] = slug
             robot["last_seen"] = 0 if retained else time.time()
+            robot["heartbeat_received_at_ms"] = int(robot["last_seen"] * 1000)
         else:
             event = {
                 "kind": event_kind,

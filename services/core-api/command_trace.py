@@ -7,15 +7,20 @@ import db
 
 
 def trace_command(command_id: str, robot_slug: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Return the latest history record matching a command_id in the payload.
+    """Return latest receipt and up to 100 events, ordered by gateway history id.
 
-    Works on both SQLite and PostgreSQL.  This is a gateway audit trail, not a
-    guarantee of physical completion.
+    Accept the existing top-level, relative gateway envelope, and APK ACK shapes.
+    These are recorded observations, never a physical completion guarantee.
     """
     if db._backend == "pgsql":
-        condition = "payload_json ->> 'command_id' = :command_id"
+        command_expression = "COALESCE(payload_json::jsonb ->> 'command_id', " \
+            "payload_json::jsonb -> 'acknowledgement' ->> 'command_id', " \
+            "payload_json::jsonb -> 'envelope' ->> 'command_id')"
     else:
-        condition = "json_extract(payload_json, '$.command_id') = :command_id"
+        command_expression = "COALESCE(json_extract(payload_json, '$.command_id'), " \
+            "json_extract(payload_json, '$.acknowledgement.command_id'), " \
+            "json_extract(payload_json, '$.envelope.command_id'))"
+    condition = f"{command_expression} = :command_id"
 
     params: Dict[str, Any] = {"command_id": command_id}
     where = ""
@@ -23,27 +28,36 @@ def trace_command(command_id: str, robot_slug: Optional[str] = None) -> Optional
         where = " AND robot_slug = :robot_slug"
         params["robot_slug"] = robot_slug
 
-    row = db.fetchone(
+    rows = db.fetchall(
         f"SELECT id, created_at_ms, robot_slug, source, status, accepted_latency_ms, "
         f"payload_json, user_id, display_name FROM command_history "
-        f"WHERE {condition}{where} ORDER BY id DESC LIMIT 1",
+        f"WHERE {condition}{where} ORDER BY id DESC LIMIT 101",
         params,
     )
-    if row is None:
+    if not rows:
         return None
 
-    payload = row["payload_json"]
-    if isinstance(payload, str):
-        payload = json.loads(payload)
+    events = []
+    for row in reversed(rows[:100]):
+        payload = row["payload_json"]
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        events.append({
+            "command_id": command_id,
+            "history_id": row["id"],
+            "robot_slug": row["robot_slug"],
+            "source": row["source"],
+            "status": row["status"],
+            "created_at_ms": row["created_at_ms"],
+            "accepted_latency_ms": row["accepted_latency_ms"],
+            "payload": payload,
+            "user_id": row["user_id"],
+            "display_name": row["display_name"],
+        })
     return {
-        "command_id": command_id,
-        "history_id": row["id"],
-        "robot_slug": row["robot_slug"],
-        "source": row["source"],
-        "status": row["status"],
-        "created_at_ms": row["created_at_ms"],
-        "accepted_latency_ms": row["accepted_latency_ms"],
-        "payload": payload,
-        "user_id": row["user_id"],
-        "display_name": row["display_name"],
+        **events[-1],
+        "events": events,
+        "events_truncated": len(rows) > 100,
+        "event_order": "GATEWAY_RECEIPT",
+        "physical_motion_verified": False,
     }
