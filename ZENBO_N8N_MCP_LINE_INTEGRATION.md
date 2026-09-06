@@ -66,6 +66,7 @@ flowchart TB
 การย้าย Business Logic และ AI Orchestration ไปรันบน n8n ช่วยให้ระบบมีความยืดหยุ่นสูง ปรับแต่ง Scenario ได้รวดเร็วในงาน Hackathon:
 
 ### 2.1 งานที่มอบหมายให้ n8n รับผิดชอบ (What runs in n8n)
+
 1. **LINE Webhook Receiver & Parser**:
    * รับ Event จาก LINE (ข้อความ, รูปภาพ, Location, เสียง)
    * แยกรหัส `userId`, `replyToken`, `messageText`
@@ -94,10 +95,11 @@ flowchart TB
 | `zenbo_move_head` | `yaw` (float), `pitch` (float), `speed` (int) | สั่งหันศีรษะซ้าย-ขวา (-45° ถึง 45°) และก้มเงย (-15° ถึง 55°) |
 | `zenbo_play_action` | `action_id` (int) | สั่งเล่นท่าทางอนิเมชันสำเร็จรูป (Canned Action เช่น เต้น, คำนับ, ดีใจ) |
 | `zenbo_set_lights` | `mode` (str), `color` (str), `brightness` (int) | ควบคุมไฟวงแหวน LED ที่ล้อ (blinking, breathing, charging, marquee) |
-| `zenbo_emergency_stop`| - | สั่งหยุดการเคลื่อนไหวของหุ่นยนต์ทันทีในทุกกรณี |
+| `zenbo_emergency_stop` | - | สั่งหยุดการเคลื่อนไหวของหุ่นยนต์ทันทีในทุกกรณี |
 | `zenbo_get_status` | - | ตรวจสอบสถานะการเชื่อมต่อ แบตเตอรี่ และข้อมูลเซนเซอร์ล่าสุด |
 
 ### 3.2 โครงร่างซอร์สโค้ด Zenbo MCP Server (`services/mcp-server/server.py`)
+
 ```python
 import os
 import httpx
@@ -175,11 +177,14 @@ sequenceDiagram
 ```
 
 ### 4.1 ตัวอย่าง Payload ใน n8n Node สำหรับสั่ง Zenbo
+
 เมื่อ n8n ทำการประมวลผลข้อความจาก LINE แล้ว ให้ตั้งค่า HTTP Request Node ใน n8n ดังนี้:
+
 * **Method**: `POST`
 * **URL**: `http://zenbo-core-api:5005/api/v1/robot/interact`
 * **Headers**: `Content-Type: application/json`
 * **Body**:
+
   ```json
   {
     "text": "สวัสดีค่ะ  รับคำสั่งจากไลน์เรียบร้อยแล้วค่าา  ",

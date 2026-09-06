@@ -5,14 +5,21 @@ import android.util.Log;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TtsClient {
     private static final String TAG = "ZenboTts";
-    private static final String TTS_URL = "http://10.101.118.149:8025/api/tts/binary";
-    private static final String NEURAL_TTS_URL = "http://10.101.118.149:5005/api/v1/tts/neural/binary";
+    // Prefer the campus LAN Thai TTS service.  Legacy Zenbo images cannot
+    // reliably reach the public HTTPS gateway, so LAN must win first.
+    private static final String LAN_TTS_URL = "http://10.101.118.149:8025/api/tts/binary";
+    private static final String CORE_LAN_TTS_URL = "http://10.101.118.149:5005/api/v1/tts/neural/binary";
+    private static final int MIN_TTS_READ_TIMEOUT_MS = 30_000;
+    private static final int MAX_TTS_READ_TIMEOUT_MS = 180_000;
 
     /** Only use values documented by the on-LAN TTS API: age 10, 15, or 20. */
     private static final class VoiceSettings {
@@ -50,16 +57,7 @@ public class TtsClient {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                HttpURLConnection conn = null;
                 try {
-                    URL url = new URL(settings.neural ? NEURAL_TTS_URL : TTS_URL);
-                    conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Content-Type", "application/json");
-                    conn.setConnectTimeout(15000);
-                    conn.setReadTimeout(30000);
-                    conn.setDoOutput(true);
-
                     JSONObject body = new JSONObject();
                     body.put("text", text);
                     body.put("voice", settings.voice);
@@ -72,39 +70,77 @@ public class TtsClient {
                         body.put("natural_mode", true);
                     }
 
-                    byte[] payload = body.toString().getBytes("UTF-8");
-                    conn.setRequestProperty("Content-Length", String.valueOf(payload.length));
-                    conn.getOutputStream().write(payload);
-                    conn.getOutputStream().close();
-
-                    int code = conn.getResponseCode();
-                    if (code != 200) {
-                        callback.onError("TTS HTTP " + code);
-                        return;
+                    // The legacy Android trust store rejects the public HTTPS
+                    // endpoint.  Keep retries on the two reachable LAN paths.
+                    String[] endpoints = new String[] {LAN_TTS_URL, CORE_LAN_TTS_URL};
+                    int readTimeoutMs = readTimeoutMillisForText(text);
+                    List<String> failures = new ArrayList<>();
+                    for (String endpoint : endpoints) {
+                        try {
+                            byte[] wavBytes = synthesizeAt(endpoint, body, readTimeoutMs);
+                            Log.d(TAG, "TTS synthesized " + wavBytes.length + " bytes for: " + text);
+                            callback.onSuccess(wavBytes);
+                            return;
+                        } catch (Exception error) {
+                            failures.add(endpoint + ": " + safeErrorMessage(error));
+                            Log.w(TAG, "TTS endpoint unavailable: " + endpoint + " (" + error.getMessage() + ")");
+                        }
                     }
-
-                    InputStream in = conn.getInputStream();
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[8192];
-                    int n;
-                    while ((n = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, n);
-                    }
-                    in.close();
-
-                    byte[] wavBytes = out.toByteArray();
-                    Log.d(TAG, "TTS synthesized " + wavBytes.length + " bytes for: " + text);
-                    callback.onSuccess(wavBytes);
+                    callback.onError(failures.isEmpty() ? "TTS endpoint unavailable"
+                            : "LAN TTS failed: " + joinFailures(failures));
                 } catch (Exception e) {
                     Log.e(TAG, "TTS error: " + e.getMessage(), e);
                     callback.onError(e.getMessage());
-                } finally {
-                    if (conn != null) {
-                        conn.disconnect();
-                    }
                 }
             }
         }).start();
+    }
+
+    static int readTimeoutMillisForText(String text) {
+        int length = text == null ? 0 : text.length();
+        long timeout = MIN_TTS_READ_TIMEOUT_MS + (long) length * 150L;
+        return (int) Math.max(MIN_TTS_READ_TIMEOUT_MS, Math.min(MAX_TTS_READ_TIMEOUT_MS, timeout));
+    }
+
+    private static String safeErrorMessage(Exception error) {
+        String message = error == null ? null : error.getMessage();
+        return message == null || message.trim().isEmpty() ? error.getClass().getSimpleName() : message;
+    }
+
+    private static String joinFailures(List<String> failures) {
+        StringBuilder joined = new StringBuilder();
+        for (String failure : failures) {
+            if (joined.length() > 0) joined.append(" | ");
+            joined.append(failure);
+        }
+        return joined.toString();
+    }
+
+    private static byte[] synthesizeAt(String endpoint, JSONObject body, int readTimeoutMs) throws Exception {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(endpoint).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setConnectTimeout(2500);
+            conn.setReadTimeout(readTimeoutMs);
+            conn.setDoOutput(true);
+            byte[] payload = body.toString().getBytes("UTF-8");
+            conn.setFixedLengthStreamingMode(payload.length);
+            conn.getOutputStream().write(payload);
+            conn.getOutputStream().close();
+            int code = conn.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) throw new IOException("TTS HTTP " + code);
+            InputStream in = conn.getInputStream();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int n;
+            while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+            in.close();
+            return out.toByteArray();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private static VoiceSettings resolveVoice(String voiceProfile, String requestedVoice,

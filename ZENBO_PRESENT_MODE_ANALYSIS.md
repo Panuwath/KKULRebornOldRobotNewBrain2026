@@ -1,18 +1,18 @@
-# วิเคราะห์และออกแบบ Zenbo Present Mode
+# วิเคราะห์และออกแบบ Zenbo สถานการณ์
 
 วันที่: 30 สิงหาคม 2026  
 สถานะ: **Phase 1 implemented — ต้องผ่านการยืนยันบน Zenbo จริงก่อนเปิดใช้งานการเคลื่อนที่อัตโนมัติ**
 
 ## เป้าหมาย
 
-เพิ่ม route ใหม่ `/liff/present/` สำหรับเลือก **presentation preset** ด้วยการแตะ ไม่ต้องเขียน JSON เอง โดยทุก preset ต้องเลือกหุ่นยนต์ก่อน, แสดงสิ่งที่จะเกิดขึ้น, กดยืนยัน, และเห็นสถานะจาก Zenbo ระหว่างทำงาน
+หน้าผู้ใช้ใช้ route `/liff/scenario/` สำหรับเลือก **scenario preset** ด้วยการแตะ ไม่ต้องเขียน JSON เอง โดยทุก preset ต้องเลือกหุ่นยนต์ก่อน, แสดงสิ่งที่จะเกิดขึ้น, กดยืนยัน, และเห็นสถานะจาก Zenbo ระหว่างทำงาน
 
 กลุ่มใช้งานหลักคือสำนักหอสมุด มหาวิทยาลัยขอนแก่น: กล่าวต้อนรับ, นำชม, กิจกรรมกรรมการ, การสื่อสาร, และกิจกรรมเด็ก/ความบันเทิง
 
 ## หลักฐานและข้อจำกัดปัจจุบัน
 
 | ความสามารถ | สถานะทางซอฟต์แวร์ | ข้อจำกัดก่อนใช้เป็น preset |
-|---|---|---|
+| --- | --- | --- |
 | Thai TTS ผ่าน `:8025` | มีใน APK v1.7.2 | ต้องรอสถานะ TTS/จบเสียงก่อน step ถัดไป |
 | สีหน้า, คอ, ไฟล้อ, canned action | มี API และ MQTT payload | ความหมาย/ระยะเวลาของ action ID ต้องทดสอบกับเครื่องจริง |
 | จอยสติ๊ก/หยุดฉุกเฉิน | มี `/liff/control/` | ห้ามแทนด้วยคำสั่งเดินอัตโนมัติบนพื้นที่ไม่ตรวจ obstacle |
@@ -31,9 +31,9 @@
 
 ### Route
 
-- `/liff/present/` — แกลเลอรี preset แบบกราฟิก
-- `/liff/present/?preset=library-welcome` — เปิด card ที่เลือกพร้อม preview
-- `/liff/present/history/` — filter ประวัติ command เฉพาะ `source=liff_present` (ใช้ history เดิมเพิ่ม filter ได้)
+- `/liff/scenario/` — แกลเลอรี preset แบบกราฟิก
+- `/liff/scenario/?preset=library-welcome` — เปิด card ที่เลือกพร้อม preview
+- `/liff/history/` — filter ประวัติ command เฉพาะ `source=liff_present` (ใช้ history เดิมเพิ่ม filter ได้)
 
 หน้าแรกใช้ grid card 2 คอลัมน์บนมือถือ: ไอคอน, ชื่อสั้น, ระยะเวลา, ป้ายระดับความพร้อม และปุ่ม “ดูตัวอย่าง” ไม่ต้องโชว์ JSON เป็นค่าเริ่มต้น
 
@@ -50,7 +50,7 @@
 สัญลักษณ์: **A** = สร้างได้จากความสามารถปัจจุบัน แต่ยังต้องทดสอบหุ่นจริง; **B** = ต้องทำ Presentation Runner/ตรวจ callback ก่อน; **G** = gated beta ต้องมีการสอบเทียบหรือบริการเพิ่ม
 
 | ID | Preset | เนื้อหาหลัก | ระดับ |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `library-welcome-30` | ยินดีต้อนรับสำนักหอสมุด 30 วินาที | TTS ไทย + HAPPY + ไฟเขียวหายใจ + หันมองผู้ฟัง | B |
 | `judge-greeting` | กล่าวทักทายกรรมการ | คำนับ/สีหน้าภูมิใจ + กล่าวต้อนรับแบบปรับชื่อได้ | B |
 | `photo-invitation` | เชิญถ่ายภาพ | ขออนุญาตถ่ายรูป, นับถอยหลัง, ยิ้ม, ไฟสีชมพู | B |
@@ -129,14 +129,14 @@ zenbo/<robot>/status/presentation
 
 1. สร้าง server-side preset catalog 8 รายการระดับ A/B ที่ไม่เคลื่อนฐาน
 2. เพิ่ม Presentation Runner ใน APK และ MQTT status ต่อ run/step
-3. สร้าง `/liff/present/` พร้อม target picker, preview, confirm, stop, status และ history
+3. สร้าง `/liff/scenario/` พร้อม target picker, preview, confirm, stop, status และ history
 4. ทดสอบ TTS/face/light/action catalog บน Zenbo จริงทีละ preset
 5. เปิด `route-guide`, `music-dance`, และ `celebration` หลัง player/action telemetry ผ่าน
 6. เปิด follow, marker, photo capture หรือ autonomous navigation เฉพาะเมื่อมี implementation และ safety proof เพิ่ม
 
 ## ผลการพัฒนา Phase 1
 
-- เพิ่ม `/liff/present/` พร้อม gallery 22 preset, category picker, Zenbo picker, preview ก่อนยืนยัน, และปุ่ม STOP
+- เพิ่ม `/liff/scenario/` พร้อม gallery 22 preset, category picker, Zenbo picker, preview ก่อนยืนยัน, และปุ่ม STOP
 - เพิ่ม Core API `GET /api/v1/presentations`, `POST /api/v1/presentations/preview`, และ `POST /api/v1/presentations/start`
 - catalog และข้อความ template อยู่ฝั่ง Core; browser ไม่สามารถส่ง action/motion เพิ่มเติมผ่าน preset ได้
 - เปิดใช้เฉพาะ 15 preset ที่เป็น TTS/face/light/map display และไม่มีการเคลื่อนฐานอัตโนมัติ
@@ -150,3 +150,41 @@ zenbo/<robot>/status/presentation
 - preset ที่เป็น gated แสดงเหตุผลและไม่ส่งคำสั่งเสี่ยง
 - คำสั่งทุกครั้งบันทึก history ด้วย `run_id`, preset ID, robot, operator time และผลจาก client
 - การทดสอบ physical แยกรายงานจาก build/API/broker อย่างชัดเจน
+
+## Present mode: speech, expression, and posture contract
+
+## Implemented interaction rule
+
+Every ready preset with speech now receives a server-owned, stationary cue
+before audio playback: an SDK-backed `RobotFace` expression and a short head
+gesture.  The Android client applies its `after_speech` cue only after the
+Thai WAV has actually finished playing, so Booky does not remain in an
+animated speaking face once the sentence ends.
+
+The cue map uses only expressions present in the bundled Zenbo SDK sample
+(`HAPPY_ADV`, `PLEASED_ADV`, `PROUD_ADV`, `CONFIDENT_ADV`, `INTERESTED_ADV`,
+`EXPECTING_ADV`, `SERIOUS_ADV`, and `SINGING_ADV`) and uses head movement only;
+it does not add base motion or a new canned-action ID.
+
+## SDK assessment
+
+No SDK upgrade is required for this improvement.  The existing SDK already
+offers `robot.setExpression`, `motion.moveHead`, audio completion callbacks,
+and `utility.playEmotionalAction`.  The relevant correction is sequencing:
+`delay_ms` is now interpreted as the wait before the next head step, avoiding
+the previous immediate second pose when the first step had a zero delay.
+
+`playEmotionalAction` remains available but must stay out of new presentation
+presets until its action ID and callback have been confirmed on this exact
+robot/firmware.  A gateway publish, APK build, or `action_done` audio callback
+does not confirm physical expression or movement.
+
+## Robot test checklist
+
+1. Confirm `RobotAPI initComplete` and the installed APK version.
+2. Run one spoken preset and observe: opening expression, head gesture while
+   audio is playing, then the intended resting expression after audio ends.
+3. Read the MQTT `presentation: AFTER_SPEECH_CUE_APPLIED` status and SDK
+   callback separately from visual observation.
+4. Keep an observer and the STOP control available; these cues do not move
+   the base, but any later canned action needs its own safety check.

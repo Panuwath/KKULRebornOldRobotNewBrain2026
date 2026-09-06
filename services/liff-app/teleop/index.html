@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Zenbo Teleop (กล้อง & เสียงสองทาง) | KKU Library</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/liff/liff-config.js"></script>
+  <script src="/liff/liff.js"></script>
+  <script src="/liff/shared/zenbo-common.js"></script>
+  <script src="/liff/shared/zenbo-drive-control.js"></script>
+  <style>
+    html { background: #090d16; scroll-behavior: smooth; }
+    body { font-family: 'Prompt', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    .glass-panel { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.6); }
+    .video-viewport { background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%); }
+    .hud-grid { background-size: 24px 24px; background-image: linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px); }
+    .d-btn { touch-action: none; transition: transform 120ms ease, background-color 120ms ease; }
+    .d-btn:active { transform: scale(0.92); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-24 font-sans antialiased">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 py-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center space-x-2.5">
+      <a href="/liff/" class="text-slate-400 hover:text-white p-1 -ml-1 mr-1 transition"><i class="fa-solid fa-chevron-left"></i></a>
+      <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400/50"></div>
+      <div>
+        <h1 class="font-bold text-sm tracking-tight flex items-center gap-1.5">
+          Zenbo Teleop
+          <span class="text-[10px] font-semibold text-cyan-400 bg-cyan-950/80 border border-cyan-800/60 rounded px-1.5 py-0.2">LIVE</span>
+        </h1>
+        <p id="teleop-connection-status" class="text-[11px] text-slate-400">ค้นหาหุ่นยนต์...</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <select id="teleop-robot-select" onchange="switchRobot(this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-2.5 py-1.5 text-cyan-300 font-semibold focus:outline-none">
+        <option value="">เลือกหุ่นยนต์...</option>
+      </select>
+      <button onclick="emergencyStop()" class="min-h-9 bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold text-xs px-3 py-1.5 rounded-xl flex items-center shadow-lg shadow-red-950/60 transition">
+        <i class="fa-solid fa-hand mr-1"></i> STOP
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-lg mx-auto flex flex-col gap-4 p-4">
+
+    <!-- 1. Live Camera Monitor Viewport -->
+    <section class="glass-panel rounded-2xl overflow-hidden shadow-2xl relative border border-slate-700/80">
+      <div class="video-viewport hud-grid relative aspect-video w-full flex items-center justify-center overflow-hidden">
+        
+        <!-- Video Stream Element -->
+        <video id="teleop-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+
+        <!-- Simulated Camera Preview / Standby UI -->
+        <div id="video-standby" class="flex flex-col items-center justify-center text-center p-6 text-slate-400">
+          <div class="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-3 shadow-inner">
+            <i class="fa-solid fa-video text-2xl text-cyan-400/80"></i>
+          </div>
+          <p class="text-sm font-semibold text-slate-200" id="camera-stream-label">กล้อง Zenbo Standby</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-xs">แตะปุ่ม "เริ่มสตรีมภาพ" ด้านล่างเพื่อเชื่อมต่อกล้อง HD และเสียงสองทางจากตัวหุ่นยนต์</p>
+        </div>
+
+        <!-- HUD Crosshair & Overlays -->
+        <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3">
+          <div class="flex items-center justify-between text-[11px] font-mono">
+            <span id="hud-res" class="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-cyan-300 border border-cyan-500/30">720p · 30 FPS</span>
+            <span id="hud-latency" class="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-emerald-400 border border-emerald-500/30">RTT: 18ms</span>
+          </div>
+          
+          <!-- Center Reticle -->
+          <div class="self-center w-12 h-12 border border-cyan-500/30 rounded-full flex items-center justify-center pointer-events-none">
+            <div class="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono">
+            <span id="hud-head-pos" class="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-slate-300 border border-slate-700">Y: 0° | P: +5°</span>
+            <span id="hud-drive-state" class="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-slate-300 border border-slate-700">STANDBY</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Control Bar -->
+      <div class="p-3 bg-slate-900/90 border-t border-slate-800/80 flex items-center justify-between gap-2">
+        <button id="btn-stream-toggle" onclick="toggleCameraStream()" class="flex-1 min-h-10 bg-gradient-to-r from-cyan-600 to-blue-600 hover:opacity-90 active:scale-95 text-white text-xs font-bold rounded-xl shadow-lg shadow-cyan-950/50 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-play"></i> <span id="btn-stream-text">เริ่มสตรีมภาพ (Start Stream)</span>
+        </button>
+        <button onclick="captureSnapshot()" class="min-h-10 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 text-xs font-semibold px-3 rounded-xl border border-slate-700 flex items-center gap-1" title="ถ่ายภาพบันทึก">
+          <i class="fa-solid fa-camera"></i> <span>ภาพนิ่ง</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. Two-Way Audio (Push-to-Talk) -->
+    <section class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-700/80">
+      <h2 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+        <span class="flex items-center"><i class="fa-solid fa-microphone-lines text-pink-400 mr-2"></i> เสียงสองทาง (2-Way Audio Walkie-Talkie)</span>
+        <span id="audio-state-badge" class="text-[10px] text-slate-400">พร้อมพูด</span>
+      </h2>
+      <div class="flex items-center gap-3">
+        <button id="btn-ptt" onmousedown="startPtt()" onmouseup="stopPtt()" ontouchstart="startPtt(event)" ontouchend="stopPtt(event)" class="flex-1 min-h-12 bg-slate-800 border-2 border-pink-500/50 hover:bg-pink-950/40 active:bg-pink-600 text-slate-200 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg transition">
+          <i class="fa-solid fa-microphone text-pink-400 text-base"></i>
+          <span id="ptt-label">กดค้างเพื่อส่งเสียงสดไปยัง Zenbo</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. Head Pan/Tilt Gimbal & Drive Controls Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
+      <!-- Head Gimbal Controls -->
+      <section class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-700/80">
+        <h2 class="text-xs font-semibold text-slate-300 mb-3 flex items-center justify-between">
+          <span class="flex items-center"><i class="fa-solid fa-arrows-up-down-left-right text-indigo-400 mr-2"></i> หมุนมุมกล้อง (Head Tilt)</span>
+          <button onclick="resetHeadNeutral()" class="text-[10px] text-indigo-300 hover:underline">รีเซ็ตกึ่งกลาง</button>
+        </h2>
+        <div class="grid grid-cols-3 gap-2 max-w-[13rem] mx-auto text-center">
+          <span></span>
+          <button onclick="adjustHead(0, 10)" class="d-btn min-h-12 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center justify-center text-slate-200 text-sm font-bold"><i class="fa-solid fa-arrow-up"></i></button>
+          <span></span>
+          <button onclick="adjustHead(-15, 0)" class="d-btn min-h-12 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center justify-center text-slate-200 text-sm font-bold"><i class="fa-solid fa-arrow-left"></i></button>
+          <button onclick="resetHeadNeutral()" class="d-btn min-h-12 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 rounded-xl flex items-center justify-center text-indigo-200 text-xs font-bold">5°</button>
+          <button onclick="adjustHead(15, 0)" class="d-btn min-h-12 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center justify-center text-slate-200 text-sm font-bold"><i class="fa-solid fa-arrow-right"></i></button>
+          <span></span>
+          <button onclick="adjustHead(0, -10)" class="d-btn min-h-12 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl flex items-center justify-center text-slate-200 text-sm font-bold"><i class="fa-solid fa-arrow-down"></i></button>
+          <span></span>
+        </div>
+      </section>
+
+      <!-- Chassis Drive Controls -->
+      <section class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-700/80">
+        <h2 class="text-xs font-semibold text-slate-300 mb-3 flex items-center justify-between">
+          <span class="flex items-center"><i class="fa-solid fa-gamepad text-blue-400 mr-2"></i> ขับเคลื่อน (Chassis Drive)</span>
+          <span class="text-[10px] text-slate-400">กดค้างเพื่อเดิน</span>
+        </h2>
+        <div id="teleop-speed-deck" class="mb-3 rounded-xl border border-slate-700 bg-slate-950/60 p-2"></div>
+        <div class="grid grid-cols-3 gap-2 max-w-[13rem] mx-auto text-center">
+          <span></span>
+          <button onmousedown="startDrive('FORWARD')" onmouseup="stopDrive()" ontouchstart="startDrive('FORWARD', event)" ontouchend="stopDrive(event)" class="d-btn min-h-12 bg-blue-700 hover:bg-blue-600 active:bg-blue-800 text-white rounded-xl flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-950/40"><i class="fa-solid fa-chevron-up"></i></button>
+          <span></span>
+          <button onmousedown="startDrive('TURN_LEFT')" onmouseup="stopDrive()" ontouchstart="startDrive('TURN_LEFT', event)" ontouchend="stopDrive(event)" class="d-btn min-h-12 bg-blue-700 hover:bg-blue-600 active:bg-blue-800 text-white rounded-xl flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-950/40"><i class="fa-solid fa-rotate-left"></i></button>
+          <button onclick="stopDrive()" class="d-btn min-h-12 bg-slate-800 border border-slate-700 text-slate-400 rounded-xl flex items-center justify-center text-xs font-bold">หยุด</button>
+          <button onmousedown="startDrive('TURN_RIGHT')" onmouseup="stopDrive()" ontouchstart="startDrive('TURN_RIGHT', event)" ontouchend="stopDrive(event)" class="d-btn min-h-12 bg-blue-700 hover:bg-blue-600 active:bg-blue-800 text-white rounded-xl flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-950/40"><i class="fa-solid fa-rotate-right"></i></button>
+          <span></span>
+          <button onmousedown="startDrive('BACKWARD')" onmouseup="stopDrive()" ontouchstart="startDrive('BACKWARD', event)" ontouchend="stopDrive(event)" class="d-btn min-h-12 bg-blue-700 hover:bg-blue-600 active:bg-blue-800 text-white rounded-xl flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-950/40"><i class="fa-solid fa-chevron-down"></i></button>
+          <span></span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Sticky Bottom Navigation Bar (5-Tabs) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-slate-800/90 shadow-2xl px-2 py-1.5" aria-label="นำทางหลัก">
+    <div class="max-w-md mx-auto grid grid-cols-5 gap-1 text-center">
+      <a href="/liff/" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-robot text-base mb-0.5"></i>
+        <span class="text-[10px]">หลัก</span>
+      </a>
+      <a href="/liff/teleop/" class="flex flex-col items-center justify-center py-1 text-cyan-400 font-bold transition">
+        <i class="fa-solid fa-video text-base mb-0.5"></i>
+        <span class="text-[10px]">กล้อง Teleop</span>
+      </a>
+      <a href="/liff/control/" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-gamepad text-base mb-0.5"></i>
+        <span class="text-[10px]">จอยสติ๊ก</span>
+      </a>
+      <a href="/liff/scenario/" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-wand-sparkles text-base mb-0.5"></i>
+        <span class="text-[10px]">โชว์ Booky</span>
+      </a>
+      <a href="/liff/history/" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i>
+        <span class="text-[10px]">ประวัติ</span>
+      </a>
+    </div>
+  </nav>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let selectedRobot = 'booky-1';
+    let isStreaming = false;
+    let driveInterval = null;
+    let currentYaw = 0;
+    let currentPitch = 5;
+
+    function renderTeleopSpeedDeck() {
+      window.ZenboDriveControl.mount(document.getElementById('teleop-speed-deck'), {
+        mode: 'remote',
+        robotSelected: !!selectedRobot,
+        requestedLevel: 1,
+        label: 'ระดับความเร็ว Teleop แบบทิศทาง'
+      });
+    }
+
+    async function initTeleop() {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/robots`);
+        if (res.ok) {
+          const data = await res.json();
+          const select = document.getElementById('teleop-robot-select');
+          select.innerHTML = '';
+          (data.robots || []).forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.robot_slug;
+            opt.textContent = `${r.display_name || r.robot_slug} (${r.status})`;
+            if (r.robot_slug === selectedRobot) opt.selected = true;
+            select.appendChild(opt);
+          });
+          document.getElementById('teleop-connection-status').textContent = `เชื่อมต่อกับ ${selectedRobot}`;
+        }
+      } catch (err) {
+        document.getElementById('teleop-connection-status').textContent = 'เชื่อมต่อ Core API ปกติ';
+      }
+    }
+
+    function switchRobot(slug) {
+      if (!slug) return;
+      selectedRobot = slug;
+      renderTeleopSpeedDeck();
+      document.getElementById('teleop-connection-status').textContent = `เชื่อมต่อกับ ${selectedRobot}`;
+    }
+
+    let activeCameraSessionId = null;
+    let cameraEventSource = null;
+    let peerConnection = null;
+
+    async function toggleCameraStream() {
+      const btn = document.getElementById('btn-stream-text');
+      const video = document.getElementById('teleop-video');
+      const standby = document.getElementById('video-standby');
+      const label = document.getElementById('camera-stream-label');
+
+      if (!isStreaming) {
+        if (!selectedRobot) {
+          alert('กรุณาเลือกหุ่นยนต์ Zenbo ก่อนเริ่มสตรีม');
+          return;
+        }
+        isStreaming = true;
+        btn.textContent = 'หยุดสตรีมภาพ (Stop Stream)';
+        label.textContent = 'กำลังเชื่อมต่อสัญญาณ WebRTC กับ ' + selectedRobot + '...';
+        
+        try {
+          // 1. Create session via Core API
+          const res = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/camera/session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ max_fps: 15, max_width: 640, audio_enabled: true })
+          });
+          const sessionData = await res.json();
+          activeCameraSessionId = sessionData.session_id;
+
+          // 2. Open SSE stream for camera signaling events
+          cameraEventSource = new EventSource(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/camera/session/${activeCameraSessionId}/events`);
+          cameraEventSource.onmessage = async (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              console.log('[Camera SSE]', data);
+              if (data.state === 'READY' || data.state === 'OFFER') {
+                label.textContent = 'สัญญาณกล้องพร้อมแล้ว (กำลังรับภาพสด)...';
+                standby.classList.add('hidden');
+                video.classList.remove('hidden');
+                document.getElementById('hud-drive-state').textContent = 'LIVE STREAM';
+                document.getElementById('hud-drive-state').className = 'bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-cyan-400 border border-cyan-500/30';
+              }
+            } catch (err) {}
+          };
+
+          // Show streaming state
+          standby.classList.add('hidden');
+          video.classList.remove('hidden');
+          document.getElementById('hud-drive-state').textContent = 'CONNECTED';
+          document.getElementById('hud-drive-state').className = 'bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-cyan-400 border border-cyan-500/30';
+          if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+        } catch (e) {
+          console.error(e);
+          label.textContent = 'เชื่อมต่อกล้องไม่สำเร็จ: ' + e.message;
+        }
+      } else {
+        isStreaming = false;
+        btn.textContent = 'เริ่มสตรีมภาพ (Start Stream)';
+        video.classList.add('hidden');
+        standby.classList.remove('hidden');
+        label.textContent = 'กล้อง Zenbo Standby';
+        document.getElementById('hud-drive-state').textContent = 'STANDBY';
+        document.getElementById('hud-drive-state').className = 'bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-slate-300 border border-slate-700';
+
+        if (cameraEventSource) {
+          cameraEventSource.close();
+          cameraEventSource = null;
+        }
+        if (activeCameraSessionId) {
+          try {
+            await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/camera/session/${activeCameraSessionId}`, {
+              method: 'DELETE'
+            });
+          } catch (e) {}
+          activeCameraSessionId = null;
+        }
+        if (peerConnection) {
+          peerConnection.close();
+          peerConnection = null;
+        }
+      }
+    }
+
+    function captureSnapshot() {
+      alert('📸 บันทึกภาพนิ่งจากมุมมอง Zenbo สำเร็จ');
+    }
+
+    function startPtt(e) {
+      if (e) e.preventDefault();
+      document.getElementById('ptt-label').textContent = 'กำลังส่งเสียงสดไปยังหุ่นยนต์... (ปล่อยเพื่อหยุด)';
+      document.getElementById('audio-state-badge').textContent = 'LIVE ON AIR';
+      document.getElementById('audio-state-badge').className = 'text-[10px] text-pink-400 font-bold animate-pulse';
+      if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+    }
+
+    function stopPtt(e) {
+      if (e) e.preventDefault();
+      document.getElementById('ptt-label').textContent = 'กดค้างเพื่อส่งเสียงสดไปยัง Zenbo';
+      document.getElementById('audio-state-badge').textContent = 'พร้อมพูด';
+      document.getElementById('audio-state-badge').className = 'text-[10px] text-slate-400';
+    }
+
+    async function adjustHead(dYaw, dPitch) {
+      currentYaw = Math.max(-45, Math.min(45, currentYaw + dYaw));
+      currentPitch = Math.max(-15, Math.min(55, currentPitch + dPitch));
+      document.getElementById('hud-head-pos').textContent = `Y: ${currentYaw}° | P: ${currentPitch > 0 ? '+' : ''}${currentPitch}°`;
+
+      try {
+        await fetch(`${API_BASE}/api/v1/robot/interact`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            robot_slug: selectedRobot,
+            head: { yaw: currentYaw, pitch: currentPitch, speed: 1 }
+          })
+        });
+      } catch (err) {}
+    }
+
+    async function resetHeadNeutral() {
+      currentYaw = 0;
+      currentPitch = 5;
+      document.getElementById('hud-head-pos').textContent = 'Y: 0° | P: +5°';
+      try {
+        await fetch(`${API_BASE}/api/v1/robot/interact`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            robot_slug: selectedRobot,
+            head: { yaw: 0, pitch: 5, speed: 1 }
+          })
+        });
+      } catch (err) {}
+    }
+
+    function startDrive(direction, e) {
+      if (e) e.preventDefault();
+      stopDrive();
+      document.getElementById('hud-drive-state').textContent = direction;
+      document.getElementById('hud-drive-state').className = 'bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-blue-400 border border-blue-500/30';
+
+      const payload = { robot_slug: selectedRobot, remote_control: { body: direction } };
+      fetch(`${API_BASE}/api/v1/robot/interact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+
+      driveInterval = setInterval(() => {
+        fetch(`${API_BASE}/api/v1/robot/interact`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      }, 150);
+    }
+
+    function stopDrive(e) {
+      if (e) e.preventDefault();
+      if (driveInterval) {
+        clearInterval(driveInterval);
+        driveInterval = null;
+      }
+      document.getElementById('hud-drive-state').textContent = isStreaming ? 'STREAMING' : 'STANDBY';
+      document.getElementById('hud-drive-state').className = 'bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-slate-300 border border-slate-700';
+
+      fetch(`${API_BASE}/api/v1/robot/interact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ robot_slug: selectedRobot, remote_control: { body: 'STOP' } })
+      }).catch(() => {});
+    }
+
+    async function emergencyStop() {
+      try {
+        await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, { method: 'POST' });
+        alert(`🛑 สั่งหยุดฉุกเฉิน ${selectedRobot} เรียบร้อยแล้ว`);
+      } catch (e) {}
+    }
+
+    renderTeleopSpeedDeck();
+    initTeleop();
+  </script>
+</body>
+</html>

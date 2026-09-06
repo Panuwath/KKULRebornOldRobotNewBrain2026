@@ -39,12 +39,12 @@ RobotAPI api = new RobotAPI(context, new RobotCallback() {
 ## 1. RobotAPI lifecycle และ command queue
 
 | ฟังก์ชัน | หน้าที่ |
-|---|---|
-| `new RobotAPI(Context|Service|Activity[, RobotCallback])` | สร้าง session กับ RobotAPI |
+| --- | --- |
+| `new RobotAPI(Context\|Service\|Activity[, RobotCallback])` | สร้าง session กับ RobotAPI |
 | `setCallback(RobotCallback)` | เปลี่ยน callback หลังสร้าง |
 | `release()` | ปล่อย resource ของ RobotAPI |
 | `getVersion()` / `queryPluginVersion()` | อ่านเวอร์ชัน framework/plugin |
-| `cancelCommand(int|RobotCommand)` | ยกเลิก command ตามรหัส |
+| `cancelCommand(int\|RobotCommand)` | ยกเลิก command ตามรหัส |
 | `cancelCommandAll()` | ยกเลิกทุกคำสั่งที่ค้าง — ใช้เป็น emergency control |
 | `cancelCommandBySerial(int)` | ยกเลิกเฉพาะคำสั่ง serial ที่ทราบ |
 | `setLoggingEnabled`, `isLoggingEnabled`, `isLoggable` | ควบคุม log เพื่อ debug |
@@ -76,10 +76,10 @@ Bridge รับ alias เพิ่มเติม: `DOUBT→DOUBTING`, `EXPECT�
 ### Speech / ASR / dialog plan
 
 | ฟังก์ชัน | หน้าที่ |
-|---|---|
+| --- | --- |
 | `speak(String)` / `speak(String, SpeakConfig)` / `speak(String, int)` | TTS ในตัว Zenbo |
 | `stopSpeak()` | หยุด TTS ในตัว |
-| `speakAndListen(String, SpeakConfig|float|float,int)` | พูดแล้วเข้าสู่การฟัง |
+| `speakAndListen(String, SpeakConfig\|float\|float,int)` | พูดแล้วเข้าสู่การฟัง |
 | `stopSpeakAndListen()` | หยุด flow พูด/ฟัง |
 | `registerListenCallback` / `unregisterListenCallback` | รับผลการฟัง |
 | `setListenContext`, `setBackgroundContext`, `clearAppContext`, `clearBackgroundContext` | กำหนด/ล้างบริบท dialog |
@@ -100,7 +100,7 @@ Bridge รับ alias เพิ่มเติม: `DOUBT→DOUBTING`, `EXPECT�
 ## 3. Motion (`api.motion`)
 
 | ฟังก์ชัน | พารามิเตอร์/ข้อควรระวัง |
-|---|---|
+| --- | --- |
 | `moveBody(float x, float y, float theta)` | เคลื่อนฐาน; overload มี `int` หรือ `SpeedLevel.Body` |
 | `moveHead(float yaw, float pitch, SpeedLevel.Head)` | คอเป็น radians; overload `int,int` มีใน SDK |
 | `stopMoving()` | หยุด motion ของฐาน |
@@ -114,7 +114,7 @@ Bridge ปัจจุบันเปิดใช้ `moveBody`, `moveHead`, `re
 ## 4. Utility และ canned/emotional action (`api.utility`)
 
 | ฟังก์ชัน | หน้าที่ |
-|---|---|
+| --- | --- |
 | `playAction(int actionId)` | เล่น canned action ตามเลข action |
 | `playEmotionalAction(RobotFace, int[, float])` | เล่น action พร้อมสีหน้าเดียว |
 | `playEmotionalAction(List<RobotUtil.faceItem>, int[, float])` | sequence สีหน้าพร้อม action |
@@ -125,12 +125,51 @@ Bridge ปัจจุบันเปิดใช้ `moveBody`, `moveHead`, `re
 | `setScreenBlueLightFilterMode(String)` / `get...` / `get...Enable()` | ควบคุม blue-light filter ของจอ |
 | `sendInfo(int, Bundle)` | ส่งข้อมูลไป utility/service ของระบบ |
 
-### ข้อจำกัด action ID
+### บัญชี Action ID ของ Zenbo SDK (Official Constant Pool)
 
-SDK เปิดเพียง `playAction(int)` และ JAR/ตัวอย่างที่มี **ไม่มี catalog ที่ยืนยันว่า
-action ID ใดแปลเป็นท่าใด**. เอกสาร/โค้ดต้องเก็บ action ID ที่ผ่านการทดสอบบน
-firmware ของเครื่องจริง พร้อมรุ่น firmware และผล callback; ห้ามตั้งชื่อท่าจากเลข
-โดยไม่มีหลักฐาน.
+ถอดรหัสจากคลาส `com.asus.robotframework.API.Utility$PlayAction` ใน `ZenboJuniorSDK.jar` (SHA-256: `1f3315123a72f63f4d4b2621c8297c904a3249ecd12fc4bf0cafdc92ac93a955`):
+
+| Action ID | Constant Name | หมวดหมู่ | คำอธิบายท่าทาง |
+| :---: | :--- | :--- | :--- |
+| **0** | `Default_1` | ท่าตั้งต้น | คืนท่าเริ่มต้น 1 |
+| **1** | `Default_2` | ท่าตั้งต้น | คืนท่าเริ่มต้น 2 |
+| **2** | `Nod_1` | พยักหน้า | พยักหน้าตอบรับ 1 ครั้ง |
+| **3** | `Head_up_1` | เงยหน้า | เงยหน้ามองขึ้น 1 |
+| **4** | `Head_up_2` | เงยหน้า | เงยหน้ามองขึ้น 2 |
+| **5** | `Shake_head_1` | ส่ายหน้า | ส่ายหน้าปฏิเสธ 1 (เบา) |
+| **6** | `Head_up_3` | เงยหน้า | เงยหน้ามองสูง 3 |
+| **7** | `Head_up_4` | เงยหน้า | เงยหน้าเร็ว 4 |
+| **8** | `Head_down_1` | ก้มหน้า | ก้มหน้าลง 1 (ต่ำ) |
+| **9** | `Head_down_2` | ก้มหน้า | ก้มหน้าลง 2 |
+| **10** | `Head_down_3` | ก้มหน้า | ก้มหน้าลง 3 |
+| **11** | `Shake_head_2` | ส่ายหน้า | ส่ายหน้าปฏิเสธ 2 (ชัดเจน) |
+| **12** | `Head_down_4` | ก้มหน้า | ก้มหน้าระดับ 4 |
+| **13** | `Head_up_5` | เงยหน้า | เงยหน้าระดับ 5 |
+| **14** | `Head_down_5` | ก้มหน้า | ก้มหน้าระดับ 5 |
+| **15** | `Dance_b_1_loop` | เต้น/ดนตรี | เต้นเร็ว B1 วนลูป |
+| **16** | `Head_up_7` | เงยหน้า | เงยหน้ามองฟ้า 7 |
+| **17** | `Music_1_loop` | เต้น/ดนตรี | โยกตามดนตรี 1 วนลูป |
+| **18** | `Turn_left_1` | หันตัว | หันฐานไปซ้าย 1 |
+| **19** | `Turn_left_2` | หันตัว | หันฐานไปซ้าย 2 |
+| **20** | `Shake_head_3` | ส่ายหน้า | ส่ายหน้า 3 |
+| **21** | `Dance_s_1_loop` | เต้น/ดนตรี | เต้นช้า S1 วนลูป |
+| **22** | `Body_twist_1` | เต้น/ดนตรี | บิดตัวส่ายเอว 1 |
+| **23** | `Body_twist_2` | เต้น/ดนตรี | บิดตัวส่ายเอว 2 |
+| **24** | `Dance_2_loop` | เต้น/ดนตรี | เต้นแบบ 2 วนลูป |
+| **25** | `Shake_head_4_loop` | ส่ายหน้า | ส่ายหน้าต่อเนื่อง วนลูป |
+| **26** | `Head_twist_1_loop` | เอียงคอ | เอียงคอสงสัย วนลูป |
+| **27** | `Dance_3_loop` | เต้น/ดนตรี | เต้นแบบ 3 วนลูป |
+| **28** | `Shake_head_5` | ส่ายหน้า | ส่ายหน้าเร็ว 5 |
+| **42** | `Shake_head_6` | ส่ายหน้า | ส่ายหน้าช้า 6 |
+| **43** | `Head_down_7` | ก้มหน้า | ก้มหน้ามองพื้น 7 |
+| **44** | `Turn_right_1` | หันตัว | หันฐานไปขวา 1 |
+| **45** | `Turn_right_2` | หันตัว | หันฐานไปขวา 2 |
+| **46** | `Turn_left_reverse_1` | หันตัว | หันซ้ายคืนกลับ 1 |
+| **47** | `Turn_right_reverse_1` | หันตัว | หันขวาคืนกลับ 1 |
+| **48** | `Turn_left_reverse_2` | หันตัว | หันซ้ายคืนกลับ 2 |
+| **49** | `Turn_right_reverse_2` | หันตัว | หันขวาคืนกลับ 2 |
+| **54** | `Head_up_6` | เงยหน้า | เงยหน้าระดับ 6 |
+| **1007** | `Find_face` | ตรวจจับ | หมุนหัวสแกนหาใบหน้าผู้ใช้ |
 
 ## 5. Wheel LEDs (`api.wheelLights`)
 
@@ -152,14 +191,14 @@ Bridge MQTT รองรับ mode เหล่านี้: `static`, `strobin
 ## 6. Vision และ enrollment (`api.vision`)
 
 | ฟังก์ชัน | ผลลัพธ์ callback / หมายเหตุ |
-|---|---|
+| --- | --- |
 | `requestDetectFace(FaceDetectConfig)` | `onDetectFaceResult` |
 | `cancelDetectFace()` | ยกเลิก face detection |
-| `requestDetectPerson(float|int|PersonDetectConfig)` | `onDetectPersonResult` |
+| `requestDetectPerson(float\|int\|PersonDetectConfig)` | `onDetectPersonResult` |
 | `cancelDetectPerson()` | ยกเลิก person detection |
-| `requestGesturePoint(float|int[, trackId])` | `onGesturePoint` |
-| `requestMeasureHeight(float|int)` | ผลผ่าน `onResult` |
-| `requestRecognizePerson(float|int|PersonRecognizeConfig)` | `onRecognizePersonResult` |
+| `requestGesturePoint(float\|int[, trackId])` | `onGesturePoint` |
+| `requestMeasureHeight(float\|int)` | ผลผ่าน `onResult` |
+| `requestRecognizePerson(float\|int\|PersonRecognizeConfig)` | `onRecognizePersonResult` |
 | `cancelRecognizePerson()` | ยกเลิก recognition |
 | `setConfig(VisionControl.Config)` | ตั้งค่า vision control |
 | `startFaceEnrollProgress`, `startPictureEnrollProgress` | ลงทะเบียน person/face |
@@ -197,7 +236,7 @@ setSmartBulbColor, setSmartBulbColorTemperature
 ## 9. Callbacks ที่ต้องรองรับ
 
 | Callback | ใช้กับ |
-|---|---|
+| --- | --- |
 | `initComplete()` | พร้อมใช้งาน RobotAPI |
 | `onStateChange(cmd, serial, error, state)` | lifecycle ของทุก command |
 | `onResult(cmd, serial, error, Bundle)` | ผลแบบ Bundle/ข้อผิดพลาด |
@@ -210,7 +249,7 @@ setSmartBulbColor, setSmartBulbColorTemperature
 ## 10. สถานะของ bridge ปัจจุบัน
 
 | หมวด | MQTT bridge รองรับแล้ว | ยังไม่เปิด |
-|---|---|---|
+| --- | --- | --- |
 | Speech/audio | Thai TTS WAV, `robot.speak`, stop | dialog plan/ASR callback |
 | Face | set expression, emotional sequence | expression config/status |
 | Motion | body, head, remote body/head, halt | avoidance policy control |

@@ -1,0 +1,10 @@
+{
+  "name": "Zenbo L11 Recovery Gateway",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"zenbo-route-recovery","responseMode":"responseNode","options":{}},"id":"recovery-webhook","name":"Receive Reviewed Recovery Request","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[260,300],"webhookId":"zenbo-route-recovery"},
+    {"parameters":{"method":"POST","url":"={{ $env.CORE_API_URL }}/api/v1/calibrated-route-runs/{{ $json.body.route_run_id }}/recover","sendHeaders":true,"headerParameters":{"parameters":[{"name":"X-Scenario-Registry-Token","value":"={{ $env.SCENARIO_REGISTRY_TOKEN }}"}]},"sendBody":true,"specifyBody":"json","jsonBody":"={{ JSON.stringify({ operator_name: $json.body.operator_name, action: $json.body.action, operation_permit_id: $json.body.operation_permit_id || null, note: $json.body.note || '' }) }}","options":{"timeout":10000}},"id":"recover-route","name":"Recover L11 Route in Core","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[540,300]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{}},"id":"respond-recovery","name":"Return Recovery State","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.1,"position":[800,300]}
+  ],
+  "connections":{"Receive Reviewed Recovery Request":{"main":[[{"node":"Recover L11 Route in Core","type":"main","index":0}]]},"Recover L11 Route in Core":{"main":[[{"node":"Return Recovery State","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"staticData":null,"tags":[{"name":"zenbo"},{"name":"safety"},{"name":"l11"},{"name":"recovery"}]
+}

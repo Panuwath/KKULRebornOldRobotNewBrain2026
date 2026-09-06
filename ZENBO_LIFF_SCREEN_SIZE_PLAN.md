@@ -1,7 +1,7 @@
 # Zenbo LIFF — แผนพัฒนา (Screen Size & Registration)
 
-> อ้างอิง: https://developers.line.biz/en/docs/liff/overview/#screen-size
-> และ https://developers.line.biz/en/docs/liff/registering-liff-apps/
+> อ้างอิง: <https://developers.line.biz/en/docs/liff/overview/#screen-size>
+> และ <https://developers.line.biz/en/docs/liff/registering-liff-apps/>
 
 แผนนี้วิเคราะห์เรื่อง **ขนาดจอ LIFF (3 ขนาด)** และ **การลงทะเบียน LIFF app** เพื่อวางแผนพัฒนา
 หน้า Zenbo controller ทั้ง 5-6 หน้าให้แสดงผลถูกต้องบน LIFF browser (WKWebView / Android WebView)
@@ -11,7 +11,7 @@
 ## 1. สรุปขนาดจอ LIFF (3 แบบ)
 
 | Size | ความสูง (approx) | ลักษณะ | เหมาะกับ |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `Compact` | ~50% | bottom sheet ครึ่งจอ | แบบฟอร์มสั้น, ยืนยัน, แชทด่วน |
 | `Tall` | ~80% | เกือบเต็มจอ | ฟอร์มยาว, รายการ |
 | `Full` | ~100% | เต็มจอ + แสดง action button ใน header | app ที่ต้องการพื้นที่เยอะ |
@@ -32,7 +32,7 @@
 เรามี 5 หน้า + 1 หน้าในอนาคต (`present/` จากแผน preset):
 
 | หน้า | ปัจจุบัน (path) | เนื้อหา | Size แนะนำ | เหตุผล |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | หน้าหลัก | `/liff/index.html` | connect + motion D-pad + head slider + face/lights/vision + TTS | **Full** | เนื้อหาเยอะ มี D-pad + slider + ปุ่มละเอียด ต้องเต็มจอ |
 | จอยสติ๊ก | `/liff/control/index.html` | 2 จอย (base/head) + natural command | **Full** | จอยสติ๊ก touch gesture ต้องพื้นที่ + `pagehide` handler กันคำสั่งค้าง |
 | สั่งด้วยคำพูด | `/liff/command/index.html` | textarea + compile preview | **Tall** | ฟอร์มเดียว ไม่ต้องเต็มจอ แต่ preview JSON ยาว ต้องการ ~80% |
@@ -62,7 +62,7 @@
 ## 3. Scopes ที่ต้องเปิด (ตอนลงทะเบียน)
 
 | Scope | ใช้กับ API ไหน | จำเป็น? |
-|---|---|---|
+| --- | --- | --- |
 | `profile` | `liff.getProfile()` → `userId`/`displayName` (identity binding) | **ต้อง** |
 | `openid` | `liff.getIDToken()` / `getDecodedIDToken()` (verify ฝั่ง server) | แนะนำ (ความปลอดภัย) |
 | `email` | `getIDToken()` แบบมี email | ไม่จำเป็น (skip) |
@@ -71,7 +71,7 @@
 ### 3.1 Options ที่ต้องเปิด
 
 | Option | เมื่อไร | ใช้กับ Zenbo |
-|---|---|---|
+| --- | --- | --- |
 | **Scan QR** | ใช้ `liff.scanCodeV2()` | **ต้อง** — ใช้ QR pairing ผูก user↔robot (แทน dropdown) |
 | **Module mode** | เฉพาะ Size = Full | เปิดที่ index/control/present (ซ่อน action button) |
 
@@ -82,12 +82,14 @@
 ### 4.1 ตัวเลือก
 
 **A. หลาย LIFF app (1 app/หน้า)** — ตรงกับโครงสร้าง static path ปัจจุบัน
+
 - 6 app: `index`, `control`, `command`, `history`, `navigation`, `present`
 - Endpoint URL ชี้ path จริง เช่น `https://domain/liff/control/`
 - ข้อดี: แยก liffId, แยก Scope/Size, ไม่ต้อง refactor
 - ข้อเสีย: ต้อง config liffId หลายตัว
 
 **B. 1 LIFF app + query param** — Endpoint URL = `https://domain/liff/`
+
 - เปิดด้วย `?page=control` เลือกหน้าใน index
 - ข้อดี: 1 liffId, 1 scope set
 - ข้อเสีย: ต้อง refactor routing + Size เดียวทั้งแอป (จะใช้ Full/Tall ผสมไม่ได้)
@@ -95,6 +97,7 @@
 ### 4.2 ข้อแนะนำ
 
 เลือก **A (หลาย app)** เพราะ:
+
 1. แต่ละหน้ามี Size/Module mode ต่างกัน (Full สำหรับ controller, Tall สำหรับ form)
 2. ไม่ต้อง refactor โครงสร้าง static ที่ทำงานอยู่แล้ว
 3. รองรับหน้า `present/` ในอนาคตได้ทันที
@@ -125,7 +128,7 @@ window.ZENBO_LIFF_CONFIG = {
 ## 5. ผลกระทบต่อโค้ดปัจจุบัน (ที่เพิ่ง implement)
 
 | จุด | สถานะ | ต้องปรับเพิ่ม |
-|---|---|---|
+| --- | --- | --- |
 | `liff-config.js` (liffId ตัวเดียว) | ทำแล้ว | เปลี่ยนเป็น map pathname → หลาย liffId |
 | `liff.js` (init + getProfile + identity) | ทำแล้ว | ไม่ต้องแก้ (อ่าน `config.liffId`) |
 | viewport meta | ทำแล้วบางหน้า | ตรวจทุกหน้าให้ครบ (control มีแล้ว, command/history มี, navigation มี) |
@@ -139,20 +142,24 @@ window.ZENBO_LIFF_CONFIG = {
 ## 6. ประเด็น CSS/UX ที่ต้องวางแผน (Full-size + WebView)
 
 ### 6.1 Viewport & safe area
+
 - ทุกหน้ามี `<meta name="viewport" content="width=device-width, initial-scale=1.0">` → OK
 - หน้า `Full` ควรเพิ่ม `viewport-fit=cover` + `env(safe-area-inset-*)` สำหรับ notch iPhone
 - กัน footer ถูก header ของ LINE ทับ → ใช้ `padding-bottom: env(safe-area-inset-bottom)`
 
 ### 6.2 กัน UI ถูก zoom / select
+
 - `index.html` มี `user-scalable=no` + `-webkit-user-select:none` แล้ว
 - `command`/`history` ยังไม่มี → textarea ต้องให้ select ได้ (เหมือน index ใช้ `.speech-input`)
 - `control` มี `user-scalable=no` + `touch-action:none` บน joystick แล้ว
 
 ### 6.3 Touch (joystick ใช้ pointer events)
+
 - `control/index.html` ใช้ `pointerdown/move/up` + `setPointerCapture` → ใช้ได้บน WKWebView/Android WebView
 - ต้องกัน **pagehide** (สลับแอป) → ส่ง STOP (control ทำแล้ว, index ยังไม่มี pagehide handler เต็มรูปแบบ)
 
 ### 6.4 Cache (สำคัญมาก)
+
 - Doc: **ลบ cache ใน LIFF browser ไม่ได้** ต้องคุมด้วย HTTP header
 - → core-api ต้องส่ง `Cache-Control: no-store` (หรือ `no-cache`) ที่ static LIFF files
 - ปัจจุบัน `StaticFiles` ของ FastAPI ไม่ได้ตั้ง cache header → **ต้องเพิ่ม middleware/custom StaticFiles**
@@ -163,7 +170,7 @@ window.ZENBO_LIFF_CONFIG = {
 ## 7. Phases การพัฒนา
 
 | Phase | งาน | ไฟล์/สถานที่ | เสร็จเมื่อ |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0 | (ของเดิม) LIFF SDK + identity binding + core-api binding endpoints | liff.js, main.py | ✅ เสร็จ |
 | 1 | เปลี่ยน `liff-config.js` → map pathname → หลาย liffId | liff-config.js | ก่อนขึ้น console |
 | 2 | เพิ่ม cache-control header ที่ static files | core-api main.py | ก่อนทดสอบจริง |

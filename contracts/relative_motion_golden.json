@@ -1,0 +1,76 @@
+{
+  "valid": {
+    "now_ms": 1100,
+    "request": {
+      "command_id": "018f47d2-f228-7de0-b025-4ef6a7e416f8",
+      "source_session_id": "018f47d2-f228-7de0-b025-4ef6a7e416f9",
+      "source_seq": 12,
+      "issued_at_ms": 1000,
+      "expires_at_ms": 2000,
+      "motion_request": {
+        "control_mode": "RELATIVE_BODY",
+        "x_m": 0.1,
+        "y_m": 0.0,
+        "theta_deg": 0.0,
+        "requested_speed_level": 3
+      }
+    },
+    "policy": {
+      "policy_version": "test-policy-v1",
+      "max_body_speed_level": 4,
+      "max_distance_m": 0.15,
+      "hard_stop_after_ms": 1500
+    },
+    "expected_envelope": {
+      "command_id": "018f47d2-f228-7de0-b025-4ef6a7e416f8",
+      "source_session_id": "018f47d2-f228-7de0-b025-4ef6a7e416f9",
+      "source_seq": 12,
+      "issued_at_ms": 1000,
+      "expires_at_ms": 2000,
+      "motion": {
+        "control_mode": "RELATIVE_BODY",
+        "x_m": 0.1,
+        "y_m": 0.0,
+        "theta_deg": 0.0,
+        "requested_speed_level": 3
+      },
+      "policy": {
+        "policy_version": "test-policy-v1",
+        "max_body_speed_level": 4,
+        "max_distance_m": 0.15,
+        "hard_stop_after_ms": 1500
+      }
+    },
+    "expected_state": "ACCEPTED"
+  },
+  "over_cap": {
+    "now_ms": 1100,
+    "requested_speed_level": 5,
+    "policy_max_speed_level": 4,
+    "expected_state": "REJECTED",
+    "reject_reason": "SPEED_EXCEEDS_POLICY",
+    "effective_speed_level": null
+  },
+  "over_distance": {
+    "x_m": 0.16,
+    "y_m": 0.0,
+    "max_distance_m": 0.15,
+    "expected_state": "REJECTED",
+    "reject_reason": "DISTANCE_EXCEEDS_POLICY",
+    "effective_speed_level": null
+  },
+  "expired": {
+    "now_ms": 2000,
+    "expected_state": "REJECTED",
+    "reject_reason": "COMMAND_EXPIRED",
+    "effective_speed_level": null
+  },
+  "unauthorized_stop": {
+    "request": {
+      "command_id": "018f47d2-f228-7de0-b025-4ef6a7e416fa",
+      "target_robot_slug": "booky-1"
+    },
+    "target_authorized": false,
+    "reject_reason": "TARGET_UNAUTHORIZED"
+  }
+}

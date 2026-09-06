@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import time
 import httpx
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,18 @@ KKU_INTELSPHERE_API_URL = os.getenv(
 KKU_API_KEY = os.getenv("KKU_API_KEY", "")
 KKU_INTELSPHERE_MODEL = os.getenv("KKU_INTELSPHERE_MODEL", "gpt-5.6-luna")
 CORE_API_URL = os.getenv("CORE_API_URL", "http://zenbo-core-api:5005")
+CONVERSATION_TTL_SECONDS = 180
+MAX_CONVERSATION_SESSIONS = 1000
+conversation_sessions: Dict[str, Dict[str, Any]] = {}
+
+# Keep every recognised name explicit: this is a deterministic wake gate, not a
+# fuzzy command matcher.  The short form matters for a noisy voice-recognition
+# transcript, while the greeting variants make the expected interaction clear.
+WAKE_PHRASES = (
+    "i lost my job", "booky", "บุ๊คกี้", "บันนี่", "bunny",
+    "สวัสดี booky", "สวัสดี zenbo", "สวัสดี เซนโบ", "สวัสดีบันนี่", "สวัสดี บันนี่",
+)
+STOP_PHRASES = ("หยุด", "อย่าขยับ", "ยกเลิก", "stop", "halt", "cancel")
 
 SYSTEM_PROMPT = """You are the Zenbo Robot Compiler Engine. Your job is to compile natural language commands (in Thai or English) into structured JSON instructions for an ASUS Zenbo robot.
 
@@ -64,9 +77,87 @@ class TextCompileRequest(BaseModel):
     robot_slug: Optional[str] = Field(default=None, description="Zenbo target; required for a device-specific dispatch")
 
 
+class DialogueRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=128)
+    text: str = Field(min_length=1, max_length=1000)
+    robot_slug: Optional[str] = None
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "zenbo-compiler-service"}
+
+
+def normalize_dialogue_text(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def has_wake_phrase(text: str) -> bool:
+    return any(phrase in text for phrase in WAKE_PHRASES)
+
+
+def prune_conversation_sessions(now: Optional[float] = None) -> None:
+    """Keep the anonymous LIFF wake-word cache bounded and short lived."""
+    now = time.time() if now is None else now
+    expired = [session_id for session_id, state in conversation_sessions.items()
+               if float(state.get("expires_at", 0)) < now]
+    for session_id in expired:
+        conversation_sessions.pop(session_id, None)
+    overflow = len(conversation_sessions) - MAX_CONVERSATION_SESSIONS
+    if overflow > 0:
+        oldest = sorted(conversation_sessions, key=lambda session_id: conversation_sessions[session_id].get("updated_at", 0))
+        for session_id in oldest[:overflow]:
+            conversation_sessions.pop(session_id, None)
+
+
+def begin_conversation(session_id: str, robot_slug: Optional[str]) -> None:
+    now = time.time()
+    prune_conversation_sessions(now)
+    conversation_sessions[session_id] = {
+        "expires_at": now + CONVERSATION_TTL_SECONDS,
+        "updated_at": now,
+        "robot_slug": (robot_slug or "").strip() or None,
+    }
+
+
+def session_is_ready(session_id: str, robot_slug: Optional[str]) -> bool:
+    state = conversation_sessions.get(session_id)
+    if not state or float(state.get("expires_at", 0)) < time.time():
+        return False
+    bound_robot = state.get("robot_slug")
+    requested_robot = (robot_slug or "").strip() or None
+    return not bound_robot or not requested_robot or bound_robot == requested_robot
+
+
+@app.post("/api/v1/dialogue/interpret")
+async def interpret_dialogue(req: DialogueRequest):
+    """Small deterministic Thai/English wake-word gate before command compilation."""
+    text = normalize_dialogue_text(req.text)
+    prune_conversation_sessions()
+    # Stop always wins, even before the wake word; this is an emergency affordance.
+    if any(phrase in text for phrase in STOP_PHRASES):
+        conversation_sessions.pop(req.session_id, None)
+        return {"state": "STOP_REQUESTED", "intent": "STOP", "reply": "รับทราบ กำลังหยุดทันทีครับ", "compiled_payload": {"emergency": True}}
+    if has_wake_phrase(text):
+        begin_conversation(req.session_id, req.robot_slug)
+        return {"state": "AWAITING_COMMAND", "intent": "WAKE", "reply": "ครับ Zenbo พร้อมฟังคำสั่งแล้วครับ", "expires_in_seconds": CONVERSATION_TTL_SECONDS}
+    current_session = conversation_sessions.get(req.session_id)
+    if not session_is_ready(req.session_id, req.robot_slug):
+        switched_target = current_session and current_session.get("robot_slug") and req.robot_slug and current_session.get("robot_slug") != req.robot_slug
+        return {
+            "state": "WAKE_WORD_REQUIRED", "intent": "NONE",
+            "reason": "SESSION_TARGET_CHANGED" if switched_target else "WAKE_REQUIRED_OR_EXPIRED",
+            "reply": "เปลี่ยน Zenbo แล้ว กรุณาเรียกชื่อหุ่นอีกครั้งก่อนสั่งงานครับ" if switched_target else "เรียกผมว่า สวัสดี Booky หรือ สวัสดีบันนี่ ก่อน แล้วบอกคำสั่งได้เลยครับ",
+        }
+    begin_conversation(req.session_id, req.robot_slug)
+    if any(phrase in text for phrase in ("ตามฉันมา", "ตามผมมา", "follow me", "เดินตาม")):
+        return {"state": "GATED", "intent": "FOLLOW_PERSON", "reply": "โหมดเดินตามยังถูกล็อกจนผ่านการทดสอบกันตกและกันชนบนหุ่นจริงครับ", "gate": "PHYSICAL_SAFETY_VALIDATION_REQUIRED"}
+    if any(phrase in text for phrase in ("เปิดเพลง", "เปิดยูทูบ", "youtube")) and not re.search(r"https?://(?:www\.)?(?:youtube\.com|youtu\.be)/", text):
+        return {"state": "NEEDS_YOUTUBE_URL", "intent": "YOUTUBE", "reply": "ส่งลิงก์วิดีโอ YouTube แบบ HTTPS มาได้เลยครับ แล้วผมจะเปิดให้"}
+    compiled = normalize_compiled_payload(parse_natural_command(req.text))
+    if compiled.get("motion") or compiled.get("behavior") or compiled.get("action"):
+        return {"state": "GATED", "intent": "MOTION_OR_ACTION", "reply": "คำสั่งเคลื่อนที่หรือท่าทางยังต้องผ่าน safety gate บน Zenbo จริงก่อนครับ", "gate": "PHYSICAL_SAFETY_VALIDATION_REQUIRED"}
+    return {"state": "COMMAND_READY", "intent": "SAFE_INTERACTION", "reply": "รับทราบครับ ตรวจคำสั่งแล้ว กดยืนยันเพื่อส่งให้ Zenbo", "compiled_payload": compiled}
 
 
 async def call_intelsphere_api(text: str) -> Dict[str, Any]:

@@ -1,0 +1,10 @@
+{
+  "name": "Zenbo L20 Permit Revoke Gateway",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"zenbo-operation-permit-revoke","responseMode":"responseNode","options":{}},"id":"revoke-webhook","name":"Receive Reviewed Revoke Request","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[260,300],"webhookId":"zenbo-operation-permit-revoke"},
+    {"parameters":{"method":"POST","url":"={{ $env.CORE_API_URL }}/api/v1/autonomy/operation-permits/{{ $json.body.permit_id }}/revoke","sendHeaders":true,"headerParameters":{"parameters":[{"name":"X-Scenario-Registry-Token","value":"={{ $env.SCENARIO_REGISTRY_TOKEN }}"}]},"options":{"timeout":10000}},"id":"revoke-permit","name":"Revoke L20 Permit in Core","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[540,300]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{}},"id":"respond-revoke","name":"Return Revocation State","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.1,"position":[800,300]}
+  ],
+  "connections":{"Receive Reviewed Revoke Request":{"main":[[{"node":"Revoke L20 Permit in Core","type":"main","index":0}]]},"Revoke L20 Permit in Core":{"main":[[{"node":"Return Revocation State","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"staticData":null,"tags":[{"name":"zenbo"},{"name":"safety"},{"name":"l20"},{"name":"revoke"}]
+}

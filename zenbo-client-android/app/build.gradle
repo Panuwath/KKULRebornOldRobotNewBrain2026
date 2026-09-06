@@ -5,11 +5,70 @@ plugins {
 def buildConfigString = { Object value ->
     '"' + (value ?: '').toString().replace('\\', '\\\\').replace('"', '\\"') + '"'
 }
-// The device credential is injected only by the secured build environment:
-//   ./gradlew -PmqttUsername=zenbo-client -PmqttToken=<per-device-token> :app:assembleRelease
-// It must never be committed to Gradle files or source control.
-def mqttUsername = project.findProperty('mqttUsername') ?: System.getenv('MQTT_USERNAME') ?: ''
-def mqttToken = project.findProperty('mqttToken') ?: System.getenv('MQTT_TOKEN') ?: ''
+// The broker token is never embedded in the APK. The build receives only a
+// separate bootstrap credential which the Core API exchanges over HTTPS for an
+// in-memory MQTT connection configuration.
+//   ./gradlew -PdeviceProvisioningToken=<per-device-bootstrap-token> :app:assembleRelease
+def deviceProvisioningToken = project.findProperty('deviceProvisioningToken') ?: System.getenv('ZENBO_DEVICE_PROVISIONING_TOKEN') ?: ''
+// Zenbo's older Android trust store rejects the current libn certificate.
+// libgate is the trusted public TLS gateway for both provisioning and WSS.
+def mqttProvisioningUrl = project.findProperty('mqttProvisioningUrl') ?: System.getenv('MQTT_PROVISIONING_URL') ?: 'https://libgate.kku.ac.th/liff-api/api/v1/device/mqtt-connection'
+def mqttLibnProvisioningUrl = project.findProperty('mqttLibnProvisioningUrl') ?: System.getenv('MQTT_LIBN_PROVISIONING_URL') ?: 'https://libn.kku.ac.th/liff-api/api/v1/device/mqtt-connection'
+def mqttLanProvisioningUrl = project.findProperty('mqttLanProvisioningUrl') ?: System.getenv('MQTT_LAN_PROVISIONING_URL') ?: 'http://10.101.118.149:5005/api/v1/device/mqtt-connection'
+def robotSlug = project.findProperty('robotSlug') ?: System.getenv('ZENBO_DEVICE_ROBOT_SLUG') ?: 'booky-1'
+def updateManifestUrl = project.findProperty('updateManifestUrl') ?: System.getenv('UPDATE_MANIFEST_URL') ?: 'https://libgate.kku.ac.th/liff-api/api/v1/apk-update'
+def updateLanManifestUrl = project.findProperty('updateLanManifestUrl') ?: System.getenv('UPDATE_LAN_MANIFEST_URL') ?: 'http://10.101.118.149:5005/api/v1/apk-update'
+def updateLanDownloadOrigin = project.findProperty('updateLanDownloadOrigin') ?: System.getenv('UPDATE_LAN_DOWNLOAD_ORIGIN') ?: 'http://10.101.118.149:5005'
+// Compatibility fallback for Zenbo Android images whose TLS stack cannot
+// reach the HTTPS provisioning endpoint. This remains authenticated and is
+// limited to the private LAN listener; it is not an anonymous broker path.
+def directMqttHost = project.findProperty('directMqttHost') ?: System.getenv('DIRECT_MQTT_HOST') ?: System.getenv('MQTT_HOST') ?: '10.101.118.149'
+def directMqttPort = project.findProperty('directMqttPort') ?: System.getenv('DIRECT_MQTT_PORT') ?: '1884'
+def directMqttUsername = project.findProperty('directMqttUsername') ?: System.getenv('MQTT_USERNAME') ?: 'zenbo-booky'
+def directMqttToken = project.findProperty('directMqttToken') ?: System.getenv('MQTT_TOKEN') ?: '0759d6a440f371b1c75d2cce38cb5688f9566867bf1f3e4b9eb6b7276b13ea4e'
+def directMqttTopicPrefix = project.findProperty('directMqttTopicPrefix') ?: System.getenv('MQTT_TOPIC_PREFIX') ?: 'zenbo'
+// Hostinger backup WSS endpoint for the Domain WSS fallback / toggle mode.
+def domainMqttHost = project.findProperty('domainMqttHost') ?: System.getenv('DOMAIN_MQTT_HOST') ?: 'mqtt.pingdev.site'
+def domainMqttPort = project.findProperty('domainMqttPort') ?: System.getenv('DOMAIN_MQTT_PORT') ?: '443'
+def domainMqttTransport = project.findProperty('domainMqttTransport') ?: System.getenv('DOMAIN_MQTT_TRANSPORT') ?: 'wss'
+def domainMqttPath = project.findProperty('domainMqttPath') ?: System.getenv('DOMAIN_MQTT_PATH') ?: '/mqtt'
+def skipMqttProvisioning = (project.findProperty('skipMqttProvisioning') ?: System.getenv('SKIP_MQTT_PROVISIONING') ?: 'true').toString().toLowerCase() in ['true', '1', 'yes']
+// The production signing key is deliberately outside the repository.  It is
+// supplied only by the release workstation (or CI secret store), never by .env.
+def productionStoreFile = project.findProperty('releaseStoreFile') ?: System.getenv('ZENBO_RELEASE_STORE_FILE') ?: ''
+def productionStorePassword = project.findProperty('releaseStorePassword') ?: System.getenv('ZENBO_RELEASE_STORE_PASSWORD') ?: ''
+def productionKeyPassword = project.findProperty('releaseKeyPassword') ?: System.getenv('ZENBO_RELEASE_KEY_PASSWORD') ?: ''
+
+// A distributable build must never silently omit the bootstrap credential.
+// Debug builds remain usable for SDK/UI development without production access.
+def isDistributableVariantTask = { Object taskName, List<String> variants ->
+    def normalized = taskName.toString().toLowerCase().tokenize(':').last()
+    def distributable = normalized.startsWith('assemble') || normalized.startsWith('bundle') ||
+            normalized.startsWith('install') || normalized.startsWith('package')
+    distributable && variants.any { normalized.contains(it) }
+}
+def requestedReleaseBuild = gradle.startParameter.taskNames.any { taskName ->
+    isDistributableVariantTask(taskName, ['release', 'stable', 'drive'])
+}
+def requestedProvisionedFieldBuild = gradle.startParameter.taskNames.any { taskName ->
+    isDistributableVariantTask(taskName, ['release', 'stable', 'drive', 'installlite', 'legacy'])
+}
+if (requestedProvisionedFieldBuild && !deviceProvisioningToken.trim()) {
+    throw new IllegalStateException(
+        'Release APK requires ZENBO_DEVICE_PROVISIONING_TOKEN or -PdeviceProvisioningToken. ' +
+        'The MQTT broker token must remain server-side.'
+    )
+}
+
+def requestedProductionDriveBuild = gradle.startParameter.taskNames.any { taskName ->
+    isDistributableVariantTask(taskName, ['drive'])
+}
+if (requestedProductionDriveBuild && (!productionStoreFile.trim() || !productionStorePassword.trim() || !productionKeyPassword.trim())) {
+    throw new IllegalStateException(
+        'Production Drive APK requires ZENBO_RELEASE_STORE_FILE, ZENBO_RELEASE_STORE_PASSWORD, and ZENBO_RELEASE_KEY_PASSWORD. ' +
+        'Do not use Android debug signing for public distribution.'
+    )
+}
 
 android {
     namespace 'com.hackathon.zenboclient'
@@ -23,10 +82,54 @@ android {
         applicationId "com.hackathon.zenboclient"
         minSdk 23
         targetSdk 33
-        versionCode 17
-        versionName "1.7.5-mqtt-token"
-        buildConfigField "String", "MQTT_USERNAME", buildConfigString(mqttUsername)
-        buildConfigField "String", "MQTT_TOKEN", buildConfigString(mqttToken)
+        versionCode 724
+        versionName "1.9.48"
+        buildConfigField "String", "DEVICE_PROVISIONING_TOKEN", buildConfigString(deviceProvisioningToken)
+        buildConfigField "String", "MQTT_PROVISIONING_URL", buildConfigString(mqttProvisioningUrl)
+        buildConfigField "String", "MQTT_LIBN_PROVISIONING_URL", buildConfigString(mqttLibnProvisioningUrl)
+        buildConfigField "String", "MQTT_LAN_PROVISIONING_URL", buildConfigString(mqttLanProvisioningUrl)
+        buildConfigField "String", "ROBOT_SLUG", buildConfigString(robotSlug)
+        buildConfigField "String", "UPDATE_MANIFEST_URL", buildConfigString(updateManifestUrl)
+        buildConfigField "String", "UPDATE_LAN_MANIFEST_URL", buildConfigString(updateLanManifestUrl)
+        buildConfigField "String", "UPDATE_LAN_DOWNLOAD_ORIGIN", buildConfigString(updateLanDownloadOrigin)
+        buildConfigField "String", "DIRECT_MQTT_HOST", buildConfigString(directMqttHost)
+        buildConfigField "int", "DIRECT_MQTT_PORT", directMqttPort.toString()
+        buildConfigField "String", "DIRECT_MQTT_USERNAME", buildConfigString(directMqttUsername)
+        buildConfigField "String", "DIRECT_MQTT_TOKEN", buildConfigString(directMqttToken)
+        buildConfigField "String", "DIRECT_MQTT_TOPIC_PREFIX", buildConfigString(directMqttTopicPrefix)
+        buildConfigField "String", "DOMAIN_MQTT_HOST", buildConfigString(domainMqttHost)
+        buildConfigField "int", "DOMAIN_MQTT_PORT", domainMqttPort.toString()
+        buildConfigField "String", "DOMAIN_MQTT_TRANSPORT", buildConfigString(domainMqttTransport)
+        buildConfigField "String", "DOMAIN_MQTT_PATH", buildConfigString(domainMqttPath)
+        buildConfigField "boolean", "SKIP_MQTT_PROVISIONING", skipMqttProvisioning.toString()
+        // Disable self-update completely as requested by operator
+        buildConfigField "boolean", "SELF_UPDATE_ENABLED", "false"
+        // Zenbo firmware can repeatedly report stale proximity readings while
+        // stationary. Keep this field build quiet until the sensor calibration
+        // is audited on the physical robot.
+        buildConfigField "boolean", "SAFETY_MONITOR_ENABLED", "false"
+        // Zenbo is operated on the campus network. Provision from Core through
+        // its private IP first, then use the authenticated TCP broker remap.
+        // This avoids the legacy Android TLS trust-store path by default.
+        buildConfigField "boolean", "FORCE_LAN_MQTT", "true"
+        buildConfigField "boolean", "LEGACY_NATIVE_TTS", "false"
+        buildConfigField "boolean", "LEGACY_MEDIA_STREAM", "true"
+    }
+
+    signingConfigs {
+        // This is a project-owned release identity, kept outside Git.  The
+        // drive variant is intentionally signed here rather than inheriting
+        // Android's debug certificate.
+        production {
+            storeFile file(productionStoreFile ?: 'missing-production-keystore.jks')
+            storePassword productionStorePassword
+            keyAlias 'zenbo-production'
+            keyPassword productionKeyPassword
+            enableV1Signing true
+            enableV2Signing true
+            enableV3Signing true
+            enableV4Signing true
+        }
     }
 
     buildTypes {
@@ -34,9 +137,68 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        // Installable field build: same debug signing lineage for practical
+        // Zenbo updates, but with R8/resource shrinking enabled so Android has
+        // far less bytecode to optimize during installation.
+        stable {
+            initWith release
+            debuggable false
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+            versionNameSuffix "-stable"
+        }
+        // Google Drive distribution build.  It intentionally contains no
+        // in-app package-installer capability and is signed with the
+        // project-owned production certificate instead of Android debug keys.
+        // This starts a new signing lineage, so old debug-signed installs must
+        // be removed once before the first production installation.
+        drive {
+            initWith stable
+            signingConfig signingConfigs.production
+            buildConfigField "boolean", "SELF_UPDATE_ENABLED", "false"
+            versionNameSuffix "-drive"
+        }
+        // Operational install-focused build: keeps authenticated MQTT
+        // provisioning but excludes post-install update and boot-time work.
+        // It inherits the compact Drive packaging while retaining the historic
+        // Android debug signing lineage for Zenbo field installation.
+        installLite {
+            initWith drive
+            debuggable false
+            signingConfig signingConfigs.debug
+            buildConfigField "boolean", "SELF_UPDATE_ENABLED", "false"
+            versionNameSuffix "-install-lite"
+        }
+        // Compatibility build for Drive-delivery diagnosis.  This deliberately
+        // preserves the packaging lineage of the confirmed downloadable 1.8.10
+        // artifact: Android debug signing and no R8/resource shrinking.  It is
+        // not a replacement for the production-signed drive build.
+        legacy {
+            initWith debug
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+            buildConfigField "boolean", "SELF_UPDATE_ENABLED", "false"
+            // Safety-diagnostic field build: sensors report coverage and keep
+            // base motion interlocked until both physical guards are live.
+            // This does not authorize a dance or any autonomous movement.
+            buildConfigField "boolean", "SAFETY_MONITOR_ENABLED", "true"
+            buildConfigField "boolean", "FORCE_LAN_MQTT", "true"
+            // Old Zenbo firmware routes AudioAttributes through a silent path.
+            // Keep Thai WAV playback on the known-good STREAM_MUSIC route.
+            buildConfigField "boolean", "LEGACY_NATIVE_TTS", "false"
+            buildConfigField "boolean", "LEGACY_MEDIA_STREAM", "true"
+            versionNameSuffix "-legacy-ip"
+        }
         debug {
             debuggable true
         }
+    }
+
+    sourceSets {
+        test.resources.srcDir rootProject.file('../contracts')
     }
 
     compileOptions {
@@ -50,4 +212,5 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+    testImplementation 'junit:junit:4.13.2'
 }

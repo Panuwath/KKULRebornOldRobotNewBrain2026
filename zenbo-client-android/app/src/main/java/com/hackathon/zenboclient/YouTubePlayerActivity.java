@@ -1,7 +1,10 @@
 package com.hackathon.zenboclient;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.media.AudioManager;
 import android.os.Bundle;
@@ -31,8 +34,10 @@ import java.util.regex.Pattern;
 public class YouTubePlayerActivity extends Activity {
     public static final String EXTRA_VIDEO_URL = "youtube_url";
     public static final String ACTION_STATUS = "com.hackathon.zenboclient.YOUTUBE_STATUS";
+    public static final String ACTION_CONTROL = "com.hackathon.zenboclient.YOUTUBE_CONTROL";
     public static final String EXTRA_STATE = "state";
     public static final String EXTRA_MESSAGE = "message";
+    public static final String EXTRA_CONTROL_ACTION = "control_action";
     private static final Pattern VIDEO_ID = Pattern.compile("(?:v=|/embed/|/shorts/|youtu\\.be/)([A-Za-z0-9_-]{6,})");
     private static final long PLAYER_STATE_TIMEOUT_MS = 12000L;
 
@@ -40,6 +45,7 @@ public class YouTubePlayerActivity extends Activity {
     private WebView webView;
     private Button tapToPlay;
     private boolean receivedPlaybackState;
+    private BroadcastReceiver controlReceiver;
 
     private final Runnable playerStateTimeout = new Runnable() {
         @Override public void run() {
@@ -86,6 +92,7 @@ public class YouTubePlayerActivity extends Activity {
             root.addView(tapToPlay, buttonLayout);
             tapToPlay.setOnClickListener(v -> { boostAudio(); forcePlay(); tapToPlay.setVisibility(View.GONE); report("USER_PLAY", "tap_to_unmute"); });
             setContentView(root);
+            registerControlReceiver();
             configureWebView();
             boostAudio();
             webView.loadDataWithBaseURL("https://www.youtube.com", playerHtml(id), "text/html", "UTF-8", null);
@@ -132,8 +139,52 @@ public class YouTubePlayerActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
+    private void registerControlReceiver() {
+        controlReceiver = new BroadcastReceiver() {
+            @Override public void onReceive(Context context, Intent intent) {
+                if (!ACTION_CONTROL.equals(intent.getAction())) return;
+                String action = intent.getStringExtra(EXTRA_CONTROL_ACTION);
+                if (action == null) return;
+                switch (action.toLowerCase()) {
+                    case "pause":
+                        pausePlayer();
+                        break;
+                    case "resume":
+                    case "play":
+                        forcePlay();
+                        report("USER_PLAY", "control_resume");
+                        break;
+                    case "stop":
+                        stopPlayer();
+                        break;
+                    default:
+                        report("UNKNOWN_CONTROL", action);
+                }
+            }
+        };
+        registerReceiver(controlReceiver, new IntentFilter(ACTION_CONTROL));
+    }
+
+    private void pausePlayer() {
+        if (webView != null) {
+            webView.evaluateJavascript("(function(){try{if(window.player){player.pauseVideo();return 'paused';}return 'not_ready';}catch(e){return 'error:'+e.message;}})()", value -> report("PAUSED", value));
+        }
+    }
+
+    private void stopPlayer() {
+        if (webView != null) {
+            webView.evaluateJavascript("(function(){try{if(window.player){player.stopVideo();return 'stopped';}return 'not_ready';}catch(e){return 'error:'+e.message;}})()", value -> { report("STOPPED", value); finish(); });
+        } else {
+            finish();
+        }
+    }
+
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        if (controlReceiver != null) {
+            unregisterReceiver(controlReceiver);
+            controlReceiver = null;
+        }
         if (webView != null) {
             webView.stopLoading();
             webView.destroy();

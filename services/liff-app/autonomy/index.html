@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <title>Booky Safety Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/liff/liff-config.js"></script><script src="/liff/liff.js"></script>
+  <script src="/liff/shared/zenbo-common.js"></script>
+</head>
+<body class="min-h-screen bg-slate-950 pb-10 font-sans text-white">
+  <header class="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur"><div class="mx-auto flex max-w-3xl items-center justify-between gap-3"><a href="/liff/" class="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold hover:bg-slate-800"><i class="fa-solid fa-chevron-left mr-2"></i>หน้าหลัก</a><div class="text-right"><h1 class="text-base font-bold">Safety monitor</h1><p class="text-[11px] text-slate-400">L13–L20 operator governance</p></div></div></header>
+  <div id="user-profile-bar" class="mx-auto flex max-w-3xl justify-end px-4 pt-2"></div>
+  <main class="mx-auto max-w-3xl space-y-4 p-4">
+    <section class="rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-950/35 to-slate-900 p-5"><div class="flex items-start justify-between gap-4"><div><h2 class="font-bold text-amber-100">สถานะกำกับการเคลื่อนที่</h2><p class="mt-1 text-xs leading-relaxed text-slate-300">แสดง permit, การจองพื้นที่ และ alert จาก Core เท่านั้น การแสดง READY ไม่ใช่หลักฐานว่าหุ่นยนต์เคลื่อนที่หรือรับรู้สิ่งกีดขวางจริง</p></div><button id="refresh" class="min-h-11 shrink-0 rounded-xl bg-amber-600 px-4 text-sm font-bold hover:bg-amber-500"><i class="fa-solid fa-rotate mr-1"></i>รีเฟรช</button></div><p id="updated" class="mt-3 text-[11px] text-amber-200" role="status"></p></section>
+    <section id="preflight-card" hidden class="rounded-2xl border border-violet-400/35 bg-violet-950/25 p-4"><div class="flex items-center justify-between gap-3"><h2 class="font-bold text-violet-100">ตรวจ Preflight</h2><button id="close-preflight" class="min-h-11 rounded-xl px-3 text-xs font-bold text-violet-200 hover:bg-violet-900">ปิด</button></div><p id="preflight-summary" class="mt-2 text-xs text-violet-100" role="status"></p><div class="mt-3 grid gap-3 sm:grid-cols-2"><div><p class="text-[11px] font-bold text-slate-300">ก่อนออก permit</p><ul id="permit-blockers" class="mt-1 space-y-1 text-xs text-amber-200"></ul></div><div><p class="text-[11px] font-bold text-slate-300">ก่อน dispatch</p><ul id="dispatch-blockers" class="mt-1 space-y-1 text-xs text-red-200"></ul></div></div></section>
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-4"><h2 class="font-bold">L20 Permit ที่กำลังใช้</h2><div id="permits" class="mt-3 space-y-2 text-sm text-slate-300"><p>กำลังโหลด...</p></div></section>
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-4"><h2 class="font-bold">L17 Zone reservation</h2><div id="zones" class="mt-3 space-y-2 text-sm text-slate-300"><p>กำลังโหลด...</p></div></section>
+    <section class="rounded-2xl border border-red-500/35 bg-red-950/20 p-4"><h2 class="font-bold text-red-100">L18 Open alerts</h2><div id="alerts" class="mt-3 space-y-2 text-sm text-red-100"><p>กำลังโหลด...</p></div></section>
+    <p class="text-center text-[11px] leading-relaxed text-slate-500">การออก/ปิด permit, route release, recovery และ fault drill ทำผ่าน n8n ที่ใช้ registry token เท่านั้น จึงไม่มี secret อยู่ใน LIFF หน้านี้</p>
+  </main>
+  <script>
+    window.ZenboLiff.init();
+    if (typeof ZenboCommon !== 'undefined') {
+      ZenboCommon.ensureAuth().then(() => ZenboCommon.refreshUser().then(() => {
+        ZenboCommon.applyRoleGating();
+        ZenboCommon.renderUserBar('user-profile-bar');
+      }));
+    }
+    const API=`${location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase||''}`;
+    const $=id=>document.getElementById(id);
+    const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    const formatTime=value=>new Date(value).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const items=(entries, render, empty)=>entries.length?entries.map(render).join(''):`<p class="text-xs text-slate-400">${empty}</p>`;
+    async function load() {
+      $('refresh').disabled=true;
+      try {
+        const res=await fetch(`${API}/api/v1/autonomy/supervisor`,{cache:'no-store'}); const data=await res.json();
+        if(!res.ok) throw Error(data.detail?.message||'อ่านสถานะ safety monitor ไม่สำเร็จ');
+        $('permits').innerHTML=items(data.active_permits||[], item=>`<article class="flex items-center justify-between gap-3 rounded-xl bg-slate-800 p-3"><div><b>${esc(item.robot_slug)}</b><p class="mt-1 text-xs text-slate-400">Route ${esc(item.route_id)} · หมดอายุ ${formatTime(item.expires_at_ms)}</p></div><button data-permit="${esc(item.permit_id)}" class="min-h-11 rounded-xl bg-violet-700 px-3 text-xs font-bold hover:bg-violet-600">ตรวจ</button></article>`,'ไม่มี permit ที่กำลังใช้');
+        $('zones').innerHTML=items(data.active_zone_reservations||[], item=>`<article class="rounded-xl bg-slate-800 p-3"><b>${esc(item.zone_id)}</b><p class="mt-1 text-xs text-slate-400">${esc(item.robot_slug)} · ${esc(item.route_id)} · หมดอายุ ${formatTime(item.expires_at_ms)}</p></article>`,'ไม่มีการจองพื้นที่');
+        $('alerts').innerHTML=items(data.open_alerts||[], item=>`<article class="rounded-xl border border-red-400/20 bg-red-950/35 p-3"><b>${esc(item.level)} · ${esc(item.code)}</b><p class="mt-1 text-xs text-red-100/80">${esc(item.robot_slug)} · ${esc(item.message)}</p><p class="mt-1 text-[10px] text-red-200/60">${formatTime(item.created_at_ms)}</p></article>`,'ไม่มี alert ที่ยังไม่ปิด');
+        $('updated').textContent=`อัปเดต ${formatTime(data.observed_at_ms)} · ${data.note}`;
+        document.querySelectorAll('[data-permit]').forEach(button=>button.onclick=()=>loadPreflight(button.dataset.permit));
+      } catch(error) { $('updated').textContent=error.message; } finally { $('refresh').disabled=false; }
+    }
+    function renderBlockers(node, blockers, okText) { node.innerHTML=(blockers||[]).length ? blockers.map(value=>`<li>• ${esc(value)}</li>`).join('') : `<li class="text-emerald-200">✓ ${okText}</li>`; }
+    async function loadPreflight(permitId) {
+      $('preflight-card').hidden=false; $('preflight-summary').textContent='กำลังตรวจ preflight...';
+      try {
+        const permitRes=await fetch(`${API}/api/v1/autonomy/operation-permits/${encodeURIComponent(permitId)}`,{cache:'no-store'}); const permit=await permitRes.json(); if(!permitRes.ok) throw Error('ไม่พบ permit');
+        const params=new URLSearchParams({route_id:permit.route_id,robot_slug:permit.robot_slug,zone_reservation_id:permit.zone_reservation_id,authorization_id:permit.authorization_id,permit_id:permit.permit_id});
+        const res=await fetch(`${API}/api/v1/autonomy/preflight?${params}`,{cache:'no-store'}); const data=await res.json(); if(!res.ok) throw Error('อ่าน preflight ไม่สำเร็จ');
+        $('preflight-summary').textContent=`${data.robot_slug} · ${data.route_id} · permit ${data.operation_permit?.state||'ไม่พร้อม'}`;
+        renderBlockers($('permit-blockers'),data.permit_blockers,'permit พร้อมออกได้'); renderBlockers($('dispatch-blockers'),data.dispatch_blockers,'ผ่าน gate ที่ Core ตรวจได้');
+      } catch(error) { $('preflight-summary').textContent=error.message; $('permit-blockers').innerHTML=''; $('dispatch-blockers').innerHTML=''; }
+    }
+    $('refresh').onclick=load; $('close-preflight').onclick=()=>$('preflight-card').hidden=true; load(); setInterval(load,5000);
+  </script>
+</body>
+</html>

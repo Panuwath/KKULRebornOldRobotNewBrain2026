@@ -3,42 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Zenbo Mobile Remote Controller</title>
+  <title>Zenbo Mobile Remote Controller | KKU Library</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="/liff/liff-config.js"></script>
   <script src="/liff/liff.js"></script>
+  <script src="/liff/shared/zenbo-common.js"></script>
+  <script src="/liff/shared/zenbo-drive-control.js"></script>
+  <link rel="stylesheet" href="/liff/shared/zenbo-theme.css">
+  <script src="/liff/shared/zenbo-nav.js"></script>
+  <script src="/liff/shared/zenbo-actions.js"></script>
+  <script src="/liff/shared/zenbo-face-texture.js"></script>
+  <script src="/liff/shared/zenbo-twin-3d.js"></script>
   <style>
-    html { background: #0f172a; }
-    body { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    html { background: #0f172a; scroll-behavior: smooth; }
+    body { font-family: 'Prompt', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
     .speech-input { -webkit-user-select: text; user-select: text; }
-    .d-btn:active { transform: scale(0.92); }
+    .d-btn { touch-action: none; transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease; }
+    .d-btn.is-driving { transform: scale(.96); background-color: rgb(37 99 235); box-shadow: 0 0 0 3px rgb(96 165 250 / .35); }
+    .d-btn:active { transform: scale(.94); }
   </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen pb-12 font-sans">
+<body class="bg-slate-950 text-white min-h-screen pb-16 font-sans">
 
   <!-- Header Bar -->
-  <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-lg">
-    <div class="flex items-center space-x-2">
-      <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50 px-4 py-3 flex items-center justify-between gap-3 shadow-lg">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50"></div>
       <div>
-        <h1 class="font-bold text-base leading-tight">ASUS Zenbo AI</h1>
-        <p class="text-xs text-slate-400" id="conn-status">Docker Gateway: Online</p>
+        <h1 class="font-bold text-sm tracking-tight leading-tight flex items-center gap-1.5">
+          ASUS Zenbo AI
+          <span class="text-[10px] font-normal text-emerald-400/80 bg-emerald-950/60 border border-emerald-800/50 rounded-md px-1.5 py-0.2">KKU</span>
+        </h1>
+        <p class="text-[11px] text-slate-400" id="conn-status">Docker Gateway: Online</p>
       </div>
     </div>
-    <div class="flex flex-wrap items-center justify-end gap-2">
-      <a href="https://lib.kku.ac.th/map/" target="_blank" rel="noopener noreferrer" class="min-h-11 bg-cyan-700 hover:bg-cyan-600 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center shadow-lg shadow-cyan-950/40"><i class="fa-solid fa-map-location-dot mr-1.5"></i> แผนที่หอสมุด</a>
-      <a href="/liff/history/" class="min-h-11 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i> ประวัติ</a>
-      <a href="/liff/present/" class="min-h-11 bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center shadow-lg shadow-emerald-950/40"><i class="fa-solid fa-wand-sparkles mr-1.5"></i> Present</a>
-      <a href="/liff/control/" class="min-h-11 bg-blue-700 hover:bg-blue-600 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center shadow-lg shadow-blue-950/40"><i class="fa-solid fa-gamepad mr-1.5"></i> จอยสติ๊ก</a>
-      <a href="/liff/command/" class="min-h-11 bg-violet-700 hover:bg-violet-600 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center shadow-lg shadow-violet-950/40"><i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> สั่งด้วยคำพูด</a>
-      <button onclick="emergencyStop()" class="min-h-11 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center shadow-lg shadow-red-900/50">
+    <div class="flex items-center justify-end gap-2">
+      <details class="relative">
+        <summary class="flex min-h-10 cursor-pointer list-none items-center rounded-xl bg-slate-800 border border-slate-700/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 transition"><i class="fa-solid fa-ellipsis mr-1.5 text-slate-400"></i> เมนู</summary>
+        <nav aria-label="เครื่องมือเพิ่มเติม" class="absolute right-0 top-12 z-50 grid w-60 gap-1 rounded-2xl border border-slate-700 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-xl">
+          <a href="/liff/scenario/" class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition"><i class="fa-solid fa-wand-sparkles mr-2.5 text-emerald-400"></i>สถานการณ์ Booky</a>
+          <a href="/liff/history/" class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition"><i class="fa-solid fa-clock-rotate-left mr-2.5 text-slate-400"></i>ประวัติคำสั่ง</a>
+          <a href="/liff/control/" class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition"><i class="fa-solid fa-gamepad mr-2.5 text-blue-400"></i>จอยสติ๊กแบบลาก</a>
+          <a href="/liff/download/zenbo.apk" download class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition"><i class="fa-brands fa-android mr-2.5 text-emerald-400"></i>ดาวน์โหลด Zenbo APK</a>
+          <a href="/liff/download/zenbo.zip" download class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition"><i class="fa-solid fa-file-zipper mr-2.5 text-amber-400"></i>ดาวน์โหลด Zenbo Zip</a>
+          <button type="button" onclick="openAiModal()" class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition flex items-center w-full"><i class="fa-solid fa-brain mr-2.5 text-purple-400"></i>ตั้งค่า AI Provider</button>
+          <a href="https://lib.kku.ac.th/map/" target="_blank" rel="noopener noreferrer" class="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-slate-800 text-slate-200 transition"><i class="fa-solid fa-map-location-dot mr-2.5 text-cyan-400"></i>แผนที่หอสมุด</a>
+        </nav>
+      </details>
+      <button onclick="emergencyStop()" class="min-h-10 bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl flex items-center shadow-lg shadow-red-950/60 transition">
         <i class="fa-solid fa-hand mr-1.5"></i> STOP
       </button>
     </div>
   </header>
+  <div id="user-profile-bar" class="mx-auto flex max-w-md justify-end px-4 pt-3 lg:max-w-4xl"></div>
 
-  <main class="max-w-md mx-auto p-4 space-y-5">
+  <!-- AI Provider Settings Modal (Phase 4.12) -->
+  <dialog id="ai-modal" class="bg-slate-900 border border-slate-700 rounded-2xl p-5 text-white shadow-2xl max-w-sm w-11/12 backdrop:bg-black/60">
+    <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+      <h3 class="text-sm font-bold flex items-center"><i class="fa-solid fa-brain text-purple-400 mr-2"></i> ตั้งค่า AI Provider (Admin)</h3>
+      <button onclick="document.getElementById('ai-modal').close()" class="text-slate-400 hover:text-white text-base">✕</button>
+    </div>
+    <form onsubmit="saveAiProvider(event)" class="space-y-3 text-xs">
+      <div>
+        <label class="block text-slate-400 mb-1">ผู้ให้บริการ (Provider)</label>
+        <select id="ai-provider" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white">
+          <option value="kku_intellisphere">KKU IntelSphere (Default)</option>
+          <option value="openai">OpenAI-Compatible</option>
+          <option value="rules_only">Rules Only (ปิด AI)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-slate-400 mb-1">Base URL</label>
+        <input type="text" id="ai-base-url" placeholder="https://api.intellisphere.kku.ac.th/v1" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
+      </div>
+      <div>
+        <label class="block text-slate-400 mb-1">Model Name</label>
+        <input type="text" id="ai-model" placeholder="gpt-5.6-luna" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
+      </div>
+      <div>
+        <label class="block text-slate-400 mb-1">API Key / Token (Write-only)</label>
+        <input type="password" id="ai-key" placeholder="กรอก Key ใหม่หากต้องการเปลี่ยน" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono text-[11px]">
+        <p id="ai-key-masked" class="text-[10px] text-slate-500 mt-1">คีย์ปัจจุบัน: ไม่มี</p>
+      </div>
+      <div class="pt-2 flex gap-2">
+        <button type="button" onclick="testAiConnection()" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg py-2 font-bold text-slate-200">ทดสอบเชื่อมต่อ</button>
+        <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-500 rounded-lg py-2 font-bold text-white shadow-lg shadow-purple-900/50">บันทึก</button>
+      </div>
+      <p id="ai-test-result" class="min-h-4 text-[10px] text-center text-slate-400"></p>
+    </form>
+  </dialog>
+
+  <main class="mx-auto flex max-w-md flex-col gap-5 p-4 lg:max-w-4xl">
 
     <!-- 0. Zenbo Connect Card -->
     <section id="connect-card" class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
@@ -46,177 +106,585 @@
         <h2 class="text-sm font-semibold text-slate-300 flex items-center">
           <i class="fa-solid fa-plug text-green-400 mr-2"></i> Zenbo Connection
         </h2>
-        <span id="zenbo-state" class="text-xs px-2 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700">Disconnected</span>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="toggleTwinCollapse()" id="btn-toggle-twin" class="text-[11px] bg-slate-900/90 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 shadow active:scale-95 cursor-pointer" title="ย่อหรือขยายโมเดล 3D">
+            <i class="fa-solid fa-chevron-up text-[9px]" id="icon-toggle-twin"></i>
+            <span id="label-toggle-twin">ย่อ 3D</span>
+          </button>
+          <span id="zenbo-state" class="text-xs px-2 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700">Disconnected</span>
+        </div>
       </div>
-      <button onclick="connectZenbo()" id="btn-connect" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 active:scale-98 text-white text-sm font-bold py-3 rounded-xl shadow-lg flex items-center justify-center">
+
+      <!-- Collapsed Mini Preview Bar -->
+      <div id="heartbeat-3d-collapsed-bar" class="hidden my-2.5 p-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-800/90 transition shadow-inner" onclick="toggleTwinCollapse()">
+        <div class="flex items-center gap-2">
+          <span class="text-sm">🤖</span>
+          <span class="text-xs font-semibold text-emerald-300">Booky 3D Twin</span>
+          <span class="text-[10px] text-slate-400 font-mono">(โมเดลย่ออยู่เพื่อประหยัดพื้นที่)</span>
+        </div>
+        <span class="text-[10px] text-cyan-400 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1 shadow-sm">
+          <i class="fa-solid fa-chevron-down text-[9px]"></i> ขยาย 3D
+        </span>
+      </div>
+
+      <!-- 3D Heartbeat Holographic Pulse Visualizer -->
+      <div id="heartbeat-3d-container" class="relative my-3 w-full h-48 rounded-xl overflow-hidden bg-slate-950/90 border border-slate-700/80 shadow-inner group transition-all duration-300">
+        <!-- 3D WebGL Canvas -->
+        <canvas id="heartbeat-3d-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+        <!-- Holographic HUD Overlays -->
+        <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-2.5">
+          <!-- Top Row: Heartbeat Rate & Battery -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-mono shadow">
+              <span id="hb-pulse-dot" class="inline-block w-2 h-2 rounded-full bg-red-500"></span>
+              <span class="text-slate-400 font-sans text-[10px]">ชีพจร:</span>
+              <span id="hb-bpm" class="font-bold text-red-400">OFFLINE</span>
+              <span id="hb-latency" class="text-[9px] text-slate-500 font-sans">(รอสัญญาณ)</span>
+            </div>
+            <div id="hb-battery-badge" class="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-lg px-2 py-1 text-[11px] font-mono shadow">
+              <i id="hb-battery-icon" class="fa-solid fa-battery-three-quarters text-slate-500"></i>
+              <span id="hb-battery-text" class="font-bold text-slate-200">--%</span>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Broker Telemetry & Safety -->
+          <div class="flex items-end justify-between text-[10px]">
+            <div class="bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-lg px-2 py-1 shadow max-w-[65%]">
+              <div class="flex items-center gap-1 text-slate-400">
+                <i class="fa-solid fa-network-wired text-cyan-400 text-[10px]"></i>
+                <span class="font-sans text-[10px]">Broker:</span>
+                <span id="hb-broker-mode" class="font-bold font-mono text-cyan-300">AUTO</span>
+              </div>
+              <div id="hb-broker-detail" class="truncate font-mono text-[9px] text-slate-400">รอการเชื่อมต่อ...</div>
+            </div>
+            <div class="flex items-center gap-1 bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-lg px-2 py-1 shadow">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span id="hb-safety-text" class="text-slate-300 font-semibold text-[10px]">Guard: ON</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3D Interaction Hint -->
+        <div class="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center opacity-40 group-hover:opacity-80 transition text-[9px] text-slate-400">
+          <span>แตะ/ลาก เพื่อหมุนมิติ 3D</span>
+        </div>
+      </div>
+
+      <button onclick="connectZenbo()" id="btn-connect" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 active:scale-98 text-white text-sm font-bold py-3 rounded-xl shadow-lg flex items-center justify-center cursor-pointer">
         <i class="fa-solid fa-robot mr-2"></i> <span id="btn-connect-text">บุ๊คกี้พร้อมครับ</span>
       </button>
-      <select id="robot-select" class="w-full mt-3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200">
-        <option value="">ค้นหา Zenbo ที่ออนไลน์...</option>
-      </select>
-      <div id="robot-list" class="mt-3 space-y-2"></div>
+
+      <!-- Multi-Robot Header -->
+      <div class="mt-3.5 mb-1.5 flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-robot text-emerald-400"></i> เลือก Zenbo ที่ต้องการสั่งงาน (<span id="selected-robot-count" class="text-emerald-400 font-bold">0</span> เครื่อง)
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="selectAllRobots()" class="text-[10px] bg-slate-900 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition cursor-pointer active:scale-95">เลือกทั้งหมด</button>
+          <button type="button" onclick="clearSelectedRobots()" class="text-[10px] bg-slate-900 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition cursor-pointer active:scale-95">ล้าง</button>
+        </div>
+      </div>
+
+      <div id="robot-list" class="grid gap-2 sm:grid-cols-2" role="group" aria-label="เลือก Zenbo ที่ออนไลน์"></div>
       <p class="text-[11px] text-slate-400 mt-2 leading-relaxed" id="connect-hint">
         กดเพื่อเชื่อมต่อ Zenbo — หุ่นยนต์จะตอบกลับว่า <span class="text-green-400 font-semibold">"Bookyพร้อมครับ"</span> ด้วยเสียงเด็กผู้ชายน่ารัก
       </p>
-    </section>
 
-    <!-- 1. Motion D-Pad -->
-    <section class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-sm font-semibold text-slate-300 flex items-center">
-          <i class="fa-solid fa-gamepad text-blue-400 mr-2"></i> Base Motion Control
-        </h2>
-        <div class="flex items-center space-x-1 text-xs">
-          <span class="text-slate-400">Speed:</span>
-          <select id="motion-speed" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-blue-400 font-bold">
-            <option value="1">L1 (Slow)</option>
-            <option value="2" selected>L2 (Normal)</option>
-            <option value="3">L3 (Fast)</option>
-          </select>
+      <!-- Safety Mode Drive-Lock Switch (Phase 3) -->
+      <div class="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
+        <div>
+          <span class="text-xs font-semibold text-slate-200 flex items-center">
+            <i class="fa-solid fa-shield-halved text-amber-400 mr-1.5"></i> โหมดความปลอดภัย (Drive Guard)
+          </span>
+          <p class="text-[10px] text-amber-300/90" id="safety-status-desc">ปิดเป็นค่าเริ่มต้น (ปลดล็อกล้อ ควบคุมอิสระ ไม่ติดเซนเซอร์)</p>
         </div>
-      </div>
-
-      <div class="grid grid-cols-3 gap-2 w-48 mx-auto my-2">
-        <div></div>
-        <button onmousedown="sendMotion(0.5, 0, 0)" ontouchstart="sendMotion(0.5, 0, 0)" class="d-btn bg-blue-600 hover:bg-blue-500 h-14 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-900/40">
-          <i class="fa-solid fa-arrow-up"></i>
-        </button>
-        <div></div>
-
-        <button onmousedown="sendMotion(0, 0, -45)" ontouchstart="sendMotion(0, 0, -45)" class="d-btn bg-slate-700 hover:bg-slate-600 h-14 rounded-xl flex items-center justify-center text-xl shadow">
-          <i class="fa-solid fa-rotate-left"></i>
-        </button>
-        <button onclick="emergencyStop()" class="d-btn bg-red-500/20 text-red-400 border border-red-500/40 h-14 rounded-xl flex items-center justify-center text-sm font-bold">
-          HALT
-        </button>
-        <button onmousedown="sendMotion(0, 0, 45)" ontouchstart="sendMotion(0, 0, 45)" class="d-btn bg-slate-700 hover:bg-slate-600 h-14 rounded-xl flex items-center justify-center text-xl shadow">
-          <i class="fa-solid fa-rotate-right"></i>
-        </button>
-
-        <div></div>
-        <button onmousedown="sendMotion(-0.5, 0, 0)" ontouchstart="sendMotion(-0.5, 0, 0)" class="d-btn bg-blue-600 hover:bg-blue-500 h-14 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-900/40">
-          <i class="fa-solid fa-arrow-down"></i>
-        </button>
-        <div></div>
+        <label class="relative inline-flex items-center cursor-pointer" id="safety-toggle-label">
+          <input type="checkbox" id="safety-toggle" class="sr-only peer" onchange="toggleSafetyMode(this.checked)">
+          <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+        </label>
       </div>
     </section>
 
-    <!-- 2. Head Control Sliders -->
-    <section class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-sm font-semibold text-slate-300 flex items-center">
-          <i class="fa-solid fa-arrows-up-down-left-right text-indigo-400 mr-2"></i> Head Angles (Yaw / Pitch)
-        </h2>
-        <button onclick="resetHead()" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">
-          <i class="fa-solid fa-rotate-right mr-1"></i> Center
+    <!-- Segmented Tab Navigation Bar -->
+    <div id="main-tabs-bar" class="sticky top-2 z-30 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl">
+      <div class="flex items-center gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label="โหมดควบคุมหุ่นยนต์">
+        <button type="button" role="tab" onclick="switchMainTab('ai')" id="tab-btn-ai" class="main-tab-btn active shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-violet-600 text-white shadow-lg shadow-violet-900/40 cursor-pointer">
+          <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>
+          <span>AI สั่งงาน</span>
+        </button>
+        <button type="button" role="tab" onclick="switchMainTab('speech')" id="tab-btn-speech" class="main-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800 cursor-pointer">
+          <i class="fa-solid fa-comment-dots text-[11px] text-pink-400"></i>
+          <span>พูด &amp; เสียง</span>
+        </button>
+        <button type="button" role="tab" onclick="switchMainTab('drive')" id="tab-btn-drive" class="main-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800 cursor-pointer">
+          <i class="fa-solid fa-gamepad text-[11px] text-blue-400"></i>
+          <span>ควบคุมเดิน</span>
+        </button>
+        <button type="button" role="tab" onclick="switchMainTab('actions')" id="tab-btn-actions" class="main-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800 cursor-pointer">
+          <i class="fa-solid fa-face-smile text-[11px] text-amber-400"></i>
+          <span>หน้า &amp; ท่าทาง</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono">39</span>
+        </button>
+        <button type="button" role="tab" onclick="switchMainTab('entertainment')" id="tab-btn-entertainment" class="main-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800 cursor-pointer">
+          <i class="fa-brands fa-youtube text-[11px] text-red-400"></i>
+          <span>บันเทิง</span>
         </button>
       </div>
+    <!-- Panel AI -->
+    <div id="panel-ai" class="tab-panel flex flex-col gap-4">
+      <!-- KKU IntelSphere AI Agent Section (Natural Language Voice & Text) -->
+      <section id="ai-agent-section" class="relative overflow-hidden rounded-3xl border border-violet-500/50 bg-gradient-to-br from-violet-950/70 via-slate-900 to-indigo-950/70 p-5 shadow-2xl">
+      <!-- Background Ambient Glow -->
+      <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-600/15 blur-3xl" aria-hidden="true"></div>
+      <div class="pointer-events-none absolute -left-16 -bottom-16 h-48 w-48 rounded-full bg-indigo-600/15 blur-3xl" aria-hidden="true"></div>
 
+      <!-- Agent Header -->
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3">
+          <div class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-lg shadow-violet-950/50 text-xl">
+            🧠
+            <span class="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-slate-900"></span>
+            </span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-bold text-white tracking-wide">KKU IntelSphere AI Agent</h2>
+              <span class="rounded-full bg-violet-950/80 border border-violet-500/50 px-2 py-0.5 text-[9px] font-mono text-violet-300">Natural Language NLU</span>
+            </div>
+            <p class="text-[11px] text-slate-300">สั่งการ Zenbo ด้วยภาษาธรรมชาติ (พิมพ์ข้อความ หรือ พูดเสียงภาษาไทย)</p>
+          </div>
+        </div>
+        <span class="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+          <i class="fa-solid fa-circle text-[6px]"></i> AI Agent พร้อมทำงาน
+        </span>
+      </div>
+
+      <!-- Input Card -->
       <div class="space-y-3">
-        <div>
-          <div class="flex justify-between text-xs text-slate-400 mb-1">
-            <span>Yaw (หันซ้าย-ขวา):</span>
-            <span id="yaw-val" class="text-indigo-300 font-mono">0°</span>
-          </div>
-          <input type="range" id="head-yaw" min="-45" max="45" value="0" oninput="updateHeadVal()" onchange="sendHead()" class="w-full accent-indigo-500">
+        <div class="relative">
+          <textarea id="ai-agent-input" rows="3" maxlength="800"
+            placeholder="เช่น: ขอต้อนรับคณะกรรมการ InnoTech Show & Share 2026, เต้นส่ายเอวให้ดูหน่อย, พยักหน้ายิ้มหวาน, หรือ หันซ้ายทักทาย..."
+            class="w-full resize-none rounded-2xl border border-violet-500/30 bg-slate-950/80 p-3.5 text-sm leading-relaxed text-white placeholder-slate-500 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition shadow-inner"></textarea>
+          <button type="button" onclick="clearAiInput()" id="ai-clear-btn" class="absolute top-3 right-3 text-slate-500 hover:text-slate-300 text-xs px-2 py-1 rounded-lg transition" title="ล้างข้อความ">
+            ✕
+          </button>
         </div>
 
-        <div>
-          <div class="flex justify-between text-xs text-slate-400 mb-1">
-            <span>Pitch (ก้ม-เงย):</span>
-            <span id="pitch-val" class="text-indigo-300 font-mono">10°</span>
-          </div>
-          <input type="range" id="head-pitch" min="-15" max="55" value="10" oninput="updateHeadVal()" onchange="sendHead()" class="w-full accent-indigo-500">
+        <!-- Voice & Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Voice Button (Web Speech API in Thai) -->
+          <button type="button" id="ai-voice-btn" onclick="toggleAiVoiceInput()"
+            class="flex-1 min-h-11 rounded-xl border border-violet-400/40 bg-violet-900/60 hover:bg-violet-800 active:scale-95 text-xs font-bold text-white flex items-center justify-center gap-2 transition shadow-md">
+            <span id="ai-voice-icon" class="text-base"><i class="fa-solid fa-microphone"></i></span>
+            <span id="ai-voice-label">พูดเสียงภาษาไทย</span>
+          </button>
+
+          <!-- Analyze with IntelSphere AI -->
+          <button type="button" id="ai-compile-btn" onclick="analyzeWithIntelSphere()"
+            class="flex-1 min-h-11 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-xs font-bold text-white flex items-center justify-center gap-2 transition shadow-lg shadow-violet-950/50">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span id="ai-compile-label">วิเคราะห์ด้วย IntelSphere AI</span>
+          </button>
         </div>
+
+        <!-- Quick Prompt Chips -->
+        <div class="pt-1">
+          <span class="text-[10px] font-semibold text-slate-400 mb-1.5 block">คำสั่งตัวอย่างยอดนิยม:</span>
+          <div class="flex flex-wrap gap-1.5" id="ai-quick-chips">
+            <button type="button" onclick="fillAndAnalyzeAiPrompt('ต้อนรับกรรมการ InnoTech Show & Share 2026')"
+              class="rounded-full border border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/60 px-3 py-1 text-[11px] font-medium text-amber-200 transition active:scale-95 flex items-center gap-1.5">
+              <span>🏆</span> ต้อนรับกรรมการ InnoTech
+            </button>
+            <button type="button" onclick="fillAndAnalyzeAiPrompt('เต้นส่ายเอวให้ดูหน่อย')"
+              class="rounded-full border border-pink-500/40 bg-pink-950/40 hover:bg-pink-900/60 px-3 py-1 text-[11px] font-medium text-pink-200 transition active:scale-95 flex items-center gap-1.5">
+              <span>💃</span> เต้นส่ายเอวโชว์
+            </button>
+            <button type="button" onclick="fillAndAnalyzeAiPrompt('พยักหน้าทักทายอย่างสุภาพและยิ้มหวาน')"
+              class="rounded-full border border-emerald-500/40 bg-emerald-950/40 hover:bg-emerald-900/60 px-3 py-1 text-[11px] font-medium text-emerald-200 transition active:scale-95 flex items-center gap-1.5">
+              <span>🙇</span> พยักหน้ายิ้มหวาน
+            </button>
+            <button type="button" onclick="fillAndAnalyzeAiPrompt('สแกนหาใบหน้าผู้ใช้')"
+              class="rounded-full border border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 px-3 py-1 text-[11px] font-medium text-cyan-200 transition active:scale-95 flex items-center gap-1.5">
+              <span>👁️</span> สแกนหาใบหน้า
+            </button>
+            <button type="button" onclick="fillAndAnalyzeAiPrompt('แนะนำตัวหน่อย')"
+              class="rounded-full border border-blue-500/40 bg-blue-950/40 hover:bg-blue-900/60 px-3 py-1 text-[11px] font-medium text-blue-200 transition active:scale-95 flex items-center gap-1.5">
+              <span>🤖</span> แนะนำตัว Booky
+            </button>
+            <button type="button" onclick="fillAndAnalyzeAiPrompt('หยุดเดี๋ยวนี้')"
+              class="rounded-full border border-red-500/40 bg-red-950/40 hover:bg-red-900/60 px-3 py-1 text-[11px] font-medium text-red-200 transition active:scale-95 flex items-center gap-1.5">
+              <span>🛑</span> หยุดทันที
+            </button>
+          </div>
+        </div>
+
+        <!-- IntelSphere AI Agent Reasoning & Compiled Plan Card (Revealed on analysis) -->
+        <div id="ai-plan-card" hidden class="mt-4 rounded-2xl border border-violet-500/40 bg-slate-950/90 p-4 shadow-xl space-y-3 transition-all duration-300">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">✨</span>
+              <span class="text-xs font-bold text-violet-200">แผนการทำงานที่ AI Agent สรุป (IntelSphere Plan)</span>
+            </div>
+            <span id="ai-intent-badge" class="rounded-full bg-violet-900/80 border border-violet-500/60 px-2.5 py-0.5 text-[10px] font-mono text-violet-300 font-bold">
+              INTENT
+            </span>
+          </div>
+
+          <!-- Reasoning text -->
+          <div class="rounded-xl bg-violet-950/30 border border-violet-800/40 p-3 text-xs leading-relaxed text-slate-200 flex items-start gap-2.5">
+            <span class="text-base shrink-0">💡</span>
+            <div class="min-w-0">
+              <span class="block text-[10px] font-semibold text-violet-300 mb-0.5">ผลการวิเคราะห์ &amp; ให้เหตุผล (AI Reasoning):</span>
+              <p id="ai-reasoning-text" class="text-xs text-slate-200"></p>
+            </div>
+          </div>
+
+          <!-- Action & Face Breakdown Chips -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-left" id="ai-plan-chips">
+            <!-- Speech Chip -->
+            <div class="col-span-2 rounded-xl bg-slate-900/80 border border-slate-700/80 p-2.5">
+              <span class="block text-[10px] text-slate-400 font-semibold mb-1">🗣️ คำพูด (TTS):</span>
+              <p id="ai-plan-speech" class="text-xs font-medium text-emerald-300 line-clamp-2">-</p>
+            </div>
+            <!-- Face Chip -->
+            <div class="rounded-xl bg-slate-900/80 border border-slate-700/80 p-2.5">
+              <span class="block text-[10px] text-slate-400 font-semibold mb-1">😊 สีหน้า (Face):</span>
+              <span id="ai-plan-face" class="text-xs font-bold text-amber-300">-</span>
+            </div>
+            <!-- Action Chip -->
+            <div class="rounded-xl bg-slate-900/80 border border-slate-700/80 p-2.5">
+              <span class="block text-[10px] text-slate-400 font-semibold mb-1">🕺 ท่าทาง (Action):</span>
+              <span id="ai-plan-action" class="text-xs font-bold text-violet-300">-</span>
+            </div>
+          </div>
+
+          <!-- 3D Twin Kinematics Note -->
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+            <span class="flex items-center gap-1.5 text-blue-300">
+              <i class="fa-solid fa-cube text-xs"></i> จำลองท่าทางบนโมเดล 3D Twin แล้ว
+            </span>
+            <button type="button" onclick="toggleAiJsonView()" class="text-slate-500 hover:text-slate-300 text-[10px] underline">
+              ดู Raw JSON
+            </button>
+          </div>
+          <pre id="ai-raw-json" hidden class="max-h-36 overflow-auto rounded-xl bg-slate-950 p-2.5 text-[10px] font-mono text-emerald-400 border border-slate-800"></pre>
+
+          <!-- Execution Dispatch Button -->
+          <button type="button" id="ai-dispatch-btn" onclick="dispatchAiCompiledPlan()"
+            class="w-full min-h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-98 text-xs font-bold text-white flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-950/40 cursor-pointer">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span id="ai-dispatch-label">ยืนยันส่งให้ Zenbo ทำงานทันที</span>
+          </button>
+        </div>
+
+        <!-- Status & Feedback Banner -->
+        <p id="ai-agent-status" role="status" aria-live="polite" class="min-h-4 text-center text-xs text-slate-400 pt-1">
+          พิมพ์คำสั่งหรือกดปุ่มไมค์เพื่อพูดภาษาไทย
+        </p>
       </div>
     </section>
+  </div>
 
-    <!-- 3. Facial Expression Grid -->
-    <section class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
-      <h2 class="text-sm font-semibold text-slate-300 mb-3 flex items-center">
-        <i class="fa-solid fa-face-smile text-amber-400 mr-2"></i> Facial Expressions
-      </h2>
-      <div class="grid grid-cols-4 gap-2">
-        <button onclick="sendFace('HAPPY')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">😄</span>
-          <span>Happy</span>
-        </button>
-        <button onclick="sendFace('DOUBT')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">🤔</span>
-          <span>Doubt</span>
-        </button>
-        <button onclick="sendFace('SHY')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">😳</span>
-          <span>Shy</span>
-        </button>
-        <button onclick="sendFace('PROUD')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">😎</span>
-          <span>Proud</span>
-        </button>
-        <button onclick="sendFace('SHOCK')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">😲</span>
-          <span>Shock</span>
-        </button>
-        <button onclick="sendFace('SINGING')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">🎤</span>
-          <span>Singing</span>
-        </button>
-        <button onclick="sendFace('TIRED')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">😴</span>
-          <span>Tired</span>
-        </button>
-        <button onclick="sendFace('DEFAULT')" class="bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2.5 rounded-xl text-center text-xs flex flex-col items-center">
-          <span class="text-2xl mb-1">🤖</span>
-          <span>Default</span>
-        </button>
+  <!-- Panel Drive -->
+  <div id="panel-drive" class="tab-panel hidden flex flex-col gap-4">
+    <section id="drive-control" data-require-role="operator" class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl" aria-labelledby="drive-title">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="drive-title" class="text-base font-bold text-slate-100"><i class="fa-solid fa-gamepad text-blue-400 mr-2" aria-hidden="true"></i>ควบคุมการเดิน</h2>
+          <p class="mt-1 text-xs leading-relaxed text-slate-400">กดค้างเพื่อเคลื่อนที่ · ปล่อยนิ้วเพื่อหยุดทันที</p>
+        </div>
+        <span class="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-200">RELATIVE STEP</span>
       </div>
+      <div id="motion-speed-deck" class="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 p-2.5"></div>
+
+      <div class="mx-auto mt-4 grid w-full max-w-[19rem] grid-cols-3 gap-3" aria-label="ปุ่มควบคุมทิศทาง">
+        <span aria-hidden="true"></span>
+        <button type="button" data-drive="FORWARD" class="d-btn flex min-h-20 flex-col items-center justify-center rounded-2xl bg-blue-700 text-white shadow-lg shadow-blue-950/40 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer" aria-label="เดินหน้า: กดค้างเพื่อเคลื่อนที่"><i class="fa-solid fa-arrow-up text-2xl" aria-hidden="true"></i><span class="mt-1 text-xs font-bold">เดินหน้า</span></button>
+        <span aria-hidden="true"></span>
+
+        <button type="button" data-drive="TURN_LEFT" class="d-btn flex min-h-20 flex-col items-center justify-center rounded-2xl bg-slate-700 text-white shadow focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer" aria-label="หมุนซ้าย: กดค้างเพื่อเคลื่อนที่"><i class="fa-solid fa-rotate-left text-2xl" aria-hidden="true"></i><span class="mt-1 text-xs font-bold">ซ้าย</span></button>
+        <button type="button" id="drive-stop" class="d-btn min-h-20 rounded-2xl border border-red-400/60 bg-red-700 text-sm font-bold text-white shadow-lg shadow-red-950/30 focus:outline-none focus:ring-2 focus:ring-red-300 cursor-pointer" aria-label="หยุดฉุกเฉิน">หยุด<br><span class="text-[10px] font-normal">ฉุกเฉิน</span></button>
+        <button type="button" data-drive="TURN_RIGHT" class="d-btn flex min-h-20 flex-col items-center justify-center rounded-2xl bg-slate-700 text-white shadow focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer" aria-label="หมุนขวา: กดค้างเพื่อเคลื่อนที่"><i class="fa-solid fa-rotate-right text-2xl" aria-hidden="true"></i><span class="mt-1 text-xs font-bold">ขวา</span></button>
+
+        <span aria-hidden="true"></span>
+        <button type="button" data-drive="BACKWARD" class="d-btn flex min-h-20 flex-col items-center justify-center rounded-2xl bg-blue-700 text-white shadow-lg shadow-blue-950/40 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer" aria-label="ถอยหลัง: กดค้างเพื่อเคลื่อนที่"><i class="fa-solid fa-arrow-down text-2xl" aria-hidden="true"></i><span class="mt-1 text-xs font-bold">ถอยหลัง</span></button>
+        <span aria-hidden="true"></span>
+      </div>
+      <p id="drive-status" role="status" aria-live="polite" class="mt-3 min-h-5 text-center text-xs font-medium text-blue-200">เลือก Zenbo แล้วกดค้างที่ปุ่มทิศทาง</p>
     </section>
+  </div>
 
-    <!-- 4. Tap-first dance and wheel-light controls -->
-    <section class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-slate-300 flex items-center">
-          <i class="fa-solid fa-person-rays text-fuchsia-400 mr-2"></i> Dance &amp; Lights
-        </h2>
-        <span class="text-[10px] text-slate-400">แตะเพื่อเล่น</span>
+  <!-- Panel Actions -->
+  <div id="panel-actions" class="tab-panel hidden">
+    <div id="expression-control" data-require-role="operator" class="px-2 pb-2 pt-3 sm:px-3">
+      <div class="text-sm font-bold text-amber-200 flex items-center justify-between">
+        <span class="flex items-center"><i class="fa-solid fa-masks-theater mr-2 text-amber-400"></i>สีหน้า ท่าทาง และไฟล้อ (Expressions &amp; Actions)</span>
+        <span class="text-[10px] font-mono bg-amber-950/80 text-amber-300 border border-amber-800/50 px-2 py-0.5 rounded-full">39 Actions</span>
       </div>
-      <div class="grid grid-cols-4 gap-2 mb-4" aria-label="เลือกท่าเต้น Zenbo">
-        <button onclick="sendDance(2)" aria-label="เล่นท่าเต้น 02" class="min-h-20 bg-fuchsia-950/70 border border-fuchsia-500/40 hover:bg-fuchsia-900 active:scale-95 rounded-xl text-center text-xs font-bold text-fuchsia-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">🕺</span><span>ท่า 02</span></button>
-        <button onclick="sendDance(3)" aria-label="เล่นท่าเต้น 03" class="min-h-20 bg-violet-950/70 border border-violet-500/40 hover:bg-violet-900 active:scale-95 rounded-xl text-center text-xs font-bold text-violet-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">💃</span><span>ท่า 03</span></button>
-        <button onclick="sendDance(5)" aria-label="เล่นท่าเต้น 05" class="min-h-20 bg-sky-950/70 border border-sky-500/40 hover:bg-sky-900 active:scale-95 rounded-xl text-center text-xs font-bold text-sky-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">🤖</span><span>ท่า 05</span></button>
-        <button onclick="sendDance(11)" aria-label="เล่นท่าเต้น 11" class="min-h-20 bg-amber-950/70 border border-amber-500/40 hover:bg-amber-900 active:scale-95 rounded-xl text-center text-xs font-bold text-amber-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">🎵</span><span>ท่า 11</span></button>
-        <button onclick="sendDance(18)" aria-label="เล่นท่าเต้น 18" class="min-h-20 bg-rose-950/70 border border-rose-500/40 hover:bg-rose-900 active:scale-95 rounded-xl text-center text-xs font-bold text-rose-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">✨</span><span>ท่า 18</span></button>
-        <button onclick="sendDance(22)" aria-label="เล่นท่าเต้น 22" class="min-h-20 bg-purple-800 border border-purple-300/50 hover:bg-purple-700 active:scale-95 rounded-xl text-center text-xs font-bold text-white flex flex-col items-center justify-center shadow-lg shadow-purple-950/40"><span class="text-2xl mb-1">🎶</span><span>ท่า 22</span></button>
-        <button onclick="sendDance(23)" aria-label="เล่นท่าเต้น 23" class="min-h-20 bg-cyan-950/70 border border-cyan-500/40 hover:bg-cyan-900 active:scale-95 rounded-xl text-center text-xs font-bold text-cyan-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">🌈</span><span>ท่า 23</span></button>
-        <button onclick="sendDance(44)" aria-label="เล่นท่าเต้น 44" class="min-h-20 bg-emerald-950/70 border border-emerald-500/40 hover:bg-emerald-900 active:scale-95 rounded-xl text-center text-xs font-bold text-emerald-200 flex flex-col items-center justify-center"><span class="text-2xl mb-1">⭐</span><span>ท่า 44</span></button>
-      </div>
-      <p class="text-[10px] text-amber-300 mb-3">จัดพื้นที่รอบตัว Zenbo ให้โล่งก่อนเลือกท่าเต้น</p>
-      <h3 class="text-xs font-semibold text-slate-400 mb-2 flex items-center"><i class="fa-solid fa-lightbulb text-emerald-400 mr-2"></i>ไฟล้อ</h3>
-      <div class="grid grid-cols-3 gap-2 mb-3">
-        <button onclick="sendLights('breathing', '0x00D031')" aria-label="ไฟล้อเขียวหายใจ" class="min-h-14 bg-emerald-950/60 border border-emerald-500/40 hover:bg-emerald-900/80 text-emerald-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center">
-          <span class="text-xl">🟢</span><span>หายใจ</span>
-        </button>
-        <button onclick="sendLights('blinking', '0x007F7F')" aria-label="ไฟล้อฟ้ากระพริบ" class="min-h-14 bg-cyan-950/60 border border-cyan-500/40 hover:bg-cyan-900/80 text-cyan-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center">
-          <span class="text-xl">🔵</span><span>กระพริบ</span>
-        </button>
-        <button onclick="sendLights('charging', '0xFF9000')" aria-label="ไฟล้อส้มชาร์จ" class="min-h-14 bg-amber-950/60 border border-amber-500/40 hover:bg-amber-900/80 text-amber-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center">
-          <span class="text-xl">🟠</span><span>ชาร์จ</span>
-        </button>
-      </div>
-    </section>
+      <p class="mt-1 text-xs text-slate-400">ควบคุมสีหน้า แสดงอารมณ์ และเลือกสั่งท่าทางสำเร็จรูปของ Zenbo SDK ครบทั้ง 39 ท่าทาง</p>
 
-    <!-- 5. Instant Thai Neural Speech -->
-    <section class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
+      <div class="mt-3 divide-y divide-slate-700/80">
+
+        <!-- 1. Facial Expressions Section -->
+        <section class="py-3">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-slate-200 flex items-center">
+              <i class="fa-solid fa-face-smile text-amber-400 mr-2"></i> สีหน้าและอารมณ์ (Facial Expressions)
+            </h2>
+            <span id="current-face-badge" class="text-[10px] bg-slate-700/80 text-amber-300 px-2 py-0.5 rounded-md font-mono">DEFAULT</span>
+          </div>
+
+          <!-- Quick 12 Primary Faces -->
+          <div class="grid grid-cols-4 sm:grid-cols-6 gap-2" id="primary-faces-grid">
+            <button type="button" onclick="sendFace('HAPPY')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="HAPPY">
+              <span class="text-2xl mb-1">😄</span>
+              <span class="text-xs font-semibold text-slate-200">มีความสุข</span>
+              <span class="text-[9px] text-slate-400 font-mono">HAPPY</span>
+            </button>
+            <button type="button" onclick="sendFace('PLEASED')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="PLEASED">
+              <span class="text-2xl mb-1">😊</span>
+              <span class="text-xs font-semibold text-slate-200">พึงพอใจ</span>
+              <span class="text-[9px] text-slate-400 font-mono">PLEASED</span>
+            </button>
+            <button type="button" onclick="sendFace('PROUD')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="PROUD">
+              <span class="text-2xl mb-1">😎</span>
+              <span class="text-xs font-semibold text-slate-200">ภาคภูมิใจ</span>
+              <span class="text-[9px] text-slate-400 font-mono">PROUD</span>
+            </button>
+            <button type="button" onclick="sendFace('CONFIDENT')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="CONFIDENT">
+              <span class="text-2xl mb-1">🤩</span>
+              <span class="text-xs font-semibold text-slate-200">มั่นใจ</span>
+              <span class="text-[9px] text-slate-400 font-mono">CONFIDENT</span>
+            </button>
+            <button type="button" onclick="sendFace('ACTIVE')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="ACTIVE">
+              <span class="text-2xl mb-1">✨</span>
+              <span class="text-xs font-semibold text-slate-200">สดใส</span>
+              <span class="text-[9px] text-slate-400 font-mono">ACTIVE</span>
+            </button>
+            <button type="button" onclick="sendFace('SINGING')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="SINGING">
+              <span class="text-2xl mb-1">🎤</span>
+              <span class="text-xs font-semibold text-slate-200">ร้องเพลง</span>
+              <span class="text-[9px] text-slate-400 font-mono">SINGING</span>
+            </button>
+            <button type="button" onclick="sendFace('INTERESTED')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="INTERESTED">
+              <span class="text-2xl mb-1">🧐</span>
+              <span class="text-xs font-semibold text-slate-200">สนใจ</span>
+              <span class="text-[9px] text-slate-400 font-mono">INTERESTED</span>
+            </button>
+            <button type="button" onclick="sendFace('EXPECTING')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="EXPECTING">
+              <span class="text-2xl mb-1">🥺</span>
+              <span class="text-xs font-semibold text-slate-200">รอคอย</span>
+              <span class="text-[9px] text-slate-400 font-mono">EXPECTING</span>
+            </button>
+            <button type="button" onclick="sendFace('DOUBT')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="DOUBT">
+              <span class="text-2xl mb-1">🤔</span>
+              <span class="text-xs font-semibold text-slate-200">สงสัย</span>
+              <span class="text-[9px] text-slate-400 font-mono">DOUBT</span>
+            </button>
+            <button type="button" onclick="sendFace('SHY')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="SHY">
+              <span class="text-2xl mb-1">😳</span>
+              <span class="text-xs font-semibold text-slate-200">ขวยเขิน</span>
+              <span class="text-[9px] text-slate-400 font-mono">SHY</span>
+            </button>
+            <button type="button" onclick="sendFace('SHOCK')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="SHOCK">
+              <span class="text-2xl mb-1">😲</span>
+              <span class="text-xs font-semibold text-slate-200">ตกใจ</span>
+              <span class="text-[9px] text-slate-400 font-mono">SHOCK</span>
+            </button>
+            <button type="button" onclick="sendFace('DEFAULT')" class="face-btn bg-slate-700/60 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-600/50 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="DEFAULT">
+              <span class="text-2xl mb-1">🤖</span>
+              <span class="text-xs font-semibold text-slate-200">ปกติ</span>
+              <span class="text-[9px] text-slate-400 font-mono">DEFAULT</span>
+            </button>
+          </div>
+
+          <!-- Expandable: All 25 Face Expressions -->
+          <details class="mt-3 border-t border-slate-700/80 pt-3">
+            <summary class="cursor-pointer text-xs font-semibold text-amber-300 flex items-center justify-between">
+              <span><i class="fa-solid fa-list mr-1.5"></i> ดูสีหน้าทั้งหมด (25 แบบมาตรฐานตาม SDK)</span>
+              <span class="text-[10px] text-slate-400">กดเพื่อเปิด/ปิด</span>
+            </summary>
+            <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2" id="extended-faces-grid">
+              <!-- Populated by JS -->
+            </div>
+          </details>
+        </section>
+
+        <!-- 2. Zenbo SDK Canned Actions Section (39 Actions) -->
+        <section class="py-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 class="text-sm font-semibold text-slate-200 flex items-center">
+                <i class="fa-solid fa-person-running text-violet-400 mr-2"></i> ท่าทาง Action SDK (Zenbo Canned Actions)
+              </h2>
+              <p class="text-[11px] text-slate-400 mt-0.5">กดปุ่ม Label ด้านล่างเพื่อสั่งหุ่นยนต์ทำท่าทางตาม Action ID ของ Zenbo SDK ทันที</p>
+            </div>
+            <button type="button" onclick="cancelAction()" class="bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold text-xs px-3 py-1.5 rounded-xl flex items-center shadow-lg shadow-red-950/50 transition">
+              <i class="fa-solid fa-circle-stop mr-1.5"></i> หยุดท่าทาง (STOP)
+            </button>
+          </div>
+
+          <!-- Category Tabs -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none mb-3" id="action-category-tabs">
+            <button type="button" onclick="filterActionCategory('all')" class="action-tab-btn active px-3 py-1 rounded-lg text-xs font-semibold bg-violet-600 text-white whitespace-nowrap" data-cat="all">ทั้งหมด (39)</button>
+            <button type="button" onclick="filterActionCategory('dance')" class="action-tab-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-700/70 text-slate-300 hover:bg-slate-700 whitespace-nowrap" data-cat="dance">🕺 เต้น &amp; ดนตรี (7)</button>
+            <button type="button" onclick="filterActionCategory('head')" class="action-tab-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-700/70 text-slate-300 hover:bg-slate-700 whitespace-nowrap" data-cat="head">🙇 พยักหน้า &amp; ส่ายหน้า (8)</button>
+            <button type="button" onclick="filterActionCategory('pitch')" class="action-tab-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-700/70 text-slate-300 hover:bg-slate-700 whitespace-nowrap" data-cat="pitch">⬆️ ก้มหน้า &amp; เงยหน้า (13)</button>
+            <button type="button" onclick="filterActionCategory('turn')" class="action-tab-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-700/70 text-slate-300 hover:bg-slate-700 whitespace-nowrap" data-cat="turn">🔄 หันตัว &amp; หมุนกลับ (8)</button>
+            <button type="button" onclick="filterActionCategory('misc')" class="action-tab-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-700/70 text-slate-300 hover:bg-slate-700 whitespace-nowrap" data-cat="misc">🤖 ท่าตั้งต้น &amp; สแกน (3)</button>
+          </div>
+
+          <!-- Action Search Filter -->
+          <div class="relative mb-3">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+            <input type="text" id="action-search-input" oninput="filterActionSearch(this.value)" placeholder="ค้นหาท่าทาง (ชื่อ, คำอธิบาย, เลข ID เช่น 2, 22, เต้น, พยักหน้า, หัน...)" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500">
+          </div>
+
+          <!-- Action Buttons Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[440px] overflow-y-auto pr-1" id="action-buttons-grid">
+            <!-- Dynamically populated from ZenboActions.ACTIONS -->
+          </div>
+
+          <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400 bg-slate-900/50 rounded-xl p-2.5 border border-slate-700/60">
+            <span class="flex items-center"><i class="fa-solid fa-shield-halved text-amber-400 mr-1.5"></i> ตรวจพื้นที่รอบตัวหุ่นยนต์ให้โล่งก่อนสั่งท่าเต้นหรือหันตัว</span>
+            <span id="action-count-indicator" class="font-mono text-violet-300">39 ท่า</span>
+          </div>
+        </section>
+
+        <!-- 3. Emotional Action Builder (Combined Action + Face) -->
+        <section class="py-3">
+          <details>
+            <summary class="cursor-pointer text-xs font-semibold text-fuchsia-300 flex items-center justify-between">
+              <span><i class="fa-solid fa-wand-magic-sparkles mr-1.5 text-fuchsia-400"></i> สร้างท่าทางผสมสีหน้า (Emotional Action Builder)</span>
+              <span class="text-[10px] text-slate-400">กดเพื่อเปิด/ปิด</span>
+            </summary>
+            <div class="mt-3 space-y-3 pt-2 border-t border-slate-700/60">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="text-[11px] text-slate-400 block mb-1">เลือกท่าทาง (Action ID)</label>
+                  <select id="emotional-action-id" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-fuchsia-500">
+                    <!-- Populated by JS -->
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-400 block mb-1">เลือกสีหน้า (Expression Face)</label>
+                  <select id="emotional-face-id" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-fuchsia-500">
+                    <!-- Populated by JS -->
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>ระยะเวลาแสดงสีหน้า (Face Duration):</span>
+                  <span id="emotion-duration-val" class="text-fuchsia-300 font-mono">1.0 วินาที</span>
+                </div>
+                <input type="range" id="emotion-duration" min="5" max="50" value="10" oninput="document.getElementById('emotion-duration-val').textContent = (this.value / 10).toFixed(1) + ' วินาที'" class="w-full accent-fuchsia-500">
+              </div>
+
+              <div class="flex gap-2">
+                <button type="button" onclick="sendEmotionalAction()" class="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 active:scale-95 py-2 text-xs font-bold rounded-lg text-white transition flex items-center justify-center">
+                  <i class="fa-solid fa-play mr-1.5"></i> เล่นท่าทางพร้อมสีหน้า
+                </button>
+                <button type="button" onclick="cancelAction()" class="bg-red-900/60 hover:bg-red-800 active:scale-95 px-3 py-2 text-xs font-bold rounded-lg text-red-200 transition">
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <!-- 4. Head Control Sliders -->
+        <section class="py-3">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-sm font-semibold text-slate-300 flex items-center">
+              <i class="fa-solid fa-arrows-up-down-left-right text-indigo-400 mr-2"></i> องศาคอและหัว (Yaw / Pitch)
+            </h2>
+            <button type="button" onclick="resetHead()" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center">
+              <i class="fa-solid fa-rotate-right mr-1"></i> กึ่งกลาง (Center)
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs text-slate-400 mb-1">
+                <span>Yaw (หันซ้าย - ขวา):</span>
+                <span id="yaw-val" class="text-indigo-300 font-mono">0°</span>
+              </div>
+              <input type="range" id="head-yaw" min="-45" max="45" value="0" oninput="updateHeadVal()" onchange="sendHead()" class="w-full accent-indigo-500">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs text-slate-400 mb-1">
+                <span>Pitch (ก้ม - เงย):</span>
+                <span id="pitch-val" class="text-indigo-300 font-mono">10°</span>
+              </div>
+              <input type="range" id="head-pitch" min="-15" max="55" value="10" oninput="updateHeadVal()" onchange="sendHead()" class="w-full accent-indigo-500">
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Wheel Lights -->
+        <section class="py-3">
+          <h2 class="text-sm font-semibold text-slate-300 mb-2 flex items-center">
+            <i class="fa-solid fa-lightbulb text-emerald-400 mr-2"></i> แสงไฟล้อ (Wheel Lights)
+          </h2>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
+            <button type="button" onclick="sendLights('breathing', '0x00D031')" aria-label="ไฟล้อเขียวหายใจ" class="min-h-14 bg-emerald-950/60 border border-emerald-500/40 hover:bg-emerald-900/80 text-emerald-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition">
+              <span class="text-lg">🟢</span><span>หายใจเขียว</span>
+            </button>
+            <button type="button" onclick="sendLights('blinking', '0x007F7F')" aria-label="ไฟล้อฟ้ากระพริบ" class="min-h-14 bg-cyan-950/60 border border-cyan-500/40 hover:bg-cyan-900/80 text-cyan-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition">
+              <span class="text-lg">🔵</span><span>กระพริบฟ้า</span>
+            </button>
+            <button type="button" onclick="sendLights('charging', '0xFF9000')" aria-label="ไฟล้อส้มชาร์จ" class="min-h-14 bg-amber-950/60 border border-amber-500/40 hover:bg-amber-900/80 text-amber-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition">
+              <span class="text-lg">🟠</span><span>ชาร์จส้ม</span>
+            </button>
+            <button type="button" onclick="sendLights('rainbow', '0xFF00FF')" aria-label="ไฟล้อเรนโบว์" class="min-h-14 bg-purple-950/60 border border-purple-500/40 hover:bg-purple-900/80 text-purple-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition">
+              <span class="text-lg">🌈</span><span>เรนโบว์</span>
+            </button>
+            <button type="button" onclick="sendLights('marquee', '0x00FFFF')" aria-label="ไฟล้อหมุนวิ่ง" class="min-h-14 bg-blue-950/60 border border-blue-500/40 hover:bg-blue-900/80 text-blue-300 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition">
+              <span class="text-lg">💫</span><span>หมุนวิ่ง</span>
+            </button>
+            <button type="button" onclick="sendLights('off', '0x000000')" aria-label="ปิดไฟล้อ" class="min-h-14 bg-slate-900/80 border border-slate-700 hover:bg-slate-800 text-slate-400 p-2 rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition">
+              <span class="text-lg">⚫</span><span>ปิดไฟ</span>
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Speech -->
+  <div id="panel-speech" class="tab-panel hidden flex flex-col gap-4">
+    <section id="speech-control" data-require-role="operator" class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
       <h2 class="text-sm font-semibold text-slate-300 mb-2 flex items-center">
         <i class="fa-solid fa-comment-dots text-pink-400 mr-2"></i> Instant Speech (TTS)
       </h2>
       <div class="space-y-2">
-        <p class="text-[11px] text-slate-400">1. พูดเป็นข้อความ &nbsp;→&nbsp; 2. ตรวจข้อความ &nbsp;→&nbsp; 3. ให้ Zenbo พูด</p>
+        <p class="text-[11px] text-slate-400">พิมพ์หรือพูดเป็นข้อความ แล้วกด “ให้ Zenbo พูด” ได้ทันที</p>
         <textarea id="speech-text" rows="2" aria-label="ข้อความที่ให้ Zenbo พูด" placeholder="ข้อความที่ Zenbo จะพูดจะแสดงที่นี่..." class="speech-input w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-pink-500 resize-none"></textarea>
         <button id="btn-microphone" type="button" onclick="toggleSpeechRecognition()" aria-label="เริ่มพูดเพื่อแปลงเป็นข้อความภาษาไทย" aria-pressed="false" class="w-full min-h-11 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-xs font-bold rounded-xl border border-slate-600" title="พูดเพื่อแปลงเป็นข้อความ">
           <i id="microphone-icon" class="fa-solid fa-microphone mr-1"></i> <span id="btn-microphone-text">พูดเป็นข้อความ</span>
         </button>
         <p id="speech-recognition-status" role="status" aria-live="polite" class="min-h-4 text-[11px] text-slate-400">กด “พูดเป็นข้อความ” แล้วอนุญาตไมโครโฟนเพื่อพูดภาษาไทย</p>
+
+        <!-- Quick Speech Chips (Phrase History - 4.9) -->
+        <div class="pt-1">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-medium text-slate-300 flex items-center">
+              <i class="fa-solid fa-bolt text-amber-400 mr-1"></i> ประโยคด่วน (Quick Phrases)
+            </span>
+            <span class="text-[10px] text-slate-400">แตะข้อความเพื่อกรอก · แตะ ✕ เพื่อลบ</span>
+          </div>
+          <div id="quick-phrase-chips" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1" aria-label="รายการประโยคด่วน">
+            <!-- Dynamically populated with x delete buttons by loadSpeechPhrases() -->
+          </div>
+        </div>
+
         <div class="flex gap-2">
           <select id="speech-voice" aria-label="เลือกโทนเสียงของ Zenbo" class="bg-slate-900 border border-slate-700 text-xs rounded-xl px-2 text-slate-300 flex-1">
             <option value="female_child">👧 เด็กผู้หญิง สดใส</option>
@@ -226,16 +694,102 @@
             <option value="male_young">👨 ผู้ชายวัยรุ่น เป็นมิตร</option>
             <option value="male_adult">👨‍💼 ผู้ชายผู้ใหญ่ อบอุ่น</option>
           </select>
-          <button id="btn-speak" type="button" onclick="sendSpeak()" class="min-h-11 bg-pink-600 hover:bg-pink-500 disabled:cursor-not-allowed disabled:opacity-60 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-pink-900/40">
+          <button id="btn-speak" type="button" onclick="sendSpeak()" class="min-h-11 bg-pink-600 hover:bg-pink-500 disabled:cursor-not-allowed disabled:opacity-60 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-pink-900/40 cursor-pointer">
             <i class="fa-solid fa-paper-plane mr-1"></i> <span id="btn-speak-text">ให้ Zenbo พูด</span>
           </button>
+        </div>
+        <div class="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 p-2">
+          <span class="text-[11px] text-slate-400 shrink-0"><i class="fa-solid fa-volume-low mr-1"></i>เสียง</span>
+          <button type="button" onclick="changeZenboVolume(-5)" class="min-h-9 min-w-9 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-bold" aria-label="ลดเสียง Zenbo">−</button>
+          <input id="speech-volume" type="range" min="0" max="100" step="5" value="80" oninput="document.getElementById('speech-volume-value').textContent=this.value+'%'" onchange="setZenboVolume(this.value)" class="min-w-0 flex-1 accent-pink-500" aria-label="ระดับเสียง Zenbo">
+          <output id="speech-volume-value" class="w-9 text-right text-[11px] font-bold text-pink-300">80%</output>
+          <button type="button" onclick="changeZenboVolume(5)" class="min-h-9 min-w-9 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-bold" aria-label="เพิ่มเสียง Zenbo">+</button>
         </div>
         <p id="speech-send-status" role="status" aria-live="polite" class="min-h-4 text-[11px] text-slate-400">เลือก Zenbo ที่ออนไลน์ก่อน แล้วส่งข้อความเพื่อให้หุ่นยนต์พูด</p>
       </div>
     </section>
+  </div>
 
-    <!-- 6. Full SDK Control Surface -->
-    <section class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl" aria-labelledby="sdk-control-title">
+  <!-- Panel Entertainment -->
+  <div id="panel-entertainment" class="tab-panel hidden flex flex-col gap-4">
+    <section id="entertainment-control" data-require-role="operator" class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-slate-200 flex items-center">
+          <i class="fa-brands fa-youtube text-red-500 mr-2 text-base"></i> Entertainment &amp; YouTube Dance
+        </h2>
+        <span id="youtube-live-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-700">พร้อมเล่น</span>
+      </div>
+      <p class="text-[11px] text-slate-400 mb-2">เปิดเพลง YouTube บนหน้าจอ Zenbo พร้อมสั่งให้เต้นประกอบจังหวะอัตโนมัติ</p>
+
+      <div class="space-y-2.5">
+        <div>
+          <label class="text-[11px] text-slate-300 font-medium block mb-1">YouTube URL หรือรหัสคลิป</label>
+          <input type="url" id="youtube-url" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=kJQP7kiw5Fk" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono">
+        </div>
+
+        <div class="flex flex-wrap gap-1.5 text-[10px]">
+          <span class="text-slate-400 self-center">เพลงแนะนำ:</span>
+          <button type="button" onclick="setYoutubePreset('https://www.youtube.com/watch?v=kJQP7kiw5Fk')" class="bg-slate-700/60 hover:bg-slate-600 rounded-lg px-2 py-1 text-slate-300 border border-slate-600/50">🎵 Despacito</button>
+          <button type="button" onclick="setYoutubePreset('https://www.youtube.com/watch?v=9bZkp7q19f0')" class="bg-slate-700/60 hover:bg-slate-600 rounded-lg px-2 py-1 text-slate-300 border border-slate-600/50">🕺 Gangnam Style</button>
+          <button type="button" onclick="setYoutubePreset('https://www.youtube.com/watch?v=2Vv-BfVoq4g')" class="bg-slate-700/60 hover:bg-slate-600 rounded-lg px-2 py-1 text-slate-300 border border-slate-600/50">✨ Ed Sheeran</button>
+        </div>
+
+        <div class="pt-1">
+          <label class="text-[11px] text-slate-300 font-medium block mb-1.5">ชุดท่าเต้นประกอบเพลง (เลือกได้หลายท่า)</label>
+          <div id="dance-selector-chips" class="grid grid-cols-4 gap-1.5">
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="2" checked class="mr-1 accent-fuchsia-500">
+              <span>🕺 ท่า 02</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="3" checked class="mr-1 accent-fuchsia-500">
+              <span>💃 ท่า 03</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="5" class="mr-1 accent-fuchsia-500">
+              <span>🤖 ท่า 05</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="11" class="mr-1 accent-fuchsia-500">
+              <span>🎵 ท่า 11</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="18" class="mr-1 accent-fuchsia-500">
+              <span>✨ ท่า 18</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="22" checked class="mr-1 accent-fuchsia-500">
+              <span>🎶 ท่า 22</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="23" checked class="mr-1 accent-fuchsia-500">
+              <span>🌈 ท่า 23</span>
+            </label>
+            <label class="flex items-center justify-center p-1.5 bg-slate-900/80 border border-slate-700 rounded-lg cursor-pointer text-xs select-none hover:border-slate-500">
+              <input type="checkbox" value="44" class="mr-1 accent-fuchsia-500">
+              <span>⭐ ท่า 44</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 pt-2">
+          <button type="button" onclick="sendEntertainment('play')" class="col-span-2 min-h-11 bg-gradient-to-r from-red-600 to-rose-600 hover:opacity-90 active:scale-95 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-play"></i> เล่นเพลง + เต้น
+          </button>
+          <button type="button" onclick="sendEntertainment('pause')" class="min-h-11 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-200 text-xs font-bold rounded-xl border border-slate-600 flex items-center justify-center gap-1">
+            <i class="fa-solid fa-pause"></i> พัก
+          </button>
+          <button type="button" onclick="sendEntertainment('stop')" class="min-h-11 bg-red-950/80 hover:bg-red-900 active:scale-95 text-red-300 text-xs font-bold rounded-xl border border-red-700/60 flex items-center justify-center gap-1">
+            <i class="fa-solid fa-stop"></i> ปิดคลิป
+          </button>
+        </div>
+        <p id="entertainment-status" class="min-h-4 text-[10px] text-slate-400 text-center">พร้อมส่งเพลงและท่าเต้นให้ Zenbo</p>
+      </div>
+    </section>
+  </div>
+
+    <!-- Advanced-only controls are intentionally not rendered on the primary LIFF control surface. -->
+    <!--
       <div class="flex items-start justify-between gap-3 mb-3">
         <div>
           <h2 id="sdk-control-title" class="text-sm font-semibold text-slate-300 flex items-center"><i class="fa-solid fa-sliders text-violet-400 mr-2"></i> Advanced Zenbo SDK Controls</h2>
@@ -299,8 +853,8 @@
 
       <details class="border-t border-slate-700 mt-3 pt-3">
         <summary class="cursor-pointer text-xs font-semibold text-blue-300">🎮 Remote control และ behavior</summary>
-        <a href="/liff/control/" class="mt-3 flex min-h-12 items-center justify-between rounded-xl border border-blue-400/40 bg-blue-950/40 px-3 text-xs font-bold text-blue-100 hover:bg-blue-900/60"><span><i class="fa-solid fa-gamepad mr-2"></i>เปิดหน้าจอยสติ๊ก</span><i class="fa-solid fa-arrow-right"></i></a>
-        <p class="mt-2 text-[11px] leading-relaxed text-slate-400">ควบคุมล้อและศีรษะด้วยจอยแบบลาก ปล่อยนิ้วแล้วสั่งหยุดอัตโนมัติ</p>
+        <a href="#drive-control" class="mt-3 flex min-h-12 items-center justify-between rounded-xl border border-blue-400/40 bg-blue-950/40 px-3 text-xs font-bold text-blue-100 hover:bg-blue-900/60"><span><i class="fa-solid fa-gamepad mr-2"></i>กลับไปควบคุมทิศทางหน้าเดียว</span><i class="fa-solid fa-arrow-up"></i></a>
+        <p class="mt-2 text-[11px] leading-relaxed text-slate-400">ปุ่มทิศทางหลักอยู่ด้านบนของหน้านี้และหยุดเมื่อปล่อยนิ้ว; จอยแบบลากอยู่ในเมนูสำหรับงานเฉพาะเท่านั้น</p>
         <div class="grid grid-cols-3 gap-2 mt-2">
           <label class="text-[11px] text-slate-400">X m<input id="precise-x" type="number" step="0.1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
           <label class="text-[11px] text-slate-400">Y m<input id="precise-y" type="number" step="0.1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
@@ -325,15 +879,175 @@
       </details>
 
       <p class="border-t border-slate-700 mt-3 pt-3 text-[10px] text-slate-500">Line follower, IoT binding, dialog-plan/voice enrollment และ sensor raw API ยังไม่เปิดเป็น remote control เพื่อไม่ให้เครื่องเคลื่อนที่หรือเชื่อมอุปกรณ์โดยไม่มี calibration/สิทธิ์เฉพาะ</p>
-    </section>
+    -->
 
   </main>
+
+  <!-- Sticky Bottom Navigation Bar for Mobile -->
+  <nav aria-label="แถบเมนูล่าง" class="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex items-center justify-around max-w-lg mx-auto shadow-2xl">
+    <a href="/liff/" class="flex flex-col items-center gap-1 text-emerald-400 text-[10px] font-semibold">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-950/80 border border-emerald-500/40 shadow-sm">
+        <i class="fa-solid fa-house text-sm"></i>
+      </div>
+      <span>หน้าหลัก</span>
+    </a>
+    <a href="/liff/teleop/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-video text-sm"></i>
+      </div>
+      <span>กล้องสด</span>
+    </a>
+    <a href="/liff/control/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-gamepad text-sm"></i>
+      </div>
+      <span>จอยสติ๊ก</span>
+    </a>
+    <a href="/liff/scenario/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-wand-sparkles text-sm"></i>
+      </div>
+      <span>สถานการณ์</span>
+    </a>
+    <a href="/liff/history/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-amber-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+      </div>
+      <span>ประวัติ</span>
+    </a>
+  </nav>
 
   <script>
     const API_BASE = `${window.location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
     let robots = [];
-    let selectedRobot = '';
+    let selectedRobots = [];
+    let requestedMotionSpeed = 1;
+
+    function selectedMotionCapability() {
+      const robot = robots.find(item => selectedRobots.includes(item.robot_slug));
+      if (!robot) return null;
+      const event = robot.last_events?.heartbeat || robot.last_event;
+      const heartbeat = event?.data || robot;
+      const body = heartbeat.motion?.body_relative;
+      if (!body) return null;
+      return {
+        supported: body.supported === true,
+        robot_api_ready: heartbeat.robot_api_ready === true,
+        reported_at_ms: Number(heartbeat.reported_at_ms || event?.received_at_ms),
+        policy_max_speed_level: Number(body.policy_max_speed_level)
+      };
+    }
+
+    function renderMotionSpeedDeck() {
+      const target = document.getElementById('motion-speed-deck');
+      if (!target) return;
+      window.ZenboDriveControl.mount(target, {
+        mode: 'relative',
+        robotSelected: selectedRobots.length === 1,
+        capability: selectedMotionCapability(),
+        requestedLevel: requestedMotionSpeed,
+        onSelect(level) { requestedMotionSpeed = level; }
+      });
+    }
+
+    // Backwards compatibility for code expecting single selectedRobot
+    let _initialSavedRobot = (typeof ZenboCommon !== 'undefined' && ZenboCommon.loadRobotSelection) ? ZenboCommon.loadRobotSelection() : '';
+    if (_initialSavedRobot) selectedRobots = [_initialSavedRobot];
+
+    Object.defineProperty(window, 'selectedRobot', {
+      get() { return selectedRobots[0] || ''; },
+      set(val) {
+        if (!val) selectedRobots = [];
+        else if (!selectedRobots.includes(val)) selectedRobots = [val];
+      },
+      configurable: true
+    });
+
     window.ZenboLiff.init();
+    if (typeof ZenboCommon !== 'undefined') {
+      ZenboCommon.ensureAuth().then(() => ZenboCommon.refreshUser().then(() => {
+        ZenboCommon.applyRoleGating();
+        ZenboCommon.renderUserBar('user-profile-bar');
+      }));
+    }
+
+    function toggleTwinCollapse(forceState) {
+      const container = document.getElementById('heartbeat-3d-container');
+      const miniBar = document.getElementById('heartbeat-3d-collapsed-bar');
+      const icon = document.getElementById('icon-toggle-twin');
+      const label = document.getElementById('label-toggle-twin');
+      if (!container || !miniBar) return;
+
+      const isCurrentlyCollapsed = container.classList.contains('hidden');
+      const shouldCollapse = forceState !== undefined ? forceState : !isCurrentlyCollapsed;
+
+      if (shouldCollapse) {
+        container.classList.add('hidden');
+        miniBar.classList.remove('hidden');
+        if (icon) icon.className = 'fa-solid fa-chevron-down text-[9px]';
+        if (label) label.textContent = 'ขยาย 3D';
+        try { localStorage.setItem('zenbo_twin_collapsed', 'true'); } catch (e) {}
+      } else {
+        container.classList.remove('hidden');
+        miniBar.classList.add('hidden');
+        if (icon) icon.className = 'fa-solid fa-chevron-up text-[9px]';
+        if (label) label.textContent = 'ย่อ 3D';
+        try { localStorage.removeItem('zenbo_twin_collapsed'); } catch (e) {}
+        if (window.ZenboTwinInstance && window.ZenboTwinInstance.onResize) {
+          window.ZenboTwinInstance.onResize();
+        }
+      }
+    }
+
+    function switchMainTab(tabName) {
+      const tabs = ['ai', 'speech', 'drive', 'actions', 'entertainment'];
+      if (!tabs.includes(tabName)) tabName = 'ai';
+
+      const tabColors = {
+        ai: 'bg-violet-600 text-white shadow-violet-900/40',
+        speech: 'bg-pink-600 text-white shadow-pink-900/40',
+        drive: 'bg-blue-600 text-white shadow-blue-900/40',
+        actions: 'bg-amber-600 text-white shadow-amber-900/40',
+        entertainment: 'bg-red-600 text-white shadow-red-900/40'
+      };
+
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const panel = document.getElementById(`panel-${t}`);
+        const isActive = t === tabName;
+
+        if (btn) {
+          btn.className = `main-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+            isActive ? `${tabColors[t]} shadow-lg` : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800/80 hover:text-slate-200'
+          }`;
+          btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        }
+
+        if (panel) {
+          if (isActive) {
+            panel.classList.remove('hidden');
+          } else {
+            panel.classList.add('hidden');
+          }
+        }
+      });
+
+      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+      const tabList = activeBtn?.parentElement;
+      if (activeBtn && tabList?.scrollTo) {
+        tabList.scrollTo({
+          left: activeBtn.offsetLeft - (tabList.clientWidth - activeBtn.offsetWidth) / 2,
+          behavior: 'smooth'
+        });
+      }
+
+      try {
+        sessionStorage.setItem('zenbo_active_tab', tabName);
+        if (history.replaceState) {
+          history.replaceState(null, '', `#tab-${tabName}`);
+        }
+      } catch (e) {}
+    }
 
     function robotLabel(robot) {
       const ip = robot.client_ip || robot.ip || 'ไม่ทราบ IP';
@@ -341,63 +1055,164 @@
       return `${robot.robot_slug} · ${ip} · ${version}`;
     }
 
-    function renderRobots() {
-      const select = document.getElementById('robot-select');
-      const list = document.getElementById('robot-list');
-      select.innerHTML = '<option value="">เลือก Zenbo ที่ออนไลน์...</option>';
-      robots.forEach(robot => {
-        const option = document.createElement('option');
-        option.value = robot.robot_slug;
-        option.textContent = robotLabel(robot);
-        select.appendChild(option);
-      });
-      if (selectedRobot && robots.some(robot => robot.robot_slug === selectedRobot)) {
-        select.value = selectedRobot;
-      }
-      list.innerHTML = robots.length ? robots.map(robot => `
-        <button onclick="selectRobot('${encodeURIComponent(robot.robot_slug)}')" class="w-full text-left bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2 hover:border-emerald-500">
-          <div class="flex items-center justify-between"><span class="text-xs font-semibold text-emerald-300">● ${robot.robot_slug}</span><span class="text-[10px] text-slate-500">${robot.age_seconds ?? 0}s ago</span></div>
-          <div class="text-[11px] text-slate-300 mt-1">IP: ${robot.client_ip || 'unknown'} · ${robot.version_name || 'client'}</div>
-        </button>`).join('') : '<p class="text-[11px] text-slate-500">ยังไม่พบ Zenbo client ที่ส่ง heartbeat</p>';
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[character]));
     }
 
-    function selectRobot(encodedSlug) {
-      selectedRobot = decodeURIComponent(encodedSlug);
-      document.getElementById('robot-select').value = selectedRobot;
-      connectZenbo();
+    function renderRobots() {
+      const list = document.getElementById('robot-list');
+      const countEl = document.getElementById('selected-robot-count');
+      const btnConnectText = document.getElementById('btn-connect-text');
+
+      // Filter out any selections that are no longer online
+      const onlineSlugs = new Set(robots.map(r => r.robot_slug));
+      selectedRobots = selectedRobots.filter(slug => onlineSlugs.has(slug));
+
+      if (countEl) countEl.textContent = selectedRobots.length;
+      if (btnConnectText) {
+        btnConnectText.textContent = selectedRobots.length > 1
+          ? `บุ๊คกี้พร้อมครับ (${selectedRobots.length} เครื่อง)`
+          : 'บุ๊คกี้พร้อมครับ';
+      }
+
+      if (!list) return;
+
+      list.innerHTML = robots.length ? robots.map(robot => {
+        const isSelected = selectedRobots.includes(robot.robot_slug);
+        const slug = escapeHtml(robot.robot_slug);
+        const ip = escapeHtml(robot.client_ip || robot.ip || 'ไม่ทราบ IP');
+        const version = escapeHtml(robot.version_name || robot.app || 'Zenbo Client');
+        const ageSec = Number(robot.age_seconds || 0);
+        return `
+          <label class="block cursor-pointer rounded-xl border p-3 transition select-none ${isSelected ? 'border-emerald-400 bg-emerald-950/70 ring-1 ring-emerald-400/60 shadow-md' : 'border-slate-700 bg-slate-900/80 hover:border-slate-500'}">
+            <input class="sr-only" type="checkbox" name="robot-choice" value="${slug}" ${isSelected ? 'checked' : ''} onchange="toggleRobotSelection('${slug}')">
+            <span class="flex items-center gap-3">
+              <span class="grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${isSelected ? 'border-emerald-300 bg-emerald-500 text-slate-950 font-bold text-xs' : 'border-slate-500 text-transparent'}" aria-hidden="true">${isSelected ? '✓' : ''}</span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center justify-between gap-2">
+                  <span class="truncate text-xs font-semibold text-emerald-300">🤖 ${slug}</span>
+                  <span class="shrink-0 text-[10px] text-slate-500">${ageSec}s</span>
+                </span>
+                <span class="mt-1 block truncate text-[11px] text-slate-300">IP: ${ip} · ${version}</span>
+              </span>
+            </span>
+          </label>
+        `;
+      }).join('') : '<p class="rounded-xl border border-dashed border-slate-700 p-3 text-[11px] text-slate-500 sm:col-span-2">ยังไม่พบ Zenbo client ที่ส่ง heartbeat</p>';
+
+      const hint = document.getElementById('connect-hint');
+      if (hint) {
+        if (!selectedRobots.length) {
+          hint.innerHTML = '⚠️ เลือก Zenbo อย่างน้อย 1 เครื่องก่อนส่งคำสั่ง';
+        } else if (selectedRobots.length === 1) {
+          const single = robots.find(r => r.robot_slug === selectedRobots[0]);
+          hint.innerHTML = `เลือก ${escapeHtml(selectedRobots[0])} แล้ว · IP: <span class="text-green-400">${escapeHtml(single?.client_ip || 'ไม่ทราบ IP')}</span> · กด “บุ๊คกี้พร้อมครับ” เพื่อเชื่อมต่อ`;
+        } else {
+          hint.innerHTML = `เลือกแล้ว <span class="text-emerald-400 font-bold">${selectedRobots.length} เครื่อง</span> (${escapeHtml(selectedRobots.join(', '))}) · คำสั่งจะส่งไปยังทุกเครื่องพร้อมกัน`;
+        }
+      }
+    }
+
+    function toggleRobotSelection(slug) {
+      if (selectedRobots.includes(slug)) {
+        selectedRobots = selectedRobots.filter(s => s !== slug);
+      } else {
+        selectedRobots.push(slug);
+      }
+      onRobotsSelectionChanged();
+    }
+
+    function selectAllRobots() {
+      selectedRobots = robots.map(r => r.robot_slug);
+      onRobotsSelectionChanged();
+    }
+
+    function clearSelectedRobots() {
+      selectedRobots = [];
+      onRobotsSelectionChanged();
+    }
+
+    function onRobotsSelectionChanged() {
+      renderRobots();
+      const activeRobot = robots.find(r => selectedRobots.includes(r.robot_slug)) || robots[0] || null;
+      if (window.ZenboTwinInstance) window.ZenboTwinInstance.update(activeRobot);
+      if (window.ZenboHeartbeat3D) window.ZenboHeartbeat3D.update(activeRobot);
+      updateSafetyToggleUI(activeRobot);
+      renderMotionSpeedDeck();
+      if (typeof ZenboCommon !== 'undefined' && ZenboCommon.saveRobotSelection && selectedRobots[0]) {
+        ZenboCommon.saveRobotSelection(selectedRobots[0]);
+      }
     }
 
     async function discoverRobots() {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/robots`);
+        const res = typeof ZenboCommon !== 'undefined'
+          ? await ZenboCommon.api(`${API_BASE}/api/v1/robots`)
+          : await fetch(`${API_BASE}/api/v1/robots`);
+        if (!res) return; // auth redirect in progress
         const data = await res.json();
         robots = data.robots || [];
+
+        // Retain currently selected robots that are online
+        const onlineSlugs = new Set(robots.map(r => r.robot_slug));
+        selectedRobots = selectedRobots.filter(slug => onlineSlugs.has(slug));
+
+        // If no robot selected yet but robots exist, default select first one
+        if (!selectedRobots.length && robots.length) {
+          selectedRobots = [robots[0].robot_slug];
+        }
+
         renderRobots();
+        renderMotionSpeedDeck();
+        const activeRobot = robots.find(robot => selectedRobots.includes(robot.robot_slug)) || robots[0] || null;
+        if (window.ZenboTwinInstance) window.ZenboTwinInstance.update(activeRobot);
+        if (window.ZenboHeartbeat3D) {
+          window.ZenboHeartbeat3D.update(activeRobot);
+        }
+        updateSafetyToggleUI(activeRobot);
       } catch (err) {
         document.getElementById('robot-list').innerHTML = '<p class="text-[11px] text-red-300">ติดต่อ Core API ไม่ได้</p>';
+        if (window.ZenboTwinInstance) window.ZenboTwinInstance.update(null);
+        if (window.ZenboHeartbeat3D) window.ZenboHeartbeat3D.update(null);
+        updateSafetyToggleUI(null);
       }
     }
 
     async function sendRequest(payload) {
-      if (!selectedRobot) {
-        setCommandStatus('เลือก Zenbo ก่อนส่งคำสั่ง', true);
+      if (!selectedRobots.length) {
+        setCommandStatus('เลือก Zenbo อย่างน้อย 1 เครื่องก่อนส่งคำสั่ง', true);
         return null;
       }
       try {
-        payload.robot_slug = selectedRobot;
-        payload.source = 'liff_control';
-        Object.assign(payload, window.ZenboLiff.identity());
-        const res = await fetch(`${API_BASE}/api/v1/robot/interact`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail?.message || `HTTP ${res.status}`);
-        setCommandStatus('ส่งคำสั่งแล้ว', false);
-        return data;
+        setCommandStatus(`กำลังส่งคำสั่ง (${selectedRobots.length} เครื่อง)...`, false);
+        const results = await Promise.all(selectedRobots.map(async slug => {
+          const itemPayload = { ...payload, robot_slug: slug, source: 'liff_control' };
+          Object.assign(itemPayload, window.ZenboLiff.identity());
+          const res = typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/robot/interact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(itemPayload)
+              })
+            : await fetch(`${API_BASE}/api/v1/robot/interact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(itemPayload)
+              });
+          return { slug, ok: res && res.ok };
+        }));
+        const okCount = results.filter(r => r.ok).length;
+        if (okCount > 0) {
+          setCommandStatus(`ส่งคำสั่งแล้ว (${okCount}/${selectedRobots.length} เครื่อง)`, false);
+          return { ok: true, count: okCount };
+        } else {
+          setCommandStatus('ส่งคำสั่งไม่สำเร็จทุกเครื่อง', true);
+          return null;
+        }
       } catch (err) {
-        console.error('Request failed:', err);
+        console.error('sendRequest error:', err);
         setCommandStatus(`ส่งไม่สำเร็จ: ${err.message}`, true);
         return null;
       }
@@ -410,9 +1225,19 @@
       el.className = isError ? 'text-[10px] text-red-300 text-right' : 'text-[10px] text-emerald-300 text-right';
     }
 
+    function manualOperatorSafety() {
+      return {
+        base_motion_enabled: true,
+        collision_guard_enabled: false,
+        fall_guard_enabled: false,
+        max_distance_m: 3.0,
+        max_speed: 7,
+        auto_stop_ms: 10000
+      };
+    }
+
     function sendMotion(x, y, theta) {
-      const speed = parseInt(document.getElementById('motion-speed').value);
-      sendRequest({ motion: { x, y, theta, speed } });
+      sendRequest({ face: null, safety: manualOperatorSafety(), motion: { x, y, theta, speed: requestedMotionSpeed } });
     }
 
     function updateHeadVal() {
@@ -423,6 +1248,7 @@
     function sendHead() {
       const yaw = parseFloat(document.getElementById('head-yaw').value);
       const pitch = parseFloat(document.getElementById('head-pitch').value);
+      if (window.ZenboTwinInstance) window.ZenboTwinInstance.setCommanded({ head: { yaw, pitch } });
       sendRequest({ head: { yaw, pitch, speed: 2 } });
     }
 
@@ -433,11 +1259,8 @@
       sendHead();
     }
 
-    function sendFace(face) {
-      sendRequest({ face: face });
-    }
-
     function sendLights(mode, color) {
+      if (window.ZenboTwinInstance) window.ZenboTwinInstance.setCommanded({ lights: { mode: mode, color: String(color) } });
       sendRequest({ wheel_lights: { mode, color, brightness: 15 } });
     }
 
@@ -463,32 +1286,466 @@
       document.getElementById('led-brightness-value').textContent = value;
     }
 
-    function sendAction(actionId) {
-      sendRequest({ action: { action_id: actionId, stop: false }, face: 'SINGING' });
+    let currentActiveFace = 'DEFAULT';
+    let currentActiveAction = null;
+    let currentActionCategory = 'all';
+
+    function sendFace(face) {
+      currentActiveFace = face;
+      const badge = document.getElementById('current-face-badge');
+      if (badge) badge.textContent = face;
+      highlightActiveFace(face);
+      if (window.ZenboTwinInstance) window.ZenboTwinInstance.setCommanded({ face: face });
+      setCommandStatus(`กำลังเปลี่ยนสีหน้า: ${face}`, false);
+      sendRequest({ face: face });
+    }
+
+    function highlightActiveFace(face) {
+      document.querySelectorAll('.face-btn').forEach((btn) => {
+        const isMatch = btn.dataset.face === face;
+        btn.classList.toggle('ring-2', isMatch);
+        btn.classList.toggle('ring-amber-400', isMatch);
+        btn.classList.toggle('bg-amber-950/70', isMatch);
+      });
+    }
+
+    function sendAction(actionId, actionTitle) {
+      const act = window.ZenboActions ? window.ZenboActions.getActionById(actionId) : null;
+      const title = actionTitle || (act ? act.title : `Action #${actionId}`);
+      currentActiveAction = Number(actionId);
+
+      // จับคู่สีหน้าให้เข้ากับท่าทางโดยอัตโนมัติ (Emotional Action)
+      let pairedFace = currentActiveFace || 'HAPPY';
+      if (act) {
+        if (act.category === 'dance') pairedFace = 'SINGING';
+        else if (act.id === 2) pairedFace = 'HAPPY'; // พยักหน้าตอบรับ
+        else if (act.name && act.name.includes('Shake_head')) pairedFace = 'DOUBT'; // ส่ายหน้า
+        else if (act.name && act.name.includes('twist')) pairedFace = 'QUESTIONING'; // เอียงคอ
+        else if (act.category === 'pitch' && act.name.startsWith('Head_up')) pairedFace = 'EXPECTING';
+        else if (act.category === 'pitch' && act.name.startsWith('Head_down')) pairedFace = 'SHY';
+        else if (act.category === 'turn') pairedFace = 'ACTIVE';
+      }
+      currentActiveFace = pairedFace;
+      const badge = document.getElementById('current-face-badge');
+      if (badge) badge.textContent = pairedFace;
+      highlightActiveFace(pairedFace);
+
+      setCommandStatus(`กำลังส่งท่าทาง: #${actionId} ${title} (${pairedFace})`, false);
+      sendRequest({
+        face: pairedFace,
+        action: { action_id: Number(actionId), stop: false }
+      });
+      highlightActiveAction(actionId);
+
+      if (window.ZenboTwinInstance) {
+        window.ZenboTwinInstance.setCommanded({ face: pairedFace });
+        if (act) {
+          if (act.category === 'head') {
+            window.ZenboTwinInstance.setCommanded({ head: { yaw: 0, pitch: 20 } });
+            setTimeout(() => { if (window.ZenboTwinInstance) window.ZenboTwinInstance.setCommanded({ head: { yaw: 0, pitch: 10 } }); }, 1200);
+          } else if (act.category === 'pitch') {
+            const pVal = act.name.startsWith('Head_up') ? 35 : -10;
+            window.ZenboTwinInstance.setCommanded({ head: { yaw: 0, pitch: pVal } });
+            setTimeout(() => { if (window.ZenboTwinInstance) window.ZenboTwinInstance.setCommanded({ head: { yaw: 0, pitch: 10 } }); }, 1200);
+          } else if (act.category === 'turn') {
+            const yVal = act.name.includes('left') ? -35 : 35;
+            window.ZenboTwinInstance.setCommanded({ head: { yaw: yVal, pitch: 10 } });
+            setTimeout(() => { if (window.ZenboTwinInstance) window.ZenboTwinInstance.setCommanded({ head: { yaw: 0, pitch: 10 } }); }, 1500);
+          } else if (act.category === 'dance') {
+            window.ZenboTwinInstance.setCommanded({ face: 'SINGING', lights: { mode: 'rainbow', color: '#8B5CF6' } });
+          }
+        }
+      }
+    }
+
+    function highlightActiveAction(actionId) {
+      document.querySelectorAll('.action-item-btn').forEach((btn) => {
+        const isMatch = Number(btn.dataset.actionId) === Number(actionId);
+        btn.classList.toggle('ring-2', isMatch);
+        btn.classList.toggle('ring-violet-400', isMatch);
+        btn.classList.toggle('bg-violet-950/80', isMatch);
+        btn.classList.toggle('border-violet-500', isMatch);
+      });
     }
 
     function sendDance(actionId) {
-      setCommandStatus(`กำลังส่งท่าเต้น ${String(actionId).padStart(2, '0')}`, false);
+      const act = window.ZenboActions ? window.ZenboActions.getActionById(actionId) : null;
+      sendAction(actionId, act ? act.title : `ท่าเต้น ${String(actionId).padStart(2, '0')}`);
+    }
+
+    function sendSelectedFace() {
+      const sel = document.getElementById('face-all') || document.getElementById('emotional-face-id');
+      if (sel) sendFace(sel.value);
+    }
+
+    function sendManualAction() {
+      const input = document.getElementById('action-id') || document.getElementById('emotional-action-id');
+      const actionId = Number(input.value);
+      if (!Number.isInteger(actionId) || actionId < 0) return setCommandStatus('Action ID ต้องเป็นจำนวนเต็มตั้งแต่ 0', true);
       sendAction(actionId);
     }
 
-    function sendSelectedFace() { sendFace(document.getElementById('face-all').value); }
-
-    function sendManualAction() {
-      const actionId = Number(document.getElementById('action-id').value);
-      if (!Number.isInteger(actionId) || actionId < 0) return setCommandStatus('Action ID ต้องเป็นจำนวนเต็มตั้งแต่ 0', true);
-      sendRequest({ action: { action_id: actionId, stop: false } });
-    }
-
     function sendEmotionalAction() {
-      const actionId = Number(document.getElementById('action-id').value);
-      const duration = Number(document.getElementById('emotion-duration').value);
-      const face = document.getElementById('face-all').value;
-      if (!Number.isInteger(actionId) || actionId < 0 || !Number.isFinite(duration) || duration < 0) return setCommandStatus('ตรวจ Action ID และ duration', true);
+      const actionSelect = document.getElementById('emotional-action-id');
+      const faceSelect = document.getElementById('emotional-face-id');
+      const durInput = document.getElementById('emotion-duration');
+      const actionId = Number(actionSelect ? actionSelect.value : 22);
+      const face = faceSelect ? faceSelect.value : 'HAPPY';
+      const duration = Number(durInput ? durInput.value : 10);
+      if (!Number.isInteger(actionId) || actionId < 0) return setCommandStatus('กรุณาเลือก Action ID ที่ถูกต้อง', true);
+
+      setCommandStatus(`กำลังส่งคำสั่งคู่สีหน้า: #${actionId} + ${face} (${(duration / 10).toFixed(1)}s)`, false);
       sendRequest({ emotional_action: { action_id: actionId, faces: [{ face, duration }] } });
+      highlightActiveAction(actionId);
+      if (window.ZenboTwinInstance) {
+        window.ZenboTwinInstance.setCommanded({ face: face });
+      }
     }
 
-    function cancelAction() { sendRequest({ action: { action_id: 0, stop: true } }); }
+    function cancelAction() {
+      setCommandStatus('ส่งคำสั่งยกเลิกท่าทางทั้งหมด (STOP)', false);
+      sendRequest({ action: { action_id: 0, stop: true } });
+      highlightActiveAction(null);
+      if (window.ZenboTwinInstance) {
+        window.ZenboTwinInstance.setCommanded({ face: 'DEFAULT', head: { yaw: 0, pitch: 10 } });
+      }
+    }
+
+    function filterActionCategory(cat) {
+      currentActionCategory = cat;
+      document.querySelectorAll('.action-tab-btn').forEach((btn) => {
+        const active = btn.dataset.cat === cat;
+        btn.classList.toggle('active', active);
+        btn.classList.toggle('bg-violet-600', active);
+        btn.classList.toggle('text-white', active);
+        btn.classList.toggle('bg-slate-700/70', !active);
+        btn.classList.toggle('text-slate-300', !active);
+      });
+      const searchVal = (document.getElementById('action-search-input')?.value || '').trim();
+      renderActionButtons(cat, searchVal);
+    }
+
+    function filterActionSearch(query) {
+      renderActionButtons(currentActionCategory, query);
+    }
+
+    function renderActionButtons(category, query) {
+      const container = document.getElementById('action-buttons-grid');
+      const counter = document.getElementById('action-count-indicator');
+      if (!container || !window.ZenboActions) return;
+
+      let actions = window.ZenboActions.getActionsByCategory(category);
+      if (query && query.trim()) {
+        const q = query.trim().toLowerCase();
+        actions = actions.filter((a) => {
+          return String(a.id).includes(q) ||
+            a.name.toLowerCase().includes(q) ||
+            a.title.toLowerCase().includes(q) ||
+            a.desc.toLowerCase().includes(q);
+        });
+      }
+
+      if (counter) counter.textContent = `${actions.length} ท่า`;
+
+      if (actions.length === 0) {
+        container.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-slate-500">ไม่พบท่าทางที่ค้นหา</div>`;
+        return;
+      }
+
+      container.innerHTML = actions.map((a) => {
+        const isSelected = currentActiveAction === a.id;
+        return `
+          <button type="button" onclick="sendAction(${a.id}, '${escapeHtml(a.title)}')"
+            id="action-btn-${a.id}"
+            class="action-item-btn group relative flex flex-col items-start p-2.5 rounded-xl border ${isSelected ? 'border-violet-500 ring-2 ring-violet-400 bg-violet-950/80' : 'border-slate-700/80 bg-slate-900/70'} hover:bg-slate-800 hover:border-violet-500/60 active:scale-[0.98] transition text-left"
+            data-category="${a.category}"
+            data-action-id="${a.id}"
+            data-action-name="${escapeHtml(a.name)}"
+            title="${escapeHtml(a.desc)}">
+            <div class="w-full flex items-center justify-between mb-1">
+              <span class="text-xl">${a.icon}</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-800/60">#${a.id}</span>
+            </div>
+            <span class="text-xs font-bold text-slate-200 group-hover:text-white line-clamp-1">${escapeHtml(a.title)}</span>
+            <span class="text-[10px] font-mono text-slate-400 truncate w-full">${escapeHtml(a.name)}</span>
+            <span class="text-[9px] text-slate-500 mt-1 line-clamp-1">${escapeHtml(a.desc)}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function initExpressionAndActionCatalog() {
+      if (!window.ZenboActions) return;
+
+      // 1. Populate Extended Faces Grid (faces beyond primary 12)
+      const extendedGrid = document.getElementById('extended-faces-grid');
+      const primaryFaceIds = new Set(['HAPPY', 'PLEASED', 'PROUD', 'CONFIDENT', 'ACTIVE', 'SINGING', 'INTERESTED', 'EXPECTING', 'DOUBT', 'SHY', 'SHOCK', 'DEFAULT']);
+      if (extendedGrid) {
+        const remainingFaces = window.ZenboActions.FACES.filter(f => !primaryFaceIds.has(f.id));
+        extendedGrid.innerHTML = remainingFaces.map(f => `
+          <button type="button" onclick="sendFace('${f.id}')" class="face-btn bg-slate-800/80 hover:bg-slate-700 active:bg-amber-600/30 border border-slate-700 p-2 rounded-xl text-center flex flex-col items-center transition" data-face="${f.id}">
+            <span class="text-xl mb-1">${f.icon}</span>
+            <span class="text-xs font-semibold text-slate-200">${escapeHtml(f.title)}</span>
+            <span class="text-[9px] text-slate-400 font-mono">${f.id}</span>
+          </button>
+        `).join('');
+      }
+
+      // 2. Populate Action Buttons Grid
+      renderActionButtons('all', '');
+
+      // 3. Populate Emotional Action Builder selects
+      const actSelect = document.getElementById('emotional-action-id');
+      if (actSelect) {
+        actSelect.innerHTML = window.ZenboActions.ACTIONS.map(a => `
+          <option value="${a.id}" ${a.id === 22 ? 'selected' : ''}>#${a.id} ${escapeHtml(a.title)} (${escapeHtml(a.name)})</option>
+        `).join('');
+      }
+
+      const faceSelect = document.getElementById('emotional-face-id');
+      if (faceSelect) {
+        faceSelect.innerHTML = window.ZenboActions.FACES.map(f => `
+          <option value="${f.id}" ${f.id === 'HAPPY' ? 'selected' : ''}>${f.icon} ${escapeHtml(f.title)} (${f.id})</option>
+        `).join('');
+      }
+    }
+
+    // --- KKU IntelSphere AI Agent Client Logic ---
+    let currentCompiledAiPayload = null;
+    let aiSpeechRecognition = null;
+    let isAiListening = false;
+
+    function clearAiInput() {
+      const input = document.getElementById('ai-agent-input');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      document.getElementById('ai-plan-card').hidden = true;
+      currentCompiledAiPayload = null;
+      setAiStatus('พิมพ์คำสั่งหรือกดปุ่มไมค์เพื่อพูดภาษาไทย');
+    }
+
+    function setAiStatus(msg, isError = false) {
+      const el = document.getElementById('ai-agent-status');
+      if (!el) return;
+      el.textContent = msg;
+      el.className = `min-h-4 text-center text-xs ${isError ? 'text-red-400' : 'text-slate-400'} pt-1`;
+    }
+
+    function fillAndAnalyzeAiPrompt(promptText) {
+      const input = document.getElementById('ai-agent-input');
+      if (input) {
+        input.value = promptText;
+      }
+      analyzeWithIntelSphere();
+    }
+
+    function toggleAiVoiceInput() {
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Recognition) {
+        return setAiStatus('เบราว์เซอร์นี้ยังไม่รองรับ Web Speech API กรุณาพิมพ์คำสั่งแทน', true);
+      }
+
+      if (isAiListening) {
+        if (aiSpeechRecognition) aiSpeechRecognition.stop();
+        setAiListening(false);
+        return;
+      }
+
+      try {
+        aiSpeechRecognition = new Recognition();
+        aiSpeechRecognition.lang = 'th-TH';
+        aiSpeechRecognition.interimResults = true;
+        aiSpeechRecognition.continuous = false;
+
+        setAiListening(true);
+        setAiStatus('🎙️ กำลังฟังเสียงพูดภาษาไทย... พูดคำสั่งได้เลยครับ');
+
+        aiSpeechRecognition.onresult = (event) => {
+          let transcript = '';
+          for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          const input = document.getElementById('ai-agent-input');
+          if (input) input.value = transcript.trim();
+        };
+
+        aiSpeechRecognition.onerror = (event) => {
+          setAiListening(false);
+          setAiStatus(`การรับเสียงขัดข้อง: ${event.error}`, true);
+        };
+
+        aiSpeechRecognition.onend = () => {
+          setAiListening(false);
+          const input = document.getElementById('ai-agent-input');
+          if (input && input.value.trim()) {
+            setAiStatus('รับเสียงเรียบร้อยแล้ว กำลังวิเคราะห์คำสั่ง...');
+            analyzeWithIntelSphere();
+          } else {
+            setAiStatus('ยังไม่ได้รับคำสั่งเสียง กรุณาลองใหม่อีกครั้ง');
+          }
+        };
+
+        aiSpeechRecognition.start();
+      } catch (err) {
+        setAiListening(false);
+        setAiStatus(`ไม่สามารถเปิดไมโครโฟนได้: ${err.message}`, true);
+      }
+    }
+
+    function setAiListening(listening) {
+      isAiListening = listening;
+      const btn = document.getElementById('ai-voice-btn');
+      const label = document.getElementById('ai-voice-label');
+      const icon = document.getElementById('ai-voice-icon');
+      if (!btn) return;
+      if (listening) {
+        btn.classList.add('bg-red-600', 'animate-pulse', 'border-red-400');
+        btn.classList.remove('bg-violet-900/60');
+        if (label) label.textContent = 'กำลังฟังเสียง... (กดเพื่อหยุด)';
+        if (icon) icon.innerHTML = '<i class="fa-solid fa-microphone-lines"></i>';
+      } else {
+        btn.classList.remove('bg-red-600', 'animate-pulse', 'border-red-400');
+        btn.classList.add('bg-violet-900/60');
+        if (label) label.textContent = 'พูดเสียงภาษาไทย';
+        if (icon) icon.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+      }
+    }
+
+    async function analyzeWithIntelSphere() {
+      const input = document.getElementById('ai-agent-input');
+      const command = (input ? input.value : '').trim();
+      if (!command) {
+        setAiStatus('กรุณาพิมพ์หรือพูดคำสั่งก่อนวิเคราะห์', true);
+        if (input) input.focus();
+        return;
+      }
+
+      const compileBtn = document.getElementById('ai-compile-btn');
+      const compileLabel = document.getElementById('ai-compile-label');
+      if (compileBtn) compileBtn.disabled = true;
+      if (compileLabel) compileLabel.textContent = 'กำลังวิเคราะห์ด้วย AI...';
+      setAiStatus('🧠 KKU IntelSphere กำลังคิดและแปลงคำสั่งเป็น Zenbo Action & Expression...');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/commands/compile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command, robot_slug: selectedRobot || null })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        renderAiPlan(data);
+        setAiStatus('✨ KKU IntelSphere วิเคราะห์และจำลองท่าทางบน 3D Twin แล้ว');
+      } catch (err) {
+        setAiStatus(`การวิเคราะห์ไม่สำเร็จ: ${err.message}`, true);
+      } finally {
+        if (compileBtn) compileBtn.disabled = false;
+        if (compileLabel) compileLabel.textContent = 'วิเคราะห์ด้วย IntelSphere AI';
+      }
+    }
+
+    function renderAiPlan(data) {
+      const planCard = document.getElementById('ai-plan-card');
+      if (!planCard) return;
+
+      currentCompiledAiPayload = data.compiled_payload || {};
+
+      // 1. Intent Badge
+      const intentBadge = document.getElementById('ai-intent-badge');
+      if (intentBadge) {
+        intentBadge.textContent = data.intent || data.compiler_action || 'ACTION_READY';
+      }
+
+      // 2. Reasoning
+      const reasoningEl = document.getElementById('ai-reasoning-text');
+      if (reasoningEl) {
+        reasoningEl.textContent = data.reasoning || (data.compiler_source ? `แปลงคำสั่งผ่าน ${data.compiler_source} สำเร็จ` : 'ตรวจพบคำสั่ง พร้อมส่งไปยัง Zenbo');
+      }
+
+      // 3. Speech
+      const speechEl = document.getElementById('ai-plan-speech');
+      if (speechEl) {
+        speechEl.textContent = currentCompiledAiPayload.text ? `"${currentCompiledAiPayload.text}"` : '(ไม่มีข้อความพูด)';
+      }
+
+      // 4. Face
+      const faceEl = document.getElementById('ai-plan-face');
+      if (faceEl) {
+        const faceName = currentCompiledAiPayload.face || 'DEFAULT';
+        const faceMeta = data.face_meta || (window.ZenboActions ? window.ZenboActions.getFaceById(faceName) : null);
+        faceEl.textContent = faceMeta ? `${faceMeta.icon} ${faceMeta.title}` : faceName;
+      }
+
+      // 5. Action
+      const actionEl = document.getElementById('ai-plan-action');
+      if (actionEl) {
+        const actionId = currentCompiledAiPayload.action ? currentCompiledAiPayload.action.action_id : null;
+        if (actionId !== null && actionId !== undefined) {
+          const actMeta = data.action_meta || (window.ZenboActions ? window.ZenboActions.getActionById(actionId) : null);
+          actionEl.textContent = actMeta ? `${actMeta.icon} #${actionId} ${actMeta.title}` : `#${actionId}`;
+        } else {
+          actionEl.textContent = '(ท่าทางปกติ)';
+        }
+      }
+
+      // 6. Raw JSON
+      const rawJson = document.getElementById('ai-raw-json');
+      if (rawJson) {
+        rawJson.textContent = JSON.stringify(data, null, 2);
+      }
+
+      // 7. Trigger 3D Digital Twin Kinematics Simulation
+      if (window.ZenboTwinInstance) {
+        const twinUpdate = {};
+        if (currentCompiledAiPayload.face) {
+          twinUpdate.face = currentCompiledAiPayload.face;
+        }
+        if (currentCompiledAiPayload.head) {
+          twinUpdate.head = currentCompiledAiPayload.head;
+        } else if (currentCompiledAiPayload.head_sequence && currentCompiledAiPayload.head_sequence[0]) {
+          twinUpdate.head = currentCompiledAiPayload.head_sequence[0];
+        }
+        if (currentCompiledAiPayload.wheel_lights) {
+          twinUpdate.lights = currentCompiledAiPayload.wheel_lights;
+        }
+        window.ZenboTwinInstance.setCommanded(twinUpdate);
+      }
+
+      planCard.hidden = false;
+      planCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function toggleAiJsonView() {
+      const el = document.getElementById('ai-raw-json');
+      if (el) el.hidden = !el.hidden;
+    }
+
+    async function dispatchAiCompiledPlan() {
+      if (!currentCompiledAiPayload) {
+        return setAiStatus('ยังไม่มีแผนคำสั่งที่คอมไพล์แล้ว', true);
+      }
+      const btn = document.getElementById('ai-dispatch-btn');
+      const label = document.getElementById('ai-dispatch-label');
+      if (btn) btn.disabled = true;
+      if (label) label.textContent = 'กำลังส่งไปยัง Zenbo...';
+
+      try {
+        setCommandStatus('กำลังส่งคำสั่งจาก KKU IntelSphere AI Agent...', false);
+        sendRequest(currentCompiledAiPayload);
+        setAiStatus('🚀 ส่งคำสั่งจาก KKU IntelSphere ไปยัง Zenbo เรียบร้อยแล้ว!');
+        if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+      } catch (err) {
+        setAiStatus(`ส่งไม่สำเร็จ: ${err.message}`, true);
+      } finally {
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = 'ยืนยันส่งให้ Zenbo ทำงานทันที';
+      }
+    }
 
     function sendAdvancedLights() {
       const color = document.getElementById('led-color').value.trim();
@@ -503,15 +1760,100 @@
       }});
     }
 
-    function sendRemote(body) { sendRequest({ remote_control: { body } }); }
-    function sendRemoteHead(head) { sendRequest({ remote_control: { head } }); }
+    let activeDrive = null;
+    let driveKeepaliveTimer = null;
+
+    function setDriveStatus(message, isError = false) {
+      const status = document.getElementById('drive-status');
+      status.textContent = message;
+      status.className = `mt-3 min-h-5 text-center text-xs font-medium ${isError ? 'text-red-300' : 'text-blue-200'}`;
+    }
+
+    function sendRemote(body, includeSafety = false) {
+      const payload = { face: null, remote_control: { body } };
+      if (includeSafety && body !== 'STOP') payload.safety = manualOperatorSafety();
+      return sendRequest(payload);
+    }
+
+    function startDrive(direction, button) {
+      if (activeDrive === direction) return;
+      stopDrive({ silent: true });
+      if (!selectedRobot) {
+        setDriveStatus('เลือก Zenbo ก่อนควบคุม', true);
+        return;
+      }
+      activeDrive = direction;
+      button.classList.add('is-driving');
+      const labels = { FORWARD: 'กำลังเดินหน้า', BACKWARD: 'กำลังถอยหลัง', TURN_LEFT: 'กำลังหมุนซ้าย', TURN_RIGHT: 'กำลังหมุนขวา' };
+      setDriveStatus(`${labels[direction]} — ปล่อยนิ้วเพื่อหยุด`);
+      sendRemote(direction, true);
+      driveKeepaliveTimer = window.setInterval(() => {
+        if (activeDrive === direction) sendRemote(direction);
+      }, 350);
+    }
+
+    function stopDrive({ silent = false } = {}) {
+      if (driveKeepaliveTimer !== null) {
+        window.clearInterval(driveKeepaliveTimer);
+        driveKeepaliveTimer = null;
+      }
+      const hadActiveDrive = Boolean(activeDrive);
+      activeDrive = null;
+      document.querySelectorAll('[data-drive]').forEach(button => button.classList.remove('is-driving'));
+      if (hadActiveDrive) sendRemote('STOP');
+      if (!silent) setDriveStatus('หยุดแล้ว — กดค้างเพื่อเคลื่อนที่อีกครั้ง');
+    }
+
+    function installDriveControls() {
+      document.querySelectorAll('[data-drive]').forEach(button => {
+        const direction = button.dataset.drive;
+        let pointerId = null;
+        button.addEventListener('pointerdown', event => {
+          event.preventDefault();
+          pointerId = event.pointerId;
+          button.setPointerCapture(pointerId);
+          startDrive(direction, button);
+        });
+        const release = event => {
+          if (pointerId === null || (event.pointerId !== undefined && event.pointerId !== pointerId)) return;
+          pointerId = null;
+          stopDrive();
+        };
+        button.addEventListener('pointerup', release);
+        button.addEventListener('pointercancel', release);
+        button.addEventListener('lostpointercapture', release);
+        button.addEventListener('keydown', event => {
+          if ((event.key === 'Enter' || event.key === ' ') && !event.repeat) {
+            event.preventDefault();
+            startDrive(direction, button);
+          }
+        });
+        button.addEventListener('keyup', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            stopDrive();
+          }
+        });
+      });
+      document.getElementById('drive-stop').addEventListener('click', () => {
+        stopDrive({ silent: true });
+        emergencyStop();
+      });
+      window.addEventListener('blur', () => stopDrive({ silent: true }));
+      window.addEventListener('pagehide', () => stopDrive({ silent: true }));
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopDrive({ silent: true });
+      });
+    }
+
+    function sendRemoteHead(head) { sendRequest({ face: null, remote_control: { head } }); }
 
     function sendPreciseMotion() {
       const x = Number(document.getElementById('precise-x').value);
       const y = Number(document.getElementById('precise-y').value);
       const theta = Number(document.getElementById('precise-theta').value);
       if (![x, y, theta].every(Number.isFinite)) return setCommandStatus('กรอกพิกัด motion เป็นตัวเลข', true);
-      sendRequest({ motion: { x, y, theta, speed: Number(document.getElementById('motion-speed').value) } });
+      sendRequest({ safety: manualOperatorSafety(), motion: { x, y, theta, speed: requestedMotionSpeed } });
     }
 
     function sendBehavior(action, enabled) {
@@ -549,6 +1891,25 @@
       if (!status) return;
       status.textContent = message;
       status.className = isError ? 'min-h-4 text-[11px] text-red-300' : 'min-h-4 text-[11px] text-emerald-300';
+    }
+
+    async function readRobotEventAfter(sentAtMs, timeoutMs = 20000) {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/robots`);
+          const data = await res.json();
+          const robot = (data.robots || []).find(item => item.robot_slug === selectedRobot);
+          const event = robot && robot.last_event;
+          if (event && Number(event.received_at_ms || 0) >= sentAtMs) return event;
+        } catch (err) {
+          // The command may still be running. Preserve the accepted-command
+          // message and try again rather than treating a transient poll error
+          // as a robot failure.
+        }
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+      return null;
     }
 
     function setListening(listening) {
@@ -613,7 +1974,7 @@
         }
         const text = document.getElementById('speech-text');
         text.value = `${finalTranscript}${interimTranscript}`.trim();
-        if (finalTranscript) setSpeechRecognitionStatus('ได้ข้อความแล้ว ตรวจทานแล้วกด “ให้ Zenbo พูด” เพื่อส่ง');
+        if (finalTranscript) setSpeechRecognitionStatus('ได้ข้อความแล้ว กด “ให้ Zenbo พูด” เพื่อส่งได้ทันที');
       };
       recognition.onerror = (event) => {
         if (event.error === 'service-not-allowed') {
@@ -653,15 +2014,49 @@
       button.disabled = true;
       buttonText.textContent = 'กำลังส่ง...';
       setSpeechSendStatus('กำลังส่งข้อความไปยัง Zenbo เพื่อพูด...');
+      const sentAtMs = Date.now();
       const response = await sendRequest({ text, voice_profile: voice, face: 'HAPPY' });
       button.disabled = false;
       buttonText.textContent = 'ให้ Zenbo พูด';
       if (response) {
         textarea.value = '';
-        setSpeechSendStatus('ส่งข้อความถึง Zenbo แล้ว — กำลังให้หุ่นยนต์พูด');
+        if (typeof ZenboCommon !== 'undefined') {
+          ZenboCommon.api(`${API_BASE}/api/v1/speech-phrases`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, phrase_type: 'custom' })
+          }).catch(() => {});
+        }
+        setSpeechSendStatus('Core รับคำสั่งแล้ว — กำลังรอ Zenbo ยืนยันการเล่นเสียง...');
+        const event = await readRobotEventAfter(sentAtMs);
+        if (event?.kind === 'action_done' && event?.data?.status === 'SUCCESS') {
+          setSpeechSendStatus('Zenbo เล่นเสียงเสร็จแล้ว — โปรดตรวจฟังจากลำโพงหุ่นยนต์');
+        } else if (event?.kind === 'tts' && event?.data?.state === 'ERROR') {
+          setSpeechSendStatus(`Zenbo สร้างเสียงไม่สำเร็จ: ${event.data.message || 'ไม่ทราบสาเหตุ'}`, true);
+        } else if (!event) {
+          setSpeechSendStatus('Core รับคำสั่งแล้ว แต่ยังไม่ได้รับสถานะจาก Zenbo — ตรวจว่าแอปเปิดและเชื่อมต่ออยู่', true);
+        } else {
+          setSpeechSendStatus('Zenbo รับสถานะเสียงแล้ว — กำลังเล่นผ่านลำโพง');
+        }
       } else {
         setSpeechSendStatus('ส่งข้อความไม่สำเร็จ ข้อความยังคงอยู่ให้ลองส่งอีกครั้ง', true);
       }
+    }
+
+    async function setZenboVolume(value) {
+      const percent = Math.max(0, Math.min(100, Number(value)));
+      document.getElementById('speech-volume').value = String(percent);
+      document.getElementById('speech-volume-value').textContent = `${percent}%`;
+      setSpeechSendStatus(`กำลังปรับเสียง Zenbo เป็น ${percent}%...`);
+      const response = await sendRequest({ volume: percent });
+      setSpeechSendStatus(response
+        ? `ส่งคำสั่งปรับเสียง ${percent}% แล้ว`
+        : 'ส่งคำสั่งปรับเสียงไม่สำเร็จ — ตรวจว่า Zenbo ออนไลน์อยู่', !response);
+    }
+
+    function changeZenboVolume(delta) {
+      const control = document.getElementById('speech-volume');
+      setZenboVolume(Number(control.value) + delta);
     }
 
     function setZenboState(state, isConnected) {
@@ -681,34 +2076,42 @@
     async function connectZenbo() {
       const btn = document.getElementById('btn-connect');
       const hint = document.getElementById('connect-hint');
+      if (!selectedRobots.length) {
+        if (hint) hint.innerHTML = '⚠️ เลือก Zenbo อย่างน้อย 1 เครื่องก่อนเชื่อมต่อ';
+        return;
+      }
       btn.disabled = true;
       btn.querySelector('span').innerText = 'กำลังเรียกบุ๊คกี้...';
-      hint.innerHTML = 'กำลังเชื่อมต่อ Zenbo...';
+      if (hint) hint.innerHTML = `กำลังเชื่อมต่อ ${selectedRobots.length} เครื่อง...`;
       setZenboState('connecting', false);
 
       try {
-        selectedRobot = document.getElementById('robot-select').value || selectedRobot;
-        if (!selectedRobot) {
-          await discoverRobots();
-          hint.innerHTML = '⚠️ เลือก Zenbo ที่ออนไลน์ก่อนเชื่อมต่อ';
-          return;
-        }
-        const res = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/connect`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (res.ok && data.status === 'connected') {
+        const results = await Promise.all(selectedRobots.map(async slug => {
+          const res = typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/connect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+              })
+            : await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/connect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+              });
+          if (!res) return { slug, ok: false };
+          const data = await res.json().catch(() => ({}));
+          return { slug, ok: res.ok && data.status === 'connected' };
+        }));
+
+        const okCount = results.filter(r => r.ok).length;
+        if (okCount > 0) {
           setZenboState('connected', true);
-          const robot = data.robot || robots.find(item => item.robot_slug === selectedRobot) || {};
-          hint.innerHTML = `✅ ส่ง handshake ไป ${selectedRobot} แล้ว · IP: <span class="text-green-400 font-semibold">${robot.client_ip || 'รอ status'}</span>`;
+          if (hint) hint.innerHTML = `✅ ส่ง handshake สำเร็จ (${okCount}/${selectedRobots.length} เครื่อง) · พร้อมใช้งาน`;
         } else {
-          hint.innerHTML = '⚠️ Zenbo เครื่องนี้ offline หรือยังไม่ส่ง heartbeat';
+          if (hint) hint.innerHTML = '⚠️ Zenbo ทุกเครื่องที่เลือก offline หรือยังไม่ส่ง heartbeat';
           setZenboState('disconnected', false);
         }
       } catch (err) {
         console.error('Connect error:', err);
-        hint.innerHTML = '❌ เชื่อมต่อไม่สำเร็จ — ตรวจสอบว่า core-api ทำงานอยู่';
+        if (hint) hint.innerHTML = '❌ เชื่อมต่อไม่สำเร็จ — ตรวจสอบว่า core-api ทำงานอยู่';
         setZenboState('disconnected', false);
       } finally {
         btn.disabled = false;
@@ -716,26 +2119,821 @@
       }
     }
 
-    document.getElementById('robot-select').addEventListener('change', event => {
-      selectedRobot = event.target.value;
-      const robot = robots.find(item => item.robot_slug === selectedRobot);
-      if (robot) {
-        document.getElementById('connect-hint').innerHTML = `พบ ${selectedRobot} · IP: <span class="text-green-400">${robot.client_ip || 'unknown'}</span>`;
+    function fillQuickPhrase(text) {
+      const textarea = document.getElementById('speech-text');
+      if (!textarea) return;
+      textarea.value = text;
+      textarea.focus();
+      textarea.classList.add('ring-2', 'ring-pink-500');
+      setTimeout(() => textarea.classList.remove('ring-2', 'ring-pink-500'), 500);
+      if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+    }
+
+    function setYoutubePreset(url) {
+      const input = document.getElementById('youtube-url');
+      if (input) {
+        input.value = url;
+        input.focus();
       }
-    });
+    }
+
+    function updateSafetyToggleUI(robot) {
+      const toggle = document.getElementById('safety-toggle');
+      const desc = document.getElementById('safety-status-desc');
+      const label = document.getElementById('safety-toggle-label');
+      if (!toggle || !desc) return;
+      if (!selectedRobots.length) {
+        toggle.disabled = true;
+        if (label) label.classList.add('opacity-50', 'cursor-not-allowed');
+        desc.textContent = 'เลือก Zenbo ที่ออนไลน์ก่อนเปลี่ยนโหมด';
+        desc.className = 'text-[10px] text-amber-400/80';
+        return;
+      }
+      toggle.disabled = false;
+      if (label) label.classList.remove('opacity-50', 'cursor-not-allowed');
+
+      // Check if any selected robot has collision_guard_enabled or fall_guard_enabled active
+      const selectedRobotObjs = robots.filter(r => selectedRobots.includes(r.robot_slug));
+      const isGuardOn = selectedRobotObjs.some(r => r.safety_guard?.collision_guard_enabled === true || r.safety_guard?.fall_guard_enabled === true);
+      toggle.checked = isGuardOn;
+      const countText = selectedRobots.length > 1 ? ` (${selectedRobots.length} เครื่อง)` : '';
+      desc.textContent = isGuardOn
+        ? `🛡️ เปิดโหมดความปลอดภัย: ตรวจสิ่งกีดขวาง${countText}`
+        : `🔓 ปิดโหมดความปลอดภัย: ปลดล็อกล้อ ควบคุมอิสระ${countText}`;
+      desc.className = isGuardOn ? 'text-[10px] text-emerald-300' : 'text-[10px] text-amber-300';
+    }
+
+    async function toggleSafetyMode(enabled) {
+      const desc = document.getElementById('safety-status-desc');
+      const toggle = document.getElementById('safety-toggle');
+      if (!selectedRobots.length) {
+        if (toggle) toggle.checked = !enabled;
+        if (desc) {
+          desc.textContent = 'เลือก Zenbo ที่ออนไลน์ก่อนเปลี่ยนโหมด';
+          desc.className = 'text-[10px] text-amber-400/80';
+        }
+        return;
+      }
+      if (desc) {
+        desc.textContent = enabled ? `กำลังเปิดโหมดความปลอดภัย (${selectedRobots.length} เครื่อง)...` : `กำลังปิดโหมดความปลอดภัย (${selectedRobots.length} เครื่อง)...`;
+        desc.className = 'text-[10px] text-slate-300';
+      }
+      try {
+        const body = JSON.stringify({
+          base_motion_enabled: true,
+          collision_guard_enabled: enabled,
+          fall_guard_enabled: enabled,
+          max_distance_m: 0.75,
+          max_speed: 7,
+          auto_stop_ms: 3000
+        });
+        const results = await Promise.all(selectedRobots.map(async slug => {
+          const res = typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/safety`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body
+              })
+            : await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/safety`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body
+              });
+          return { slug, ok: res && res.ok };
+        }));
+        const okCount = results.filter(r => r.ok).length;
+        if (okCount > 0) {
+          const countText = selectedRobots.length > 1 ? ` (${okCount}/${selectedRobots.length} เครื่อง)` : '';
+          if (desc) {
+            desc.textContent = enabled
+              ? `🛡️ เปิดโหมดความปลอดภัยแล้ว (ตรวจสิ่งกีดขวาง)${countText}`
+              : `🔓 ปิดโหมดความปลอดภัยแล้ว (ปลดล็อกล้อ ควบคุมอิสระ)${countText}`;
+            desc.className = enabled ? 'text-[10px] text-emerald-300' : 'text-[10px] text-amber-300';
+          }
+          if (typeof ZenboCommon !== 'undefined' && ZenboCommon.toast) {
+            ZenboCommon.toast(enabled ? `เปิดโหมดความปลอดภัยแล้ว${countText}` : `ปิดโหมดความปลอดภัยแล้ว (ควบคุมอิสระ)${countText}`, 'info');
+          }
+        } else {
+          if (toggle) toggle.checked = !enabled;
+          if (desc) {
+            desc.textContent = '❌ เปลี่ยนโหมดไม่สำเร็จ';
+            desc.className = 'text-[10px] text-red-400';
+          }
+        }
+      } catch (err) {
+        console.error('Safety toggle error:', err);
+        if (toggle) toggle.checked = !enabled;
+        if (desc) {
+          desc.textContent = '❌ เกิดข้อผิดพลาดในการติดต่อระบบ';
+          desc.className = 'text-[10px] text-red-400';
+        }
+      }
+    }
+
+    async function sendEntertainment(action) {
+      const statusEl = document.getElementById('entertainment-status');
+      const badgeEl = document.getElementById('youtube-live-badge');
+      const urlInput = document.getElementById('youtube-url');
+      const url = urlInput ? urlInput.value.trim() : '';
+
+      if (!selectedRobots.length) {
+        if (statusEl) {
+          statusEl.textContent = '⚠️ เลือก Zenbo ที่ออนไลน์ก่อนสั่งเล่นเพลง';
+          statusEl.className = 'min-h-4 text-[10px] text-amber-400 text-center font-semibold';
+        }
+        return;
+      }
+
+      const checkboxes = document.querySelectorAll('#dance-selector-chips input[type="checkbox"]:checked');
+      const dance_action_ids = Array.from(checkboxes).map(cb => parseInt(cb.value, 10)).filter(n => !isNaN(n));
+
+      if (statusEl) {
+        statusEl.textContent = `กำลังส่งคำสั่ง ${action} ไปยัง Zenbo (${selectedRobots.length} เครื่อง)...`;
+        statusEl.className = 'min-h-4 text-[10px] text-slate-300 text-center';
+      }
+
+      try {
+        const body = JSON.stringify({
+          url: url || 'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
+          dance_action_ids: dance_action_ids.length ? dance_action_ids : [2, 3, 22, 23],
+          duration_seconds: null
+        });
+
+        const results = await Promise.all(selectedRobots.map(async slug => {
+          const res = typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/entertainment/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body
+              })
+            : await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/entertainment/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body
+              });
+          return { slug, ok: res && res.ok };
+        }));
+
+        const okCount = results.filter(r => r.ok).length;
+        if (okCount > 0) {
+          const actionThai = action === 'play' ? 'กำลังเล่นเพลงและเต้น' : action === 'pause' ? 'พักชั่วคราว' : action === 'resume' ? 'เล่นเพลงต่อ' : 'ปิดคลิปเรียบร้อย';
+          const countText = selectedRobots.length > 1 ? ` (${okCount}/${selectedRobots.length} เครื่อง)` : '';
+          if (statusEl) {
+            statusEl.textContent = `✅ ส่งคำสั่งสำเร็จ${countText}: ${actionThai}`;
+            statusEl.className = 'min-h-4 text-[10px] text-emerald-400 text-center font-semibold';
+          }
+          if (badgeEl) {
+            badgeEl.textContent = action.toUpperCase();
+            badgeEl.className = action === 'stop' ? 'text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-700' : 'text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-300 border border-red-700/60 animate-pulse';
+          }
+          if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+        } else {
+          if (statusEl) {
+            statusEl.textContent = '❌ ส่งคำสั่งไม่สำเร็จทุกเครื่อง';
+            statusEl.className = 'min-h-4 text-[10px] text-red-400 text-center';
+          }
+        }
+      } catch (err) {
+        console.error('Entertainment error:', err);
+        if (statusEl) {
+          statusEl.textContent = '❌ ส่งคำสั่งไม่สำเร็จ — ตรวจสอบเครือข่าย';
+          statusEl.className = 'min-h-4 text-[10px] text-red-400 text-center';
+        }
+      }
+    }
+
+    const DEFAULT_SPEECH_PHRASES = [
+      { key: 'def_welcome', icon: '👋', label: 'สวัสดี ยินดีต้อนรับ', text: 'สวัสดีครับ ยินดีต้อนรับสู่สำนักหอสมุด มหาวิทยาลัยขอนแก่น ครับ' },
+      { key: 'def_help', icon: '🤖', label: 'ให้บุ๊คกี้ช่วยค้นหาไหม', text: 'มีอะไรให้บุ๊คกี้ช่วยค้นหาหนังสือ หรือนำทางไหมครับ' },
+      { key: 'def_hours', icon: '🕒', label: 'เวลาเปิด-ปิดบริการ', text: 'สำนักหอสมุดเปิดให้บริการวันจันทร์ถึงศุกร์ เวลา 8 โมง 30 นาที ถึง 2 ทุ่มครับ' },
+      { key: 'def_borrow', icon: '📚', label: 'จุดยืม-คืนหนังสือ', text: 'จุดบริการยืมคืนหนังสืออัตโนมัติและเคาน์เตอร์บริการ อยู่บริเวณชั้น 1 ครับ' },
+      { key: 'def_wait', icon: '⏳', label: 'ตรวจสอบข้อมูลสักครู่', text: 'ขออภัยครับ กำลังตรวจสอบข้อมูลให้สักครู่นะครับ' }
+    ];
+
+    async function loadSpeechPhrases() {
+      const container = document.getElementById('quick-phrase-chips');
+      if (!container) return;
+      container.innerHTML = '';
+
+      // 1. Render default built-in phrases
+      let hiddenDefaults = [];
+      try {
+        hiddenDefaults = JSON.parse(localStorage.getItem('zenbo_hidden_phrases') || '[]');
+      } catch (e) {}
+
+      DEFAULT_SPEECH_PHRASES.forEach(item => {
+        if (hiddenDefaults.includes(item.key)) return;
+        const chip = createPhraseChip(item.text, `${item.icon} ${item.label}`, null, item.key);
+        container.appendChild(chip);
+      });
+
+      // 2. Fetch custom phrases from Core API
+      try {
+        const res = typeof ZenboCommon !== 'undefined'
+          ? await ZenboCommon.api(`${API_BASE}/api/v1/speech-phrases?limit=30`)
+          : await fetch(`${API_BASE}/api/v1/speech-phrases?limit=30`);
+        if (!res || !res.ok) return;
+        const data = await res.json();
+        const phrases = data.phrases || [];
+        phrases.forEach(p => {
+          if (!p.text) return;
+          const short = p.text.length > 22 ? p.text.substring(0, 21) + '...' : p.text;
+          const chip = createPhraseChip(p.text, `💬 ${short}`, p.id, null);
+          container.appendChild(chip);
+        });
+      } catch (e) {
+        console.warn('Could not load speech phrases from API:', e);
+      }
+    }
+
+    function createPhraseChip(fullText, displayLabel, phraseId, defaultKey) {
+      const chip = document.createElement('div');
+      chip.className = 'quick-phrase-chip group inline-flex items-center bg-slate-700/80 hover:bg-slate-600/90 border border-slate-600/70 hover:border-slate-500 rounded-lg pl-2.5 pr-1 py-1 text-[11px] text-slate-200 transition shadow-sm';
+
+      const textBtn = document.createElement('button');
+      textBtn.type = 'button';
+      textBtn.className = 'truncate text-left cursor-pointer focus:outline-none max-w-[170px] sm:max-w-none';
+      textBtn.textContent = displayLabel;
+      textBtn.title = fullText;
+      textBtn.onclick = () => fillQuickPhrase(fullText);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'ml-1.5 w-4 h-4 rounded flex items-center justify-center text-slate-400 hover:text-red-300 hover:bg-slate-800 active:scale-90 text-[9px] font-bold transition cursor-pointer shrink-0';
+      delBtn.title = 'ลบประโยคนี้';
+      delBtn.setAttribute('aria-label', `ลบประโยค ${displayLabel}`);
+      delBtn.innerHTML = '✕';
+      delBtn.onclick = (e) => deleteQuickPhrase(e, phraseId, chip, defaultKey);
+
+      chip.appendChild(textBtn);
+      chip.appendChild(delBtn);
+      return chip;
+    }
+
+    async function deleteQuickPhrase(event, phraseId, chipEl, defaultKey) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      if (defaultKey) {
+        let hidden = [];
+        try {
+          hidden = JSON.parse(localStorage.getItem('zenbo_hidden_phrases') || '[]');
+        } catch (e) {}
+        if (!hidden.includes(defaultKey)) {
+          hidden.push(defaultKey);
+          localStorage.setItem('zenbo_hidden_phrases', JSON.stringify(hidden));
+        }
+      } else if (phraseId) {
+        try {
+          const res = typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/speech-phrases/${phraseId}`, { method: 'DELETE' })
+            : await fetch(`${API_BASE}/api/v1/speech-phrases/${phraseId}`, { method: 'DELETE' });
+          if (!res || !res.ok) {
+            const err = res ? await res.json().catch(() => ({})) : {};
+            throw new Error(err.detail || 'ลบไม่สำเร็จ');
+          }
+        } catch (err) {
+          alert(`ลบประโยคด่วนไม่สำเร็จ: ${err.message}`);
+          return;
+        }
+      }
+
+      if (chipEl) {
+        chipEl.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        chipEl.style.opacity = '0';
+        chipEl.style.transform = 'scale(0.8)';
+        setTimeout(() => chipEl.remove(), 200);
+      }
+      if (typeof ZenboCommon !== 'undefined' && ZenboCommon.toast) {
+        ZenboCommon.toast('ลบประโยคด่วนเรียบร้อยแล้ว', 'info');
+      }
+    }
+
+    installDriveControls();
+    document.querySelectorAll('[data-open-panel]').forEach(link => link.addEventListener('click', () => {
+      const panel = document.getElementById(link.dataset.openPanel);
+      if (panel) panel.open = true;
+    }));
+    if (window.ZenboTwin3D && window.ZenboTwin3D.isSupported()) {
+      const hbCanvas = document.getElementById('heartbeat-3d-canvas');
+      if (hbCanvas) hbCanvas.style.display = 'none';
+      window.ZenboTwinInstance = window.ZenboTwin3D.init('#heartbeat-3d-container', {
+        mode: 'full',
+        interactive: true,
+        onFaceTap: () => {
+          const panel = document.getElementById('expression-control');
+          if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth' }); }
+        },
+        onBaseTap: () => {
+          const panel = document.getElementById('expression-control');
+          if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth' }); }
+        }
+      });
+    } else if (window.ZenboHeartbeat3D) {
+      window.ZenboHeartbeat3D.init();
+    }
     discoverRobots();
-    setInterval(discoverRobots, 10000);
+    setInterval(discoverRobots, 4000);
+    async function openAiModal() {
+      const modal = document.getElementById('ai-modal');
+      if (!modal) return;
+      modal.showModal();
+      try {
+        const res = typeof ZenboCommon !== 'undefined'
+          ? await ZenboCommon.api(`${API_BASE}/api/v1/admin/ai-provider`)
+          : await fetch(`${API_BASE}/api/v1/admin/ai-provider`);
+        if (res && res.ok) {
+          const data = await res.json();
+          document.getElementById('ai-provider').value = data.provider || 'kku_intellisphere';
+          document.getElementById('ai-base-url').value = data.base_url || '';
+          document.getElementById('ai-model').value = data.model || '';
+          document.getElementById('ai-key-masked').textContent = data.has_key ? `คีย์ปัจจุบัน: ${data.key_masked} (ปลอดภัย)` : 'คีย์ปัจจุบัน: ยังไม่ได้ตั้งค่า';
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function saveAiProvider(e) {
+      e.preventDefault();
+      const status = document.getElementById('ai-test-result');
+      const provider = document.getElementById('ai-provider').value;
+      const base_url = document.getElementById('ai-base-url').value;
+      const model = document.getElementById('ai-model').value;
+      const api_key = document.getElementById('ai-key').value;
+
+      status.textContent = 'กำลังบันทึก...';
+      try {
+        const res = typeof ZenboCommon !== 'undefined'
+          ? await ZenboCommon.api(`${API_BASE}/api/v1/admin/ai-provider`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ provider, base_url, model, api_key: api_key || undefined })
+            })
+          : await fetch(`${API_BASE}/api/v1/admin/ai-provider`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ provider, base_url, model, api_key: api_key || undefined })
+            });
+        if (res && res.ok) {
+          status.textContent = '✅ บันทึกการตั้งค่าสำเร็จ';
+          status.className = 'min-h-4 text-[10px] text-center text-emerald-400 font-semibold';
+          setTimeout(() => document.getElementById('ai-modal').close(), 1000);
+        } else {
+          status.textContent = '❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถตั้งค่าได้';
+          status.className = 'min-h-4 text-[10px] text-center text-red-400';
+        }
+      } catch (err) {
+        status.textContent = '❌ บันทึกไม่สำเร็จ';
+      }
+    }
+
+    async function testAiConnection() {
+      const status = document.getElementById('ai-test-result');
+      status.textContent = 'กำลังส่งประโยคทดสอบ...';
+      status.className = 'min-h-4 text-[10px] text-center text-slate-300';
+      try {
+        const res = typeof ZenboCommon !== 'undefined'
+          ? await ZenboCommon.api(`${API_BASE}/api/v1/admin/ai-provider/test`, { method: 'POST' })
+          : await fetch(`${API_BASE}/api/v1/admin/ai-provider/test`, { method: 'POST' });
+        if (res && res.ok) {
+          const data = await res.json();
+          status.textContent = `✅ เชื่อมต่อสำเร็จ (${data.latency_ms} ms)`;
+          status.className = 'min-h-4 text-[10px] text-center text-emerald-400 font-semibold';
+        } else {
+          status.textContent = '❌ ทดสอบไม่สำเร็จ — ตรวจสอบเครือข่ายหรือสิทธิ์ Admin';
+          status.className = 'min-h-4 text-[10px] text-center text-red-400';
+        }
+      } catch (err) {
+        status.textContent = '❌ เกิดข้อผิดพลาดในการทดสอบ';
+      }
+    }
+
+    // =========================================================================
+    // 3D Heartbeat Holographic Pulse Visualizer (Three.js WebGL)
+    // =========================================================================
+    const ZenboHeartbeat3D = (() => {
+      let scene, camera, renderer;
+      let coreGroup, innerCore, wireIcosa, outerDodeca, haloRing, shockRing;
+      let particleSystem, ecgLine, tracerParticle;
+      let animId = null;
+      let isVisible = true;
+      let pulsePhase = 0;
+      let targetPulseScale = 1.0;
+      let currentPulseScale = 1.0;
+      let shockwaveScale = 1.0;
+      let shockwaveOpacity = 0.0;
+      let lastHeartbeatTimestamp = 0;
+      let state = 'disconnected'; // 'connected' | 'warning' | 'disconnected'
+      let isDragging = false;
+      let prevMouseX = 0, prevMouseY = 0;
+      let targetRotX = 0.2, targetRotY = 0.4;
+      let currentRotX = 0.2, currentRotY = 0.4;
+
+      const COLOR_HEALTHY_CORE = 0x10b981; // Emerald
+      const COLOR_HEALTHY_GLOW = 0x06b6d4; // Cyan
+      const COLOR_WARN_CORE = 0xf59e0b;    // Amber
+      const COLOR_WARN_GLOW = 0xd97706;
+      const COLOR_OFFLINE_CORE = 0xef4444; // Crimson
+      const COLOR_OFFLINE_GLOW = 0x7f1d1d;
+
+      const ECG_POINTS_COUNT = 100;
+      let ecgPositions;
+      let ecgTime = 0;
+
+      function init() {
+        const container = document.getElementById('heartbeat-3d-container');
+        const canvas = document.getElementById('heartbeat-3d-canvas');
+        if (!container || !canvas || typeof THREE === 'undefined') return;
+
+        const width = container.clientWidth || 340;
+        const height = container.clientHeight || 190;
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+        camera.position.set(0, 0, 5.8);
+
+        renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(width, height, false);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+        coreGroup = new THREE.Group();
+        scene.add(coreGroup);
+
+        // 1. Inner Glowing Solid Core
+        const innerGeo = new THREE.SphereGeometry(0.48, 20, 20);
+        const innerMat = new THREE.MeshBasicMaterial({ color: COLOR_OFFLINE_CORE, transparent: true, opacity: 0.7 });
+        innerCore = new THREE.Mesh(innerGeo, innerMat);
+        coreGroup.add(innerCore);
+
+        // 2. Wireframe Icosahedron (Heart Matrix)
+        const wireGeo = new THREE.IcosahedronGeometry(0.85, 1);
+        const wireMat = new THREE.MeshBasicMaterial({ color: COLOR_OFFLINE_CORE, wireframe: true, transparent: true, opacity: 0.65 });
+        wireIcosa = new THREE.Mesh(wireGeo, wireMat);
+        coreGroup.add(wireIcosa);
+
+        // 3. Outer Dodecahedron Cage
+        const dodecaGeo = new THREE.DodecahedronGeometry(1.2, 1);
+        const dodecaMat = new THREE.MeshBasicMaterial({ color: 0x64748b, wireframe: true, transparent: true, opacity: 0.25 });
+        outerDodeca = new THREE.Mesh(dodecaGeo, dodecaMat);
+        coreGroup.add(outerDodeca);
+
+        // 4. Halo Gyro Ring
+        const haloGeo = new THREE.TorusGeometry(1.5, 0.015, 16, 64);
+        const haloMat = new THREE.MeshBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.35 });
+        haloRing = new THREE.Mesh(haloGeo, haloMat);
+        haloRing.rotation.x = Math.PI / 3;
+        coreGroup.add(haloRing);
+
+        // 5. Shockwave Ring (expands on each systolic beat)
+        const shockGeo = new THREE.TorusGeometry(1.0, 0.025, 16, 64);
+        const shockMat = new THREE.MeshBasicMaterial({ color: COLOR_HEALTHY_CORE, transparent: true, opacity: 0 });
+        shockRing = new THREE.Mesh(shockGeo, shockMat);
+        shockRing.rotation.x = Math.PI / 2.5;
+        coreGroup.add(shockRing);
+
+        // 6. Orbital Particle Cloud (120 particles)
+        const pCount = 120;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pCount * 3);
+        for (let i = 0; i < pCount; i++) {
+          const theta = Math.random() * Math.PI * 2;
+          const phi = (Math.random() - 0.5) * Math.PI * 0.7;
+          const rad = 1.35 + Math.random() * 0.7;
+          pPos[i * 3] = Math.cos(theta) * Math.cos(phi) * rad;
+          pPos[i * 3 + 1] = Math.sin(phi) * rad;
+          pPos[i * 3 + 2] = Math.sin(theta) * Math.cos(phi) * rad;
+        }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const pMat = new THREE.PointsMaterial({ color: COLOR_HEALTHY_GLOW, size: 0.045, transparent: true, opacity: 0.65 });
+        particleSystem = new THREE.Points(pGeo, pMat);
+        coreGroup.add(particleSystem);
+
+        // 7. 3D ECG Pulse Wave Ribbon
+        const ecgGeo = new THREE.BufferGeometry();
+        ecgPositions = new Float32Array(ECG_POINTS_COUNT * 3);
+        for (let i = 0; i < ECG_POINTS_COUNT; i++) {
+          const x = (i / (ECG_POINTS_COUNT - 1) - 0.5) * 4.2;
+          ecgPositions[i * 3] = x;
+          ecgPositions[i * 3 + 1] = -1.1;
+          ecgPositions[i * 3 + 2] = 0.5;
+        }
+        ecgGeo.setAttribute('position', new THREE.BufferAttribute(ecgPositions, 3));
+        const ecgMat = new THREE.LineBasicMaterial({ color: COLOR_OFFLINE_CORE, transparent: true, opacity: 0.7 });
+        ecgLine = new THREE.Line(ecgGeo, ecgMat);
+        scene.add(ecgLine);
+
+        // 8. Tracer Head Particle on ECG
+        const tracerGeo = new THREE.BufferGeometry();
+        tracerGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -1.1, 0.5]), 3));
+        const tracerMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.09, transparent: true, opacity: 0.95 });
+        tracerParticle = new THREE.Points(tracerGeo, tracerMat);
+        scene.add(tracerParticle);
+
+        // Interactive Drag Controls
+        canvas.addEventListener('pointerdown', e => {
+          isDragging = true;
+          prevMouseX = e.clientX;
+          prevMouseY = e.clientY;
+          canvas.setPointerCapture(e.pointerId);
+        });
+        canvas.addEventListener('pointermove', e => {
+          if (!isDragging) return;
+          const dx = e.clientX - prevMouseX;
+          const dy = e.clientY - prevMouseY;
+          prevMouseX = e.clientX;
+          prevMouseY = e.clientY;
+          targetRotY += dx * 0.008;
+          targetRotX += dy * 0.008;
+          targetRotX = Math.max(-0.8, Math.min(0.8, targetRotX));
+        });
+        const stopDrag = () => { isDragging = false; };
+        canvas.addEventListener('pointerup', stopDrag);
+        canvas.addEventListener('pointercancel', stopDrag);
+
+        // Resize Observer
+        const ro = new ResizeObserver(() => {
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          if (w && h && camera && renderer) {
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h, false);
+          }
+        });
+        ro.observe(container);
+
+        // Visibility listener for battery saving
+        document.addEventListener('visibilitychange', () => {
+          isVisible = !document.hidden;
+          if (isVisible && !animId) animate();
+        });
+
+        animate();
+      }
+
+      function triggerPulse() {
+        targetPulseScale = 1.32;
+        shockwaveScale = 0.9;
+        shockwaveOpacity = 0.95;
+      }
+
+      function updateEcgWave() {
+        if (!ecgPositions || !ecgLine) return;
+        ecgTime += (state === 'connected' ? 0.045 : (state === 'warning' ? 0.025 : 0.008));
+        const pos = ecgLine.geometry.attributes.position.array;
+        const baseline = -1.05;
+        let tracerX = 0, tracerY = baseline;
+
+        for (let i = 0; i < ECG_POINTS_COUNT; i++) {
+          const normX = i / (ECG_POINTS_COUNT - 1);
+          const x = (normX - 0.5) * 4.4;
+          pos[i * 3] = x;
+          pos[i * 3 + 2] = 0.6 + Math.sin(normX * Math.PI) * 0.3;
+
+          if (state === 'disconnected') {
+            pos[i * 3 + 1] = baseline + (Math.random() - 0.5) * 0.015;
+          } else {
+            const wavePhase = (normX * 3.0 - ecgTime) % 1.0;
+            const p = (wavePhase + 1.0) % 1.0;
+            let y = 0;
+            if (p > 0.68 && p < 0.73) {
+              y = Math.sin((p - 0.68) / 0.05 * Math.PI) * 0.08;
+            } else if (p >= 0.73 && p < 0.76) {
+              y = -Math.sin((p - 0.73) / 0.03 * Math.PI) * 0.06;
+            } else if (p >= 0.76 && p < 0.81) {
+              const rNorm = (p - 0.76) / 0.05;
+              if (rNorm < 0.5) y = rNorm * 2.0 * 0.65;
+              else y = 0.65 - (rNorm - 0.5) * 2.0 * 0.85;
+            } else if (p >= 0.81 && p < 0.84) {
+              y = -0.2 * (1.0 - (p - 0.81) / 0.03);
+            } else if (p >= 0.87 && p < 0.95) {
+              y = Math.sin((p - 0.87) / 0.08 * Math.PI) * 0.14;
+            }
+            pos[i * 3 + 1] = baseline + y;
+            if (normX >= 0.78 && normX <= 0.82) {
+              tracerX = x;
+              tracerY = baseline + y;
+            }
+          }
+        }
+        ecgLine.geometry.attributes.position.needsUpdate = true;
+
+        if (tracerParticle) {
+          const tPos = tracerParticle.geometry.attributes.position.array;
+          tPos[0] = tracerX;
+          tPos[1] = tracerY;
+          tracerParticle.geometry.attributes.position.needsUpdate = true;
+        }
+      }
+
+      function updateTheme(newState) {
+        if (state === newState) return;
+        state = newState;
+        const colorCore = state === 'connected' ? COLOR_HEALTHY_CORE : (state === 'warning' ? COLOR_WARN_CORE : COLOR_OFFLINE_CORE);
+        const colorGlow = state === 'connected' ? COLOR_HEALTHY_GLOW : (state === 'warning' ? COLOR_WARN_GLOW : COLOR_OFFLINE_GLOW);
+
+        if (innerCore) innerCore.material.color.setHex(colorCore);
+        if (wireIcosa) wireIcosa.material.color.setHex(colorCore);
+        if (outerDodeca) outerDodeca.material.color.setHex(colorGlow);
+        if (shockRing) shockRing.material.color.setHex(colorCore);
+        if (particleSystem) particleSystem.material.color.setHex(colorGlow);
+        if (ecgLine) ecgLine.material.color.setHex(colorCore);
+      }
+
+      function animate() {
+        if (!isVisible) {
+          animId = null;
+          return;
+        }
+        animId = requestAnimationFrame(animate);
+
+        if (!isDragging) {
+          targetRotY += 0.007;
+        }
+        currentRotX += (targetRotX - currentRotX) * 0.08;
+        currentRotY += (targetRotY - currentRotY) * 0.08;
+        if (coreGroup) {
+          coreGroup.rotation.x = currentRotX;
+          coreGroup.rotation.y = currentRotY;
+          if (wireIcosa) wireIcosa.rotation.z += 0.005;
+          if (outerDodeca) outerDodeca.rotation.y -= 0.004;
+          if (haloRing) haloRing.rotation.z += 0.003;
+          if (particleSystem) particleSystem.rotation.y += 0.002;
+        }
+
+        pulsePhase += (state === 'connected' ? 0.08 : (state === 'warning' ? 0.04 : 0.015));
+        const continuousPulse = 1.0 + Math.sin(pulsePhase) * 0.05;
+        currentPulseScale += (targetPulseScale - currentPulseScale) * 0.15;
+        targetPulseScale += (1.0 - targetPulseScale) * 0.08;
+
+        const finalScale = currentPulseScale * continuousPulse;
+        if (innerCore) innerCore.scale.set(finalScale, finalScale, finalScale);
+        if (wireIcosa) wireIcosa.scale.set(finalScale, finalScale, finalScale);
+
+        if (shockwaveOpacity > 0.01 && shockRing) {
+          shockwaveScale += 0.065;
+          shockwaveOpacity *= 0.93;
+          shockRing.scale.set(shockwaveScale, shockwaveScale, shockwaveScale);
+          shockRing.material.opacity = shockwaveOpacity;
+        } else if (shockRing) {
+          shockRing.material.opacity = 0;
+        }
+
+        updateEcgWave();
+
+        if (renderer && scene && camera) {
+          renderer.render(scene, camera);
+        }
+      }
+
+      function update(robot) {
+        const pulseDot = document.getElementById('hb-pulse-dot');
+        const bpmEl = document.getElementById('hb-bpm');
+        const latencyEl = document.getElementById('hb-latency');
+        const battText = document.getElementById('hb-battery-text');
+        const battIcon = document.getElementById('hb-battery-icon');
+        const brokerModeEl = document.getElementById('hb-broker-mode');
+        const brokerDetailEl = document.getElementById('hb-broker-detail');
+        const safetyEl = document.getElementById('hb-safety-text');
+
+        if (!robot) {
+          updateTheme('disconnected');
+          if (bpmEl) { bpmEl.textContent = 'OFFLINE'; bpmEl.className = 'font-bold text-red-400'; }
+          if (latencyEl) latencyEl.textContent = '(รอสัญญาณ)';
+          if (pulseDot) pulseDot.className = 'inline-block w-2 h-2 rounded-full bg-red-500';
+          if (battText) battText.textContent = '--%';
+          if (brokerDetailEl) brokerDetailEl.textContent = 'รอการเชื่อมต่อ...';
+          return;
+        }
+
+        const age = Number(robot.age_seconds || 0);
+        const isHealthy = age <= 6;
+        const isWarning = age > 6 && age <= 18;
+
+        if (isHealthy) {
+          updateTheme('connected');
+          if (bpmEl) { bpmEl.textContent = '12 BPM'; bpmEl.className = 'font-bold text-emerald-300'; }
+          if (latencyEl) { latencyEl.textContent = `(${age}s ที่แล้ว)`; }
+          if (pulseDot) { pulseDot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping'; }
+        } else if (isWarning) {
+          updateTheme('warning');
+          if (bpmEl) { bpmEl.textContent = 'DELAY'; bpmEl.className = 'font-bold text-amber-400'; }
+          if (latencyEl) { latencyEl.textContent = `(${age}s ล่าช้า)`; }
+          if (pulseDot) { pulseDot.className = 'inline-block w-2 h-2 rounded-full bg-amber-400'; }
+        } else {
+          updateTheme('disconnected');
+          if (bpmEl) { bpmEl.textContent = 'STALE'; bpmEl.className = 'font-bold text-red-400'; }
+          if (latencyEl) { latencyEl.textContent = `(${age}s ขาดช่วง)`; }
+          if (pulseDot) { pulseDot.className = 'inline-block w-2 h-2 rounded-full bg-red-500'; }
+        }
+
+        const ts = robot.timestamp_ms || Date.now();
+        if (ts !== lastHeartbeatTimestamp && isHealthy) {
+          lastHeartbeatTimestamp = ts;
+          triggerPulse();
+        }
+
+        // Battery telemetry
+        if (battText && battIcon) {
+          const batt = robot.battery;
+          if (batt && batt.level >= 0) {
+            battText.textContent = `${batt.level}%`;
+            if (batt.charging) {
+              battIcon.className = 'fa-solid fa-bolt text-amber-400 animate-pulse';
+            } else if (batt.level > 70) {
+              battIcon.className = 'fa-solid fa-battery-full text-emerald-400';
+            } else if (batt.level > 30) {
+              battIcon.className = 'fa-solid fa-battery-half text-cyan-400';
+            } else {
+              battIcon.className = 'fa-solid fa-battery-quarter text-red-400 animate-pulse';
+            }
+          } else {
+            battText.textContent = '--%';
+            battIcon.className = 'fa-solid fa-battery-three-quarters text-slate-500';
+          }
+        }
+
+        // Broker telemetry
+        if (brokerModeEl && brokerDetailEl) {
+          const broker = robot.broker;
+          if (broker && broker.mode) {
+            brokerModeEl.textContent = broker.mode;
+            brokerDetailEl.textContent = broker.summary || (robot.client_ip ? 'IP: ' + robot.client_ip : 'Broker Active');
+          } else if (robot.client_ip) {
+            brokerModeEl.textContent = 'ACTIVE';
+            brokerDetailEl.textContent = 'IP: ' + robot.client_ip;
+          }
+        }
+
+        // Safety Guard telemetry
+        if (safetyEl) {
+          const guard = robot.safety_guard;
+          if (guard) {
+            safetyEl.textContent = guard.collision_guard_enabled ? 'Guard: ON' : 'Guard: OFF';
+            safetyEl.className = guard.collision_guard_enabled ? 'text-emerald-300 font-semibold text-[10px]' : 'text-amber-400 font-semibold text-[10px]';
+          }
+        }
+      }
+
+      return { init, update, triggerPulse };
+    })();
+    window.ZenboHeartbeat3D = ZenboHeartbeat3D;
+
+    loadSpeechPhrases();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initExpressionAndActionCatalog);
+    } else {
+      initExpressionAndActionCatalog();
+    }
+
+    // Initialize 3D Twin Collapse preference
+    try {
+      if (localStorage.getItem('zenbo_twin_collapsed') === 'true') {
+        toggleTwinCollapse(true);
+      }
+    } catch (e) {}
+
+    // Initialize Default Tab from URL Hash or Session Storage
+    const initialHash = window.location.hash || '';
+    const savedTab = sessionStorage.getItem('zenbo_active_tab');
+    if (initialHash.includes('speech')) switchMainTab('speech');
+    else if (initialHash.includes('drive')) switchMainTab('drive');
+    else if (initialHash.includes('action') || initialHash.includes('expression')) switchMainTab('actions');
+    else if (initialHash.includes('entertainment')) switchMainTab('entertainment');
+    else if (savedTab) switchMainTab(savedTab);
+    else switchMainTab('ai');
+
+    window.addEventListener('hashchange', () => {
+      const h = window.location.hash || '';
+      if (h.includes('speech')) switchMainTab('speech');
+      else if (h.includes('drive')) switchMainTab('drive');
+      else if (h.includes('action') || h.includes('expression')) switchMainTab('actions');
+      else if (h.includes('entertainment')) switchMainTab('entertainment');
+      else if (h.includes('ai')) switchMainTab('ai');
+    });
 
     async function emergencyStop() {
       try {
-        const path = selectedRobot
-          ? `/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`
-          : '/api/v1/robot/stop';
-        const res = await fetch(`${API_BASE}${path}`, { method: 'POST' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        alert(`🛑 สั่งหยุด ${selectedRobot || 'ทุกเครื่อง'} เรียบร้อยแล้ว`);
+        if (!selectedRobots.length) {
+          const res = typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/robot/stop`, { method: 'POST' })
+            : await fetch(`${API_BASE}/api/v1/robot/stop`, { method: 'POST' });
+          if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+          alert('🛑 สั่งหยุดฉุกเฉินทุกเครื่องเรียบร้อยแล้ว');
+          return;
+        }
+        await Promise.all(selectedRobots.map(async slug => {
+          return typeof ZenboCommon !== 'undefined'
+            ? await ZenboCommon.api(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/stop`, { method: 'POST' })
+            : await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(slug)}/stop`, { method: 'POST' });
+        }));
+        if (typeof ZenboCommon !== 'undefined' && ZenboCommon.haptic) ZenboCommon.haptic();
+        alert(`🛑 สั่งหยุดฉุกเฉิน (${selectedRobots.length} เครื่อง) เรียบร้อยแล้ว`);
       } catch (err) {
-        console.error(err);
+        console.error('Emergency stop error:', err);
       }
     }
   </script>

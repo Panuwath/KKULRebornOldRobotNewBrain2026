@@ -1,0 +1,11 @@
+{
+  "name": "Zenbo Scenario Confirm Gateway",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"zenbo-scenario-confirm","responseMode":"responseNode","options":{}},"id":"scenario-confirm-webhook","name":"Receive Explicit Confirmation","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[260,300],"webhookId":"zenbo-scenario-confirm"},
+    {"parameters":{"method":"POST","url":"={{ $env.CORE_API_URL }}/api/v1/scenario-runs/{{ $json.body.run_id }}/confirm","options":{"timeout":15000}},"id":"confirm-run","name":"Confirm Run in Core","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[520,300]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{}},"id":"respond-confirmation","name":"Return Dispatch State","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.1,"position":[780,300]}
+  ],
+  "connections":{"Receive Explicit Confirmation":{"main":[[{"node":"Confirm Run in Core","type":"main","index":0}]]},"Confirm Run in Core":{"main":[[{"node":"Return Dispatch State","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"staticData":null,
+  "tags":[{"name":"zenbo"},{"name":"scenario"},{"name":"explicit-confirmation"}]
+}

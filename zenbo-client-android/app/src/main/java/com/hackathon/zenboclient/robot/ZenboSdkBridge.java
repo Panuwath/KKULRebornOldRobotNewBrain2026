@@ -13,16 +13,24 @@ import com.asus.robotframework.API.RobotCmdState;
 import com.asus.robotframework.API.RobotCommand;
 import com.asus.robotframework.API.RobotErrorCode;
 import com.asus.robotframework.API.RobotFace;
+import com.asus.robotframework.API.SpeakConfig;
 import com.asus.robotframework.API.RobotUtil;
 import com.asus.robotframework.API.WheelLights;
 import com.asus.robotframework.API.VisionConfig;
 import com.hackathon.zenboclient.model.InteractCommand;
 import java.util.ArrayList;
 
-public class ZenboSdkBridge {
+public class ZenboSdkBridge implements RobotMotionBridge {
     private static final String TAG = "ZenboSdkBridge";
     private RobotAPI mRobotAPI;
     private boolean mIsInitialized = false;
+
+    // Guard overlapping vision requests; the IrpPerceptionModule native service
+    // crashes on many Zenbo firmware builds if detect requests overlap or camera
+    // preview is enabled repeatedly.
+    private String mActiveVisionAction = null;
+    private long mLastVisionRequestMs = 0L;
+    private static final long VISION_COOLDOWN_MS = 750L;
 
     public interface ActionCallback {
         void onActionState(String status);
@@ -31,6 +39,12 @@ public class ZenboSdkBridge {
     }
 
     private ActionCallback mActionCallback;
+
+    @Override
+    /** True only after the SDK's initComplete callback, never merely after construction. */
+    public boolean isReady() {
+        return mIsInitialized;
+    }
 
     public void init(Context context, ActionCallback callback) {
         this.mActionCallback = callback;
@@ -161,7 +175,8 @@ public class ZenboSdkBridge {
         if (mRobotAPI == null) return;
         try {
             RobotFace face = RobotFace.valueOf(normalizeFaceName(faceName));
-            mRobotAPI.robot.setExpression(face);
+            int res = mRobotAPI.robot.setExpression(face);
+            Log.i(TAG, "setExpression(" + face + ") returned: " + res);
         } catch (Exception e) {
             Log.w(TAG, "Unknown RobotFace: " + faceName + ", using DEFAULT");
             mRobotAPI.robot.setExpression(RobotFace.DEFAULT);
@@ -169,9 +184,15 @@ public class ZenboSdkBridge {
     }
 
     public void speak(String text) {
+        speak(text, 5);
+    }
+
+    /** Speak through Zenbo's hardware TTS path at the operator-selected level. */
+    public void speak(String text, int volumePercent) {
         if (mRobotAPI == null) return;
         try {
-            mRobotAPI.robot.speak(text);
+            int volume = Math.max(0, Math.min(100, volumePercent));
+            mRobotAPI.robot.speak(text, new SpeakConfig().volume(volume));
         } catch (Exception e) {
             Log.e(TAG, "speak failed: " + e.getMessage(), e);
         }
@@ -186,6 +207,27 @@ public class ZenboSdkBridge {
         }
     }
 
+    /** Animate Zenbo's face while externally synthesized Thai WAV is audible. */
+    public void startThaiSpeechFaceAnimation(String text) {
+        if (mRobotAPI == null) return;
+        try {
+            mRobotAPI.robot.startFaceSpeakAnimation();
+        } catch (Exception e) {
+            Log.w(TAG, "start Thai face animation failed: " + e.getMessage());
+        }
+    }
+
+    public void stopThaiSpeechFaceAnimation() {
+        if (mRobotAPI == null) return;
+        try {
+            mRobotAPI.robot.stopSpeak();
+            mRobotAPI.robot.stopFaceSpeakAnimation();
+        } catch (Exception e) {
+            Log.w(TAG, "stop Thai face animation failed: " + e.getMessage());
+        }
+    }
+
+    @Override
     public void moveBody(float x, float y, float theta, int speedLevel) {
         if (mRobotAPI == null) return;
         try {
@@ -211,9 +253,28 @@ public class ZenboSdkBridge {
     public void playAction(int actionId) {
         if (mRobotAPI == null) return;
         try {
-            mRobotAPI.utility.playAction(actionId);
+            int res = mRobotAPI.utility.playAction(actionId);
+            Log.i(TAG, "playAction(" + actionId + ") returned: " + res);
+            if (mActionCallback != null) {
+                mActionCallback.onActionState("ACTION_PLAYED_" + res);
+            }
         } catch (Exception e) {
             Log.e(TAG, "playAction failed: " + e.getMessage(), e);
+        }
+    }
+
+    public void playEmotionalAction(String faceName, int actionId) {
+        if (mRobotAPI == null) return;
+        try {
+            RobotFace face = RobotFace.valueOf(normalizeFaceName(faceName));
+            mRobotAPI.robot.setExpression(face);
+            int res = mRobotAPI.utility.playEmotionalAction(face, actionId);
+            Log.i(TAG, "playEmotionalAction(" + face + ", " + actionId + ") returned: " + res);
+            if (mActionCallback != null) {
+                mActionCallback.onActionState("EMOTIONAL_ACTION_PLAYED_" + res);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "playEmotionalAction failed: " + e.getMessage(), e);
         }
     }
 
@@ -288,21 +349,37 @@ public class ZenboSdkBridge {
 
     public void runVision(String action, int intervalMs, Integer trackId, boolean debugPreview) {
         if (mRobotAPI == null || action == null) return;
+        String normalizedAction = action.toLowerCase();
+        long now = System.currentTimeMillis();
+        if (now - mLastVisionRequestMs < VISION_COOLDOWN_MS) {
+            Log.w(TAG, "Vision request throttled: " + normalizedAction);
+            return;
+        }
         try {
-            switch (action.toLowerCase()) {
+            // Cancel any overlapping detect before starting a new one.  The
+            // IrpPerceptionModule native service is not reentrant on many Zenbo
+            // firmware builds and crashes if requests overlap.
+            if (!normalizedAction.startsWith("cancel_") && mActiveVisionAction != null) {
+                cancelVisionInternal(mActiveVisionAction);
+            }
+            switch (normalizedAction) {
                 case "detect_face":
                     VisionConfig.FaceDetectConfig faceConfig = new VisionConfig.FaceDetectConfig();
-                    faceConfig.intervalInMS = intervalMs;
-                    faceConfig.enableDebugPreview = debugPreview;
+                    faceConfig.intervalInMS = Math.max(1000, intervalMs);
+                    // Camera debug preview is the most common trigger for the
+                    // IrpPerceptionModule crash.  Disable it by default.
+                    faceConfig.enableDebugPreview = false;
                     faceConfig.enableDetectHead = true;
                     mRobotAPI.vision.requestDetectFace(faceConfig);
+                    mActiveVisionAction = normalizedAction;
                     break;
                 case "detect_person":
                     VisionConfig.PersonDetectConfig personConfig = new VisionConfig.PersonDetectConfig();
-                    personConfig.intervalInMS = intervalMs;
-                    personConfig.enableDebugPreview = debugPreview;
+                    personConfig.intervalInMS = Math.max(1000, intervalMs);
+                    personConfig.enableDebugPreview = false;
                     if (trackId != null) personConfig.trackId = trackId;
                     mRobotAPI.vision.requestDetectPerson(personConfig);
+                    mActiveVisionAction = normalizedAction;
                     break;
                 case "gesture_point":
                     if (trackId == null) mRobotAPI.vision.requestGesturePoint(intervalMs);
@@ -316,9 +393,11 @@ public class ZenboSdkBridge {
                     break;
                 case "cancel_face":
                     mRobotAPI.vision.cancelDetectFace();
+                    if ("detect_face".equals(mActiveVisionAction)) mActiveVisionAction = null;
                     break;
                 case "cancel_person":
                     mRobotAPI.vision.cancelDetectPerson();
+                    if ("detect_person".equals(mActiveVisionAction)) mActiveVisionAction = null;
                     break;
                 case "cancel_recognize":
                     mRobotAPI.vision.cancelRecognizePerson();
@@ -326,9 +405,43 @@ public class ZenboSdkBridge {
                 default:
                     Log.w(TAG, "Unsupported vision action: " + action);
             }
+            mLastVisionRequestMs = System.currentTimeMillis();
         } catch (Exception e) {
             Log.e(TAG, "Vision action failed: " + action, e);
+            if (normalizedAction.equals(mActiveVisionAction)) mActiveVisionAction = null;
         }
+    }
+
+    private void cancelVisionInternal(String action) {
+        if (mRobotAPI == null || action == null) return;
+        try {
+            switch (action) {
+                case "detect_face":
+                    mRobotAPI.vision.cancelDetectFace();
+                    break;
+                case "detect_person":
+                    mRobotAPI.vision.cancelDetectPerson();
+                    break;
+                case "recognize_person":
+                    mRobotAPI.vision.cancelRecognizePerson();
+                    break;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to cancel prior vision action: " + action, e);
+        }
+    }
+
+    /** Cancel any active detect/recognize request; call when scenario ends or
+     *  a new command stream starts, to prevent the IrpPerceptionModule from
+     *  holding camera resources past the command lifetime. */
+    public void cancelActiveVision() {
+        if (mActiveVisionAction != null) {
+            cancelVisionInternal(mActiveVisionAction);
+        }
+        cancelVisionInternal("detect_face");
+        cancelVisionInternal("detect_person");
+        cancelVisionInternal("recognize_person");
+        mActiveVisionAction = null;
     }
 
     public void controlWheelLights(InteractCommand.WheelLightsData settings) {
@@ -380,6 +493,7 @@ public class ZenboSdkBridge {
         }
     }
 
+    @Override
     public void emergencyStop() {
         if (mRobotAPI != null) {
             try {

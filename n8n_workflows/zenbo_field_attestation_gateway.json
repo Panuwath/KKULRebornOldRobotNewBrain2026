@@ -1,0 +1,11 @@
+{
+  "name": "Zenbo L7 Field Attestation Gateway",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"zenbo-field-attestation","responseMode":"responseNode","options":{}},"id":"attestation-webhook","name":"Receive Operator Field Check","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[260,300],"webhookId":"zenbo-field-attestation"},
+    {"parameters":{"method":"POST","url":"={{ $env.CORE_API_URL }}/api/v1/robots/{{ $json.body.robot_slug }}/field-attestation","sendHeaders":true,"headerParameters":{"parameters":[{"name":"X-Scenario-Registry-Token","value":"={{ $env.SCENARIO_REGISTRY_TOKEN }}"}]},"sendBody":true,"specifyBody":"json","jsonBody":"={{ JSON.stringify({ operator_name: $json.body.operator_name, tts_checked: $json.body.tts_checked, vision_checked: $json.body.vision_checked, display_checked: $json.body.display_checked, note: $json.body.note || '' }) }}","options":{"timeout":10000}},"id":"record-attestation","name":"Record L7 Attestation in Core","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[540,300]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{}},"id":"respond-attestation","name":"Return Attestation State","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.1,"position":[800,300]}
+  ],
+  "connections":{"Receive Operator Field Check":{"main":[[{"node":"Record L7 Attestation in Core","type":"main","index":0}]]},"Record L7 Attestation in Core":{"main":[[{"node":"Return Attestation State","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"staticData":null,
+  "tags":[{"name":"zenbo"},{"name":"safety"},{"name":"l7"}]
+}
