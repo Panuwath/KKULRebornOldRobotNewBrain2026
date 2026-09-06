@@ -64,3 +64,45 @@ def test_trace_filters_by_robot_slug(database, monkeypatch):
     result = command_trace.trace_command("cmd-shared", robot_slug="booky-b")
     assert result is not None
     assert result["robot_slug"] == "booky-b"
+
+
+def test_nested_relative_ack_trace_includes_gateway_and_terminal_events(database):
+    append = command_history_repository.append_command
+    append("booky-1", "relative_motion", "MQTT_PUBLISHED", {
+        "envelope": {"command_id": "relative-1"},
+        "acknowledgement": {"command_id": "relative-1", "state": "ACCEPTED"},
+    })
+    for state in ("APK_RECEIVED", "SDK_SUBMITTED", "SDK_STOP_REQUESTED"):
+        append("booky-1", "apk_motion_ack", state, {
+            "acknowledgement": {"command_id": "relative-1", "state": state},
+            "apk_sha256": "a" * 64,
+        })
+    append("other-robot", "apk_motion_ack", "REJECTED", {
+        "acknowledgement": {"command_id": "relative-1"}})
+    result = command_trace.trace_command("relative-1", "booky-1")
+    assert result is not None
+    assert result["status"] == "SDK_STOP_REQUESTED"
+    assert [event["status"] for event in result["events"]] == [
+        "MQTT_PUBLISHED", "APK_RECEIVED", "SDK_SUBMITTED", "SDK_STOP_REQUESTED"]
+    assert result["payload"]["apk_sha256"] == "a" * 64
+    assert result["physical_motion_verified"] is False
+    assert result["events_truncated"] is False
+
+
+def test_trace_accepts_envelope_only_and_keeps_latest_100_events(database):
+    for sequence in range(102):
+        command_history_repository.append_command("booky", "relative_motion", "APK_RECEIVED", {
+            "envelope": {"command_id": "bounded-trace"}, "sequence": sequence})
+    result = command_trace.trace_command("bounded-trace", "booky")
+    assert result is not None
+    assert len(result["events"]) == 100
+    assert result["events"][0]["payload"]["sequence"] == 2
+    assert result["events"][-1]["payload"]["sequence"] == 101
+    assert result["events_truncated"] is True
+
+
+def test_conflicting_nested_ids_do_not_cross_link_commands(database):
+    command_history_repository.append_command("booky", "relative_motion", "REJECTED", {
+        "command_id": "owner-id", "acknowledgement": {"command_id": "other-id"}})
+    assert command_trace.trace_command("other-id", "booky") is None
+    assert command_trace.trace_command("owner-id", "booky") is not None

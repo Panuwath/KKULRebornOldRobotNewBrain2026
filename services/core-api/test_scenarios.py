@@ -39,11 +39,15 @@ class ScenarioRunContractTest(unittest.TestCase):
         slug = "freshness-regression"
         self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"robot_slug":"spoofed"}')
         self.assertEqual(slug, self.core.robot_registry[slug]["robot_slug"])
+        received = self.core.robot_registry[slug]["heartbeat_received_at_ms"]
+        self.assertGreater(received, 0)
         self.core.robot_registry[slug]["last_seen"] = 1
         self.core._remember_robot(f"zenbo/{slug}/status/robot_state", '{"state":"READY"}')
         self.assertEqual(1, self.core.robot_registry[slug]["last_seen"])
+        self.assertEqual(received, self.core.robot_registry[slug]["heartbeat_received_at_ms"])
         self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"last_seen":9999999999}', retained=True)
         self.assertEqual(0, self.core.robot_registry[slug]["last_seen"])
+        self.assertEqual(0, self.core.robot_registry[slug]["heartbeat_received_at_ms"])
 
     def test_relative_ack_is_persisted_as_apk_evidence_without_physical_claim(self):
         from unittest.mock import patch
@@ -55,6 +59,37 @@ class ScenarioRunContractTest(unittest.TestCase):
         self.assertEqual("SDK_STOP_REQUESTED", args[2])
         self.assertEqual("trace-1", args[3]["acknowledgement"]["command_id"])
         self.assertFalse(args[3]["physical_velocity_verified"])
+
+    def test_incomplete_heartbeat_withdraws_previous_readiness(self):
+        slug = "incomplete-heartbeat"
+        self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '''{
+            "motion":{"body_relative":{"supported":true}}, "robot_api_ready":true,
+            "safety_monitor":{"active":true}, "apk_sha256":"approved", "version_name":"test"
+        }''')
+        self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{}')
+        robot = self.core.robot_registry[slug]
+        self.assertGreater(robot["heartbeat_received_at_ms"], 0)
+        for key in ("motion", "robot_api_ready", "safety_monitor", "apk_sha256", "version_name"):
+            self.assertNotIn(key, robot)
+        self.assertFalse(self.core._field_calibration_for_permit(robot)["ready"])
+
+    def test_trace_api_returns_correlated_receipts_and_heartbeat_timestamp(self):
+        from fastapi.testclient import TestClient
+        client = TestClient(self.core.app)
+        self.core.record_command_history("trace-api", "relative_motion", "MQTT_PUBLISHED", {
+            "envelope": {"command_id": "api-trace-1"}})
+        self.core._remember_robot("zenbo/trace-api/status/heartbeat", '{"heartbeat_received_at_ms":1}')
+        self.core._remember_robot("zenbo/trace-api/status/motion_ack",
+            '{"command_id":"api-trace-1","state":"SDK_SUBMITTED"}')
+        trace = client.get("/api/v1/robots/trace-api/commands/api-trace-1/trace")
+        self.assertEqual(200, trace.status_code)
+        self.assertEqual(["MQTT_PUBLISHED", "SDK_SUBMITTED"],
+                         [event["status"] for event in trace.json()["events"]])
+        self.assertFalse(trace.json()["physical_motion_verified"])
+        self.assertEqual(404, client.get("/api/v1/robots/wrong/commands/api-trace-1/trace").status_code)
+        robots = client.get("/api/v1/robots").json()["robots"]
+        robot = next(item for item in robots if item["robot_slug"] == "trace-api")
+        self.assertGreater(robot["heartbeat_received_at_ms"], 1)
 
     def test_intro_scenario_requires_confirmation_and_is_idempotent(self):
         request = self.core.ScenarioRunRequest(

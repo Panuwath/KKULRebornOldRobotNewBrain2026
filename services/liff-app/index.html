@@ -925,17 +925,7 @@
 
     function selectedMotionCapability() {
       const robot = robots.find(item => selectedRobots.includes(item.robot_slug));
-      if (!robot) return null;
-      const event = robot.last_events?.heartbeat || robot.last_event;
-      const heartbeat = event?.data || robot;
-      const body = heartbeat.motion?.body_relative;
-      if (!body) return null;
-      return {
-        supported: body.supported === true,
-        robot_api_ready: heartbeat.robot_api_ready === true,
-        reported_at_ms: Number(heartbeat.reported_at_ms || event?.received_at_ms),
-        policy_max_speed_level: Number(body.policy_max_speed_level)
-      };
+      return window.ZenboDriveControl.capabilityFromRobot(robot);
     }
 
     function renderMotionSpeedDeck() {
@@ -1173,6 +1163,8 @@
         }
         updateSafetyToggleUI(activeRobot);
       } catch (err) {
+        robots = [];
+        renderMotionSpeedDeck();
         document.getElementById('robot-list').innerHTML = '<p class="text-[11px] text-red-300">ติดต่อ Core API ไม่ได้</p>';
         if (window.ZenboTwinInstance) window.ZenboTwinInstance.update(null);
         if (window.ZenboHeartbeat3D) window.ZenboHeartbeat3D.update(null);

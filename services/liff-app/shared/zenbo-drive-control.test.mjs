@@ -100,3 +100,15 @@ assert.equal(drive.deriveState({robotSelected: true, nowMs: 10000,
   capability: {...freshCapability, reported_at_ms: 11000}}).reason, 'STALE_HEARTBEAT');
 assert.equal(drive.deriveState({robotSelected: true, nowMs: 10000,
   capability: {...freshCapability, supported: 'false'}}).enabled, false);
+
+// The API receipt timestamp, not another event or a robot-supplied clock, owns freshness.
+const apiRobot = {robot_slug: 'booky', robot_api_ready: true, heartbeat_received_at_ms: 9000,
+  motion: {body_relative: {supported: true, policy_max_speed_level: 3}},
+  last_event: {received_at_ms: 10000, data: {motion: {body_relative: {supported: true}}}}};
+assert.deepEqual(drive.capabilityFromRobot(apiRobot), {
+  supported: true, robot_api_ready: true, reported_at_ms: 9000, policy_max_speed_level: 3});
+assert.equal(drive.capabilityFromRobot(null), null);
+assert.equal(drive.deriveState({robotSelected: true, nowMs: 20001,
+  capability: drive.capabilityFromRobot(apiRobot)}).reason, 'STALE_HEARTBEAT');
+assert.equal(drive.deriveState({robotSelected: true, nowMs: 10000,
+  capability: drive.capabilityFromRobot({...apiRobot, heartbeat_received_at_ms: undefined})}).enabled, false);
