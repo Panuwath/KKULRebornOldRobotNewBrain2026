@@ -48,13 +48,27 @@ class OidcModuleTest(unittest.TestCase):
         os.environ["ZENBO_WEB_AUTH_ENABLED"] = "true"
         os.environ["ZENBO_WEB_AUTH_HOST"] = "lib.kku.ac.th"
 
-        # Insert a stub DB adapter so oidc.py can be imported without db.py.
+        # Save original db module and insert a stub DB adapter so oidc.py
+        # can be imported without a real database during this test class.
+        import importlib
+
+        cls._original_db = sys.modules.get("db")
         sys.modules["db"] = FakeDB()
 
         sys.path.insert(0, os.path.dirname(__file__))
         import oidc
 
+        # Reload with the test environment in case oidc was imported earlier.
+        importlib.reload(oidc)
         cls.oidc = oidc
+
+        def _restore_db_module():
+            if cls._original_db is None:
+                sys.modules.pop("db", None)
+            else:
+                sys.modules["db"] = cls._original_db
+
+        cls.addClassCleanup(_restore_db_module)
 
     def setUp(self):
         # Stub the persistence helpers so the tests never need a real database.
