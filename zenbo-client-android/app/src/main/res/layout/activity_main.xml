@@ -5,14 +5,18 @@
     android:orientation="vertical"
     android:padding="20dp"
     android:background="#0F172A"
-    android:gravity="center">
+    android:gravity="center_horizontal">
 
     <TextView
+        android:id="@+id/text_face_emoji"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="🤖"
         android:textSize="72sp"
         android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="แตะเพื่อแสดงใบหน้า Zenbo"
         android:layout_marginBottom="16dp" />
 
     <TextView
@@ -35,6 +39,35 @@
         android:gravity="center"
         android:layout_marginBottom="16dp" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="#123D2A"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/text_safety_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Operator Drive พร้อมใช้งาน"
+            android:textColor="#55E38E"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/text_safety_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="ควบคุมโดยผู้ดูแล — ตรวจพื้นที่ก่อนสั่งเคลื่อนที่"
+            android:textColor="#D1FAE5"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/text_speech_label"
         android:layout_width="match_parent"
@@ -50,13 +83,18 @@
         android:id="@+id/text_speech"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="72dp"
+        android:minHeight="56dp"
         android:text="รอข้อความจาก LIFF..."
         android:textSize="20sp"
         android:textColor="#FFFFFF"
         android:gravity="center"
-        android:maxLines="3"
-        android:ellipsize="end"
+        android:singleLine="true"
+        android:ellipsize="marquee"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:scrollHorizontally="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:contentDescription="ข้อความคำสั่งล่าสุดของ Zenbo"
         android:layout_marginBottom="16dp" />
 
     <TextView
@@ -69,15 +107,80 @@
         android:gravity="center"
         android:layout_marginBottom="16dp" />
 
-    <Button
-        android:id="@+id/btn_connect"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="เชื่อมต่อใหม่"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/btn_connect"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="เชื่อมต่อใหม่"
+            android:padding="16dp"
+            android:backgroundTint="#22C55E"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp" />
+
+        <Button
+            android:id="@+id/btn_switch_broker_mode"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="โหมด: AUTO"
+            android:padding="16dp"
+            android:backgroundTint="#0EA5E9"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_robot_face_mode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🤖 แสดงใบหน้าหุ่นยนต์ Zenbo (ย่อหน้าจอนี้)"
         android:padding="16dp"
-        android:backgroundTint="#22C55E"
+        android:backgroundTint="#F59E0B"
+        android:textColor="#0F172A"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp" />
+
+    <Button
+        android:id="@+id/btn_update"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ตรวจสอบอัปเดต APK"
+        android:padding="16dp"
+        android:backgroundTint="#2563EB"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
+        android:layout_marginBottom="6dp" />
+
+    <Button
+        android:id="@+id/btn_installation_complete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ยืนยันติดตั้งเสร็จแล้ว"
+        android:padding="16dp"
+        android:backgroundTint="#7C3AED"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/text_update"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="อัปเดตแบบผู้ดูแลยืนยัน"
+        android:textSize="12sp"
+        android:textColor="#93C5FD"
+        android:gravity="center"
         android:layout_marginBottom="16dp" />
 
     <TextView
@@ -88,4 +191,28 @@
         android:textSize="12sp"
         android:textColor="#64748B"
         android:gravity="center" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/text_bottom_ticker"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="10dp"
+        android:background="#1D4ED8"
+        android:ellipsize="marquee"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:gravity="center_vertical"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:paddingLeft="14dp"
+        android:paddingRight="14dp"
+        android:scrollHorizontally="true"
+        android:singleLine="true"
+        android:text="Booky พร้อมให้บริการครับ"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
 </LinearLayout>

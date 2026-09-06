@@ -1,0 +1,39 @@
+{
+  "captured_at": "2026-09-05",
+  "source_revision": "05dc6b6023bc68602e88e9c302ac0b865d3962fa",
+  "working_tree": {
+    "status_sha256": "722e6d5f9b754a713d8df41725f06ec6d2041cbd09ae44956904110ec052a599",
+    "tracked_diff_sha256": "a4cd36d1a0c7fbb31933d81b7ad29e471ce3528f242e0ba08fa58ed017ff3aad",
+    "tracked_files_changed": 39,
+    "tracked_insertions": 10332,
+    "tracked_deletions": 956,
+    "dirty": true
+  },
+  "versions": {
+    "project": "1.0.0",
+    "sdk": "2.1.22.2239"
+  },
+  "ownership": {
+    "core_contract": [
+      "services/core-api/motion_contract.py",
+      "services/core-api/test_motion_contract.py"
+    ],
+    "db_foundation": [
+      "services/core-api/db.py",
+      "services/core-api/migrations/",
+      "services/core-api/test_db.py"
+    ],
+    "apk": [
+      "zenbo-client-android/app/src/main/java/com/hackathon/zenboclient/model/InteractCommand.java",
+      "zenbo-client-android/app/src/main/java/com/hackathon/zenboclient/controller/",
+      "zenbo-client-android/app/src/main/java/com/hackathon/zenboclient/robot/ZenboSdkBridge.java",
+      "zenbo-client-android/app/src/main/java/com/hackathon/zenboclient/service/ZenboClientService.java"
+    ],
+    "liff": [
+      "services/liff-app/shared/",
+      "services/liff-app/index.html",
+      "services/liff-app/control/index.html",
+      "services/liff-app/teleop/index.html"
+    ]
+  }
+}

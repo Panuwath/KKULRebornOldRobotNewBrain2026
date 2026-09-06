@@ -28,9 +28,14 @@ public class MqttManager {
 
     private MessageListener mListener;
 
-    public MqttManager(Context context, String brokerIp, int port, String topicPrefix,
+    public MqttManager(Context context, String brokerIp, int port, String transport, String topicPrefix,
                        String username, String token, MessageListener listener) {
-        this.mBrokerUrl = "tcp://" + brokerIp + ":" + port;
+        this(context, brokerIp, port, transport, "/mqtt", topicPrefix, username, token, listener);
+    }
+
+    public MqttManager(Context context, String brokerIp, int port, String transport, String path,
+                       String topicPrefix, String username, String token, MessageListener listener) {
+        this.mBrokerUrl = brokerUrl(brokerIp, port, transport, path);
         this.mTopicPrefix = topicPrefix;
         this.mClientId = topicPrefix.replace('/', '_') + "_client_" + System.currentTimeMillis();
         this.mUsername = username == null ? "" : username.trim();
@@ -38,8 +43,26 @@ public class MqttManager {
         this.mListener = listener;
     }
 
-    public void updateBroker(String brokerIp, int port) {
-        this.mBrokerUrl = "tcp://" + brokerIp + ":" + port;
+    private static String brokerUrl(String brokerIp, int port, String transport) {
+        return brokerUrl(brokerIp, port, transport, "/mqtt");
+    }
+
+    private static String brokerUrl(String brokerIp, int port, String transport, String path) {
+        if ("ssl".equalsIgnoreCase(transport)) return "ssl://" + brokerIp + ":" + port;
+        if ("ws".equalsIgnoreCase(transport) || "wss".equalsIgnoreCase(transport)) {
+            String p = (path == null || path.trim().isEmpty()) ? "/mqtt" : path.trim();
+            if (!p.startsWith("/")) p = "/" + p;
+            return transport.toLowerCase() + "://" + brokerIp + ":" + port + p;
+        }
+        return "tcp://" + brokerIp + ":" + port;
+    }
+
+    public void updateBroker(String brokerIp, int port, String transport) {
+        this.mBrokerUrl = brokerUrl(brokerIp, port, transport);
+    }
+
+    public String getBrokerUrl() {
+        return mBrokerUrl;
     }
 
     public void connect() {
@@ -64,6 +87,10 @@ public class MqttManager {
             options.setUserName(mUsername);
             options.setPassword(mToken.toCharArray());
 
+            if (mBrokerUrl.startsWith("ssl://") || mBrokerUrl.startsWith("wss://")) {
+                options.setSocketFactory(SslUtils.getCompatibleSocketFactory());
+            }
+
             mMqttClient.setCallback(new MqttCallbackExtended() {
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
@@ -84,10 +111,14 @@ public class MqttManager {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
-                    String payload = new String(message.getPayload());
-                    Log.d(TAG, "MQTT Received: " + topic + " -> " + payload);
-                    if (mListener != null) {
-                        mListener.onMessageReceived(topic, payload);
+                    try {
+                        String payload = new String(message.getPayload());
+                        Log.i(TAG, "MQTT Received: " + topic + " -> " + (payload.length() > 200 ? payload.substring(0, 200) + "..." : payload));
+                        if (mListener != null) {
+                            mListener.onMessageReceived(topic, payload);
+                        }
+                    } catch (Throwable t) {
+                        Log.e(TAG, "Error handling message on " + topic + ": " + t.getMessage(), t);
                     }
                 }
 
@@ -98,14 +129,15 @@ public class MqttManager {
             mMqttClient.connect(options, null, new IMqttActionListener() {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d(TAG, "MQTT Connection Request Sent Successfully");
+                    Log.i(TAG, "MQTT Connection Request Sent Successfully");
+                    subscribeToTopics();
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e(TAG, "MQTT Connection Failed: " + exception.getMessage());
+                    Log.e(TAG, "MQTT Connection Failed: " + (exception != null ? exception.getMessage() : "unknown"));
                     if (mListener != null) {
-                        mListener.onConnectionStatusChanged(false, "Failed: " + exception.getMessage());
+                        mListener.onConnectionStatusChanged(false, "Failed: " + (exception != null ? exception.getMessage() : "unknown"));
                     }
                 }
             });
@@ -115,15 +147,34 @@ public class MqttManager {
     }
 
     private void subscribeToTopics() {
+        if (mMqttClient == null || !mMqttClient.isConnected()) {
+            Log.w(TAG, "Cannot subscribe yet - client is not connected");
+            return;
+        }
         try {
             // Support both the core API contract and the direct n8n gateway topics.
-            String[] topics = {mTopicPrefix + "/cmd/#", mTopicPrefix + "/audio", mTopicPrefix + "/movement",
-                    mTopicPrefix + "/vision", mTopicPrefix + "/stop", mTopicPrefix + "/ping"};
-            int[] qos = {1, 1, 1, 1, 2, 1};
-            mMqttClient.subscribe(topics, qos);
-            Log.d(TAG, "Subscribed to Zenbo command and gateway topics");
+            final String[] topics = {
+                mTopicPrefix + "/cmd/#",
+                mTopicPrefix + "/audio",
+                mTopicPrefix + "/movement",
+                mTopicPrefix + "/vision",
+                mTopicPrefix + "/stop",
+                mTopicPrefix + "/ping"
+            };
+            int[] qos = {1, 1, 1, 1, 1, 1};
+            mMqttClient.subscribe(topics, qos, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    Log.i(TAG, "Subscribed successfully to " + topics.length + " topics for " + mTopicPrefix);
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    Log.e(TAG, "Subscribe failed in listener: " + (exception != null ? exception.getMessage() : "unknown"));
+                }
+            });
         } catch (MqttException e) {
-            Log.e(TAG, "Subscribe failed: " + e.getMessage());
+            Log.e(TAG, "Subscribe exception: " + e.getMessage(), e);
         }
     }
 

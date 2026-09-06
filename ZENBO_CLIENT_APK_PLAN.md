@@ -51,11 +51,13 @@ flowchart TB
 ## 2. โครงสร้างโมดูลหลัก (Core Modules & Classes)
 
 ### 2.1 ⚙️ `ZenboClientService` (Background Service)
+
 * **หน้าที่**: รันเป็น Background/Foreground Service เพื่อคงการเชื่อมต่อ MQTT ไว้ตลอดเวลา แม้ผู้ใช้จะสลับหน้าจอ
 * **การป้องกันโหมดหลับของ Zenbo**:
   * ใช้ `FLAG_KEEP_SCREEN_ON` และตั้งค่า Intent Category ของ Zenbo เพื่อป้องกันไม่ให้ระบบเด้งกลับหน้า Zenbo Face หลังจาก 1 นาที
 
 ### 2.2 🔌 `MqttManager` (Network Engine)
+
 * **เทคโนโลยี**: Eclipse Paho MQTT Client (`org.eclipse.paho.client.mqttv3`)
 * **หน้าที่**:
   * จัดการการเชื่อมต่อ `tcp://<SERVER_IP>:1883`
@@ -74,6 +76,7 @@ flowchart TB
     * `zenbo/status/action_done` เมื่อคำสั่งทำงานสำเร็จ
 
 ### 2.3 🤖 `ZenboSdkBridge` (Hardware Controller)
+
 * **เทคโนโลยี**: ASUS Zenbo SDK (`RobotAPI`)
 * **หน้าที่**:
   * ครอบคำสั่ง SDK ให้อยู่ในรูปแบบที่จัดการง่ายและปลอดภัย (Thread-safe):
@@ -86,6 +89,7 @@ flowchart TB
   * รับ Callback `onStateChange` และ `onResult` แล้วส่ง Event แจ้งเตือนกลับไปยัง Server
 
 ### 2.4 🎵 `AudioPlaybackManager` (Sound Engine)
+
 * **เทคโนโลยี**: Android `MediaPlayer`
 * **หน้าที่**:
   * รับ URL เสียงจาก Server (เช่น `http://192.168.1.50:8000/static/hash.mp3`)
@@ -93,6 +97,7 @@ flowchart TB
   * มี Callback เมื่อเล่นเสียงจบ เพื่อส่งสถานะ `action_done` กลับไปที่ Gateway
 
 ### 2.5 📱 `MainActivity` (UI & Settings)
+
 * **หน้าที่**:
   * หน้าจอสำหรับกรอก IP และ Port ของ Server (บันทึกลง `SharedPreferences`)
   * แสดง Log และสถานะการเชื่อมต่อ MQTT
@@ -133,12 +138,14 @@ sequenceDiagram
 ## 4. ข้อกำหนดและการตั้งค่า Gradle & Manifest
 
 ### 4.1 ข้อมูลแพลตฟอร์ม
+
 * **Min SDK Version**: `23` (Android 6.0 Marshmallow - ตรงตามสเปก Zenbo M)
 * **Target SDK Version**: `26` ถึง `28` (เพื่อให้เข้ากันได้สมบูรณ์กับ Zenbo OS)
 * **Compile SDK Version**: `30` หรือ `33`
 * **Java Compatibility**: Java 8 (1.8)
 
 ### 4.2 ไลบรารีที่ต้องใช้ (`build.gradle`)
+
 ```groovy
 dependencies {
     // 1. Zenbo SDK
@@ -159,6 +166,7 @@ dependencies {
 ```
 
 ### 4.3 การตั้งค่าสิทธิ์และการเปิดตัวใน `AndroidManifest.xml`
+
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hackathon.zenboclient">

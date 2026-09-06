@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <title>Booky Scenario Runner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/liff/liff-config.js"></script><script src="/liff/liff.js"></script>
+  <script src="/liff/shared/zenbo-common.js"></script>
+</head>
+<body class="min-h-screen bg-slate-950 pb-10 font-sans text-white">
+  <header class="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur"><div class="mx-auto flex max-w-3xl items-center justify-between gap-3">
+    <a href="/liff/" class="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold hover:bg-slate-800"><i class="fa-solid fa-chevron-left mr-2"></i>หน้าหลัก</a>
+    <div class="text-right"><h1 class="text-base font-bold">Booky Scenario</h1><p class="text-[11px] text-slate-400">เลือก → ส่งทันที → รอสถานะจากหุ่น</p></div>
+  </div></header>
+  <div id="user-profile-bar" class="mx-auto flex max-w-3xl justify-end px-4 pt-2"></div>
+  <main class="mx-auto max-w-3xl space-y-5 p-4">
+    <section class="rounded-2xl border border-violet-400/30 bg-gradient-to-br from-violet-950/50 to-slate-900 p-5">
+      <div class="flex gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-600 text-xl">🤖</span><div><h2 class="font-bold">เลือก Scenario แล้วส่งทันที</h2><p class="mt-1 text-xs leading-relaxed text-slate-300">L0–L5 อยู่กับที่, L6 telemetry พร้อม, L7 ตรวจหน้างาน, L8 ขยับตรง 5–15 ซม. เมื่อ sensor, watchdog และ operator gate พร้อมเท่านั้น</p></div></div>
+      <label class="mt-4 block text-xs font-bold text-slate-300">Zenbo เป้าหมาย<select id="robot" class="mt-2 min-h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-white"><option value="">กำลังโหลด...</option></select></label>
+      <div class="mt-3 flex justify-end"><button id="refresh" class="min-h-11 rounded-xl bg-slate-700 px-4 text-sm font-bold hover:bg-slate-600"><i class="fa-solid fa-rotate mr-1"></i>ค้นหาใหม่</button></div>
+      <p id="robot-status" class="mt-2 min-h-5 text-xs text-slate-400" role="status"></p>
+      <p id="readiness" class="mt-1 min-h-5 text-xs text-slate-400" role="status" aria-live="polite">เลือก Zenbo เพื่ออ่าน field-readiness</p>
+    </section>
+    <section><h2 class="mb-3 text-sm font-bold text-slate-300">Scenario ที่พร้อมใช้</h2><div id="catalog" class="grid gap-3 sm:grid-cols-2"></div><p id="catalog-status" class="text-center text-xs text-slate-400">กำลังโหลด registry...</p></section>
+    <section id="run-card" hidden class="rounded-2xl border border-emerald-400/35 bg-emerald-950/25 p-5">
+      <p class="text-xs font-bold text-emerald-200">ส่งสถานการณ์แล้ว</p><h2 id="run-title" class="mt-1 text-lg font-bold"></h2><p id="run-detail" class="mt-2 text-xs leading-relaxed text-slate-300"></p>
+      <p id="run-status" class="mt-3 min-h-5 text-xs text-emerald-100" role="status" aria-live="polite"></p>
+      <ol id="run-timeline" class="mt-3 space-y-1 border-t border-emerald-400/20 pt-3 text-[11px] text-emerald-100/90" aria-label="ลำดับสถานะจาก Core และ Zenbo"></ol>
+    </section>
+    <section class="rounded-2xl border border-red-500/30 bg-red-950/20 p-4"><div class="flex items-center justify-between gap-3"><div><h2 class="font-bold text-red-100">หยุดทันที</h2><p class="mt-1 text-[11px] text-red-100/70">หยุดคำสั่งที่ Zenbo เลือกอยู่</p></div><button id="stop" class="min-h-12 rounded-xl bg-red-600 px-5 text-sm font-bold hover:bg-red-500">หยุด</button></div></section>
+    <p class="text-center text-[11px] leading-relaxed text-slate-500">DISPATCHED หมายถึง Gateway รับคำสั่งแล้วเท่านั้น; L8 สำเร็จเมื่อ client รายงาน MOTION_COMPLETED หลัง watchdog ขอหยุดฐาน ไม่ใช่หลักฐานยืนยันตำแหน่งจริง</p>
+  </main>
+  <script>
+    window.ZenboLiff.init();
+    if (typeof ZenboCommon !== 'undefined') {
+      ZenboCommon.ensureAuth().then(() => ZenboCommon.refreshUser().then(() => {
+        ZenboCommon.applyRoleGating();
+        ZenboCommon.renderUserBar('user-profile-bar');
+      }));
+    }
+    const API = `${location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
+    const $ = id => document.getElementById(id);
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    const makeKey = () => crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    let scenarios = [], activeRun = null, pollTimer = null;
+    function setRunStatus(text, error=false) { const node=$('run-status'); node.textContent=text; node.className=`mt-3 min-h-5 text-xs ${error?'text-red-200':'text-emerald-100'}`; }
+    function renderTimeline(events) {
+      const node=$('run-timeline'); node.innerHTML='';
+      (events||[]).forEach(event=>{ const item=document.createElement('li'); const time=new Date(event.created_at_ms).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); item.textContent=`${time} · ${event.state} · ${event.source}`; node.append(item); });
+    }
+    async function loadRobots() {
+      $('refresh').disabled=true;
+      try { const res=await fetch(`${API}/api/v1/robots`); const data=await res.json(); if(!res.ok) throw Error('โหลด Zenbo ไม่สำเร็จ'); const old=$('robot').value; $('robot').innerHTML='<option value="">เลือก Zenbo ที่ออนไลน์...</option>'+(data.robots||[]).map(robot=>`<option value="${escapeHtml(robot.robot_slug)}">${escapeHtml(robot.robot_slug)} · ${escapeHtml(robot.client_ip||'ไม่ทราบ IP')}</option>`).join(''); $('robot').value=old; $('robot-status').textContent=data.count?`พบ ${data.count} เครื่อง`:'ยังไม่พบ Zenbo online'; }
+      catch(error) { $('robot-status').textContent=error.message; } finally { $('refresh').disabled=false; }
+    }
+    async function loadReadiness() {
+      const robotSlug=$('robot').value;
+      if(!robotSlug) { $('readiness').textContent='เลือก Zenbo เพื่ออ่าน field-readiness'; $('readiness').className='mt-1 min-h-5 text-xs text-slate-400'; return; }
+      $('readiness').textContent='กำลังตรวจ field-readiness...';
+      try { const res=await fetch(`${API}/api/v1/robots/${encodeURIComponent(robotSlug)}/field-readiness`); const data=await res.json(); if(!res.ok) throw Error(data.detail?.message||'อ่าน field-readiness ไม่สำเร็จ'); const ready=data.state==='READY'; const blockers=(data.blockers||[]).map(item=>item.code).join(', '); $('readiness').textContent=ready?`Field readiness: READY · ${data.client_version||'ไม่ทราบเวอร์ชัน'} · ต้องทดสอบหุ่นจริงแยกต่างหาก`:`Field readiness: NOT_READY · ${blockers||'ยังไม่มี telemetry ครบ'}`; $('readiness').className=`mt-1 min-h-5 text-xs ${ready?'text-emerald-200':'text-amber-200'}`; }
+      catch(error) { $('readiness').textContent=error.message; $('readiness').className='mt-1 min-h-5 text-xs text-red-200'; }
+    }
+    function behaviorSummary(item) { const b=item.behavior||{}; return `สีหน้า: ${b.face_description||'พักรอ'} · ท่าทาง: ${b.gesture_description||'อยู่กับที่'} · ${b.wheel_lights_description||'ไม่เปลี่ยนไฟล้อ'} · ${b.base_motion||'ไม่สั่งฐานเคลื่อนที่'}`; }
+    async function loadScenarios() {
+      try {
+        const res=await fetch(`${API}/api/v1/scenarios`); const data=await res.json();
+        if(!res.ok) throw Error('โหลด scenario registry ไม่สำเร็จ');
+        scenarios=(data.scenarios||[]).filter(item=>!item.operator_only);
+        $('catalog').innerHTML=scenarios.map(item=>`<button data-scenario="${escapeHtml(item.id)}" aria-label="ส่ง scenario ${escapeHtml(item.title)} ทันที" class="min-h-36 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-left hover:border-violet-400 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300"><div class="flex items-start justify-between gap-2"><div class="flex min-w-0 gap-2"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-800 text-lg" aria-hidden="true">${escapeHtml(item.icon||'🤖')}</span><div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wide text-violet-200">${escapeHtml(item.category||'ทั่วไป')}</p><h3 class="mt-0.5 font-bold leading-snug">${escapeHtml(item.title)}</h3></div></div><span class="shrink-0 rounded-full bg-emerald-950 px-2 py-1 text-[10px] font-bold text-emerald-200">${escapeHtml(item.risk_level)}</span></div><p class="mt-2 text-xs leading-relaxed text-slate-400">${escapeHtml(item.description)}</p><p class="mt-3 text-[11px] text-violet-200">แตะเพื่อส่งทันที · v${escapeHtml(item.version)}</p></button>`).join('');
+        $('catalog-status').textContent=scenarios.length?`มี ${scenarios.length} scenario ที่ registry อนุมัติ`:'ยังไม่มี scenario ที่เผยแพร่';
+        document.querySelectorAll('[data-scenario]').forEach(button=>{
+          const scenario=scenarios.find(item=>item.id===button.dataset.scenario);
+          const note=document.createElement('p'); note.className='mt-2 border-t border-slate-700/70 pt-2 text-[10px] leading-relaxed text-emerald-200'; note.textContent=behaviorSummary(scenario); button.append(note);
+          button.onclick=()=>createRun(button.dataset.scenario);
+        });
+      } catch(error) { $('catalog-status').textContent=error.message; }
+    }
+    async function createRun(scenarioId) {
+      const robotSlug=$('robot').value; if(!robotSlug) { $('robot-status').textContent='เลือก Zenbo ก่อนเริ่ม scenario'; return; }
+      const scenario=scenarios.find(item=>item.id===scenarioId);
+      try {
+        $('catalog-status').textContent='กำลังส่ง scenario...';
+        const res=await fetch(`${API}/api/v1/scenario-runs`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario_id:scenarioId,robot_slug:robotSlug,idempotency_key:makeKey(),source:'liff_scenario',parameters:{}})});
+        const data=await res.json(); if(!res.ok) throw Error(data.detail?.message||'สร้าง scenario run ไม่สำเร็จ');
+        activeRun=data; $('run-title').textContent=scenario.title;
+        $('run-detail').textContent=`เป้าหมาย ${data.robot_slug} · ${behaviorSummary(scenario)} · Run ${data.run_id}`;
+        $('run-card').hidden=false; setRunStatus('กำลังส่งคำสั่งให้ Zenbo...'); $('run-card').scrollIntoView({behavior:'smooth',block:'center'}); await dispatchRun();
+      } catch(error) { $('catalog-status').textContent=error.message; }
+    }
+    async function pollRun() {
+      if(!activeRun) return;
+      try { const res=await fetch(`${API}/api/v1/scenario-runs/${encodeURIComponent(activeRun.run_id)}`); const run=await res.json(); if(!res.ok) throw Error('อ่านสถานะ run ไม่สำเร็จ'); activeRun=run; renderTimeline(run.events); const terminal=['SUCCEEDED','FAILED','SAFETY_STOPPED'].includes(run.state); setRunStatus(`สถานะ: ${run.state}${run.state==='DISPATCHED'?' — รอ Zenbo client รับและรายงานผล':''}`,run.state==='FAILED'||run.state==='SAFETY_STOPPED'); if(terminal) { clearInterval(pollTimer); pollTimer=null; } }
+      catch(error) { setRunStatus(error.message,true); }
+    }
+    async function dispatchRun() {
+      if(!activeRun) return; setRunStatus('กำลังส่งคำสั่งให้ Zenbo...');
+      try { const res=await fetch(`${API}/api/v1/scenario-runs/${encodeURIComponent(activeRun.run_id)}/confirm`,{method:'POST'}); const data=await res.json(); if(!res.ok) throw Error(data.detail?.message||'ยืนยัน run ไม่สำเร็จ'); activeRun=data.run; setRunStatus('Gateway รับคำสั่งแล้ว — รอสถานะจาก Zenbo client'); await pollRun(); pollTimer=setInterval(pollRun,1000); }
+      catch(error) { setRunStatus(error.message,true); }
+    }
+    async function stopRobot() {
+      const robotSlug=$('robot').value; if(!robotSlug) return $('robot-status').textContent='เลือก Zenbo ก่อนสั่งหยุด'; $('stop').disabled=true;
+      try { const res=await fetch(`${API}/api/v1/robots/${encodeURIComponent(robotSlug)}/stop`,{method:'POST'}); if(!res.ok) throw Error('ส่งคำสั่งหยุดไม่สำเร็จ'); $('robot-status').textContent='ส่งคำสั่งหยุดแล้ว — รอสถานะ SAFETY_STOPPED จาก Zenbo'; }
+      catch(error) { $('robot-status').textContent=error.message; } finally { $('stop').disabled=false; }
+    }
+    $('refresh').onclick=loadRobots; $('robot').onchange=loadReadiness; $('stop').onclick=stopRobot; loadRobots(); loadScenarios();
+  </script>
+</body>
+</html>

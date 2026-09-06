@@ -3,6 +3,7 @@
 เอกสารนี้วิเคราะห์สถาปัตยกรรมที่ **มีอยู่จริงในโค้ด ณ ปัจจุบัน** ของ `zenbo-hackathon` โดยตั้ง **n8n เป็นศูนย์กลางการประสานงาน (Orchestrator)** และอธิบายว่า LINE เข้าถึงหุ่นยนต์ได้ผ่านสองช่องทางคู่ขนาน คือ **LINE MCP (agentic tool-calling)** และ **LINE LIFF (web app ควบคุมโดยตรง)**
 
 ข้อมูลอ้างอิงจากไฟล์จริง ไม่ใช่แผนที่ยังไม่ implement:
+
 - `services/core-api/main.py` (Gateway, 484 บรรทัด)
 - `services/compiler-service/compiler.py` (NLU Compiler, 328 บรรทัด)
 - `services/mcp-server/server.py` (MCP Tools, 100 บรรทัด)
@@ -16,7 +17,7 @@
 ## 1. Services ที่รันจริง (ยืนยันด้วย `docker compose ps`)
 
 | Service | Container | Port | สถานะ | หน้าที่ |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `mqtt-broker` | `zenbo-mqtt-broker` | 1883, 9001(ws) | Up | Message bus กลางระหว่าง Gateway ↔ Android Client |
 | `zenbo-tts-service` | `zenbo-tts-service` | 8000 | Up | Edge-TTS synthesizer (ไทย, cache เป็น mp3) |
 | `zenbo-core-api` | `zenbo-core-api` | 5005 | Up | REST Gateway + MQTT publisher + เสิร์ฟ LIFF static + SQLite command history |
@@ -95,7 +96,7 @@ flowchart TB
 ## 3. n8n ในฐานะแกนกลาง — Workflow ที่มีอยู่จริง (`n8n_workflows/*.json`)
 
 | ไฟล์ | Webhook Path | หน้าที่ | ปลายทางที่เรียก |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `zenbo_line_text_ai_workflow.json` | `line-zenbo-ai` | รับข้อความ LINE → compiler → ตอบ Flex Message | `${COMPILER_SERVICE_URL}/api/v1/compiler/text` → LINE Reply API |
 | `zenbo_line_voice_workflow.json` | `line-zenbo-voice` | รับคลิปเสียง LINE → ดาวน์โหลด → compiler/voice → ตอบ Flex Message | LINE Content API → `/api/v1/compiler/voice` → LINE Reply API |
 | `zenbo_line_bot_workflow.json` | `line-zenbo-webhook` | เวอร์ชันย่อ (legacy) ของ text workflow | Compiler service เดียวกัน |
@@ -104,6 +105,7 @@ flowchart TB
 | `zenbo_dev_test_workflow.json` | `zenbo-test` | Endpoint ทดสอบ compiler แบบ manual, คืน JSON ดิบเพื่อ debug | Compiler service, ตอบ JSON กลับ (ไม่ยิงเข้า LINE) |
 
 **บทบาทของ n8n ในระบบนี้:**
+
 1. **จุดรับ Webhook เดียวจาก LINE Platform** — LINE ส่ง event ทุกประเภท (text, audio, postback) มาที่ n8n ก่อนเสมอ ไม่มี service ใน docker-compose ที่รับ webhook จาก LINE ตรง
 2. **Business Logic Router** — ใช้ Code node (`n8n-nodes-base.code`) แยกประเภท event, กรอง (`Filter Text Only`, `Filter Voice Only`), และแปลง payload ก่อนส่งต่อ
 3. **เรียก Compiler Service เป็นสมอง NLU** — ทุก workflow หลัก (text/voice) ยิงไปที่ `zenbo-compiler-service:5006` แล้วให้ compiler เป็นผู้ตัดสินใจว่าจะ `auto_dispatch` เข้า Core API เองหรือไม่
@@ -111,6 +113,7 @@ flowchart TB
 5. **ทางลัดที่ไม่ผ่าน compiler** — `zenbo_connect_booky` และ `zenbo_tts_server` แสดงให้เห็นว่า n8n สามารถ bypass compiler แล้วคุยกับ MQTT broker ตรงได้เมื่อ logic ง่ายพอ (handshake, TTS เสียงตรง)
 
 **ข้อสังเกตเรื่องความสอดคล้อง (Discrepancy ที่พบจากการอ่านโค้ดจริง):**
+
 - `zenbo_tts_server_workflow.json` เรียก TTS server ที่ `10.101.118.149:8025` ซึ่ง**ไม่ใช่**ตัวเดียวกับ `zenbo-tts-service` ใน `docker-compose.yml` (พอร์ต 8000, ใช้ `edge_tts` เช่นกันแต่เป็น container คนละตัว, มี schema ต่าง — `age`, `natural_mode`) แสดงว่ามี TTS service คู่ขนานอยู่นอก stack นี้ที่ n8n เรียกตรงแทน `zenbo-core-api`
 - `zenbo_connect_booky_workflow.json` publish ไปที่ topic `zenbo/cmd/interact` แบบ flat แต่ `zenbo-core-api` เวอร์ชันปัจจุบัน (มี `robot_slug` + `topic_prefix = zenbo/{robot_slug}`) แปลว่า workflow นี้เขียนไว้ก่อนที่ Core API จะรองรับหลายหุ่นยนต์ — จะ handshake ได้เฉพาะ client ที่ subscribe topic prefix เริ่มต้น `zenbo` เท่านั้น ไม่ระบุเครื่องเจาะจง
 - Compiler service (`compiler.py`) มี local fallback parser (`parse_natural_command`) ที่รองรับ `head_sequence` (ส่ายหัว) แล้ว แต่ workflow n8n ปัจจุบันไม่ได้ใช้ field นี้ในการสร้าง Flex message (`build-reply` ใน `zenbo_line_text_ai_workflow.json` เช็คแค่ `motion`, `head`, `wheel_lights`, `action`)
@@ -141,7 +144,7 @@ sequenceDiagram
 ### 4.1 MCP Tools ที่เปิดให้เรียกจริง (`services/mcp-server/server.py`)
 
 | Tool | Signature | ปลายทาง |
-|---|---|---|
+| --- | --- | --- |
 | `zenbo_speak` | `text, voice="female_sweet", face="HAPPY"` | `POST /api/v1/robot/interact` |
 | `zenbo_move` | `x=0.0, y=0.0, theta=0.0, speed=2` | `POST /api/v1/robot/interact` (motion) |
 | `zenbo_move_head` | `yaw=0.0, pitch=0.0, speed=2` | `POST /api/v1/robot/interact` (head) |
@@ -152,6 +155,7 @@ sequenceDiagram
 Transport: `mcp.run(transport="sse")` — ต้องต่อผ่าน SSE endpoint ที่ port 8088 ไม่ใช่ stdio จึงเชื่อมจาก AI client ระยะไกลได้ (ไม่ต้องรันบนเครื่องเดียวกับ MCP server)
 
 **ข้อจำกัดของ MCP tool set ปัจจุบัน:**
+
 - ยังไม่ครอบคลุม field ใหม่ทั้งหมดที่ `InteractCommand` รองรับแล้ว เช่น `voice_profile`, `youtube`, `navigation`, `emotional_action`, `head_sequence`, `behavior`, `vision`, `remote_control` — MCP เปิดแค่ subset พื้นฐาน (speak/move/head/action/lights/stop) ไม่มี tool สำหรับ multi-robot (`robot_slug`) หรือ `zenbo_get_status` ที่เอกสารแผนเดิมพูดถึง (ไม่มีใน `server.py` จริง)
 - ไม่มี tool คู่กับ `/api/v1/robots` (list online robots) หรือ `/api/v1/command-history` — Agent ผ่าน MCP มองไม่เห็นว่ามี Zenbo กี่ตัว online หรือประวัติคำสั่งที่ผ่านมา
 
@@ -198,7 +202,7 @@ sequenceDiagram
 ### 5.1 โครงสร้างหน้า LIFF จริงทั้ง 4 หน้า (`services/liff-app/`)
 
 | Path (mount ที่ `/liff`) | ไฟล์ | บรรทัดโค้ด | บทบาท |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `/liff/` | `index.html` | 717 | **Dashboard หลัก**: Connect card, D-Pad พื้นฐาน, Head slider, Face grid (8 หน้า), Dance grid (8 ท่า), Wheel lights ลัด (3 preset), Instant TTS พร้อม Web Speech API, **Advanced SDK Controls แบบเต็ม** (45 RobotFace, Wheel LED 15 pattern, Remote/Behavior, Vision 8 actions) |
 | `/liff/control/` | `control/index.html` | 368 | **Joystick real-time**: Pointer-drag joystick 2 วง (ล้อ + หัว) ส่ง `remote_control` ต่อเนื่องทุก 350ms, ปุ่ม D-Pad สำรอง, ช่อง "สั่งด้วยภาษาธรรมชาติ" พร้อม preview-then-confirm |
 | `/liff/command/` | `command/index.html` | 223 | **Command Studio**: หน้าเดียวเน้น NLU — พิมพ์/พูดคำสั่งอิสระ → compile-preview → ยืนยันส่ง, มี STOP แยก |
@@ -209,7 +213,7 @@ sequenceDiagram
 ### 5.2 REST Endpoints ที่ LIFF เรียกจริง (จาก `core-api/main.py`) — ครบทุก endpoint
 
 | Endpoint | Method | เรียกจากหน้าไหน | หมายเหตุ |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `/api/v1/robots` | GET | ทั้ง 4 หน้า | Discovery จาก MQTT heartbeat `zenbo/+/status/#`, กรองอายุ ≤ 90s, `index`/`control` poll ซ้ำทุก 10s (`index`) หรือ manual refresh (`control`) |
 | `/api/v1/robots/{slug}/connect` | POST | `index` เท่านั้น | ส่ง handshake "Bookyพร้อมครับ" ด้วย `voice_profile: male_child` เจาะจงเครื่อง — คืน `404` ถ้า heartbeat เก่ากว่า 90s |
 | `/api/v1/robots/{slug}/stop` | POST | `control`, `command` (เมื่อเลือก robot แล้ว) | ยิง `zenbo/{slug}/cmd/stop`, บันทึก history เป็น `EMERGENCY_STOP_SENT` |
@@ -289,10 +293,12 @@ flowchart LR
 ```
 
 **Endpoints:**
+
 - `POST /api/v1/compiler/text` — `{command, auto_dispatch}` → เรียก LLM หรือ fallback → ถ้า `auto_dispatch=true` จะยิงต่อไป core-api เอง (หรือ `/api/v1/robot/stop` ถ้า compiled JSON มี `"emergency": true`)
 - `POST /api/v1/compiler/voice` — รับไฟล์เสียง (multipart) → ASR ผ่าน KKU (ถ้ามี key) → ส่งต่อเข้า `compile_text` แบบ `auto_dispatch=False` → ค่อย dispatch เองถ้าไม่ emergency
 
 **ใครเป็นผู้เรียก compiler:**
+
 1. n8n (`line-zenbo-ai`, `line-zenbo-voice`, `zenbo-test` webhooks) — auto_dispatch=true เกือบทุกกรณี
 2. `zenbo-core-api` เอง ผ่าน `/api/v1/commands/compile` (LIFF "command" page) — **บังคับ** `auto_dispatch=False` เสมอ เพื่อให้ preview ก่อน production dispatch แยกจาก n8n อีกที
 
@@ -303,7 +309,7 @@ flowchart LR
 ## 7. ตารางเทียบ 2 ช่องทาง LINE
 
 | มิติ | LINE + MCP | LINE + LIFF |
-|---|---|---|
+| --- | --- | --- |
 | ผู้เรียกจริง | AI Agent ภายนอก (Claude/Cursor) ไม่ใช่ end-user LINE โดยตรง | End-user ในแอป LINE ผ่าน Rich Menu/ลิงก์ — 4 หน้าแยกกัน (`index`, `control`, `command`, `history`) |
 | Transport | MCP JSON-RPC over SSE (`:8088`) | HTTPS REST fetch จาก browser ใน LIFF container, joystick ใช้ Pointer Events + 350ms keepalive polling |
 | NLU | ไม่มี — Agent ส่ง structured tool call ตรง | มี — compiler service แปลข้อความอิสระ ผ่าน preview-then-confirm ที่ซ้ำกันใน 2 หน้า (`control`, `command`); ปุ่มกดตรงไม่ต้อง NLU (`index`) |
@@ -345,7 +351,7 @@ flowchart LR
 
 ## 10. สรุปเส้นทางข้อมูลแบบย่อ (Data Flow Summary)
 
-```
+```text
 LINE Chat (text/voice)  → n8n webhook → compiler-service → core-api → MQTT → Zenbo APK
                                                                 ↑
 LINE LIFF (web app)     → fetch REST ──────────────────────────┘
@@ -366,7 +372,7 @@ Zenbo APK → MQTT status heartbeat → core-api (robot_registry) → /api/v1/ro
 ### 11.1 Service ที่ n8n เรียกโดยตรง (Direct calls)
 
 | Service | URL ที่ n8n เรียก | ผ่าน workflow ไหน | จำนวน workflow |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **zenbo-compiler-service** (`:5006`) | `$env.COMPILER_SERVICE_URL/api/v1/compiler/text` หรือ `http://zenbo-compiler-service:5006/api/v1/compiler/text` | text AI, voice (`/voice`), line bot, dev test | 4 |
 | **TTS server ภายนอก** (`10.101.118.149:8025`) | `POST /api/tts/binary` | tts_server | 1 |
 | **MQTT broker** (`Zenbo-Mosquitto-149` → `10.101.118.149:1883`) | `mqtt` node publish `zenbo/audio`, `zenbo/cmd/interact` | tts_server, connect_booky | 2 |
@@ -375,7 +381,7 @@ Zenbo APK → MQTT status heartbeat → core-api (robot_registry) → /api/v1/ro
 ### 11.2 Service ใน docker-compose ที่ n8n **ไม่** เรียกตรง (เข้าถึงแบบ transitively หรือไม่ถูกใช้เลย)
 
 | Service | ทำไม n8n ไม่เรียกตรง |
-|---|---|
+| --- | --- |
 | **zenbo-core-api** (`:5005`) | n8n ไม่ได้ยิง `/api/v1/robot/interact` ตรง — คำสั่งถูกส่งผ่าน compiler service (`auto_dispatch=true`) ซึ่ง compiler เป็นฝ่ายเรียก core-api ต่ออีกที เป็น **transitive dependency** ไม่ใช่ direct |
 | **zenbo-tts-service** (`:8000`, ใน compose) | n8n เรียก TTS server **คนละตัว** ที่ `:8025` (มี schema ต่างกัน: `age`, `natural_mode`) ไม่ใช่ตัว `zenbo-tts-service` ใน compose — เท่ากับ TTS ใน compose นี้ n8n ไม่ได้ใช้เลย |
 | **zenbo-mcp-server** (`:8088`) | ไม่มี workflow ไหนเรียก MCP node หรือ `/sse` — MCP ถูกใช้โดย AI agent ภายนอก (Claude/Cursor) ไม่ใช่ n8n |
@@ -414,7 +420,7 @@ flowchart LR
 ### 11.4 สิ่งที่ต้องทำถ้าต้องการให้ "n8n เป็นหลัก" อย่างแท้จริง
 
 | ปัจจุบัน | เป้าหมาย n8n-centric | การแก้ไข |
-|---|---|---|
+| --- | --- | --- |
 | n8n → compiler → core-api (auto_dispatch) | n8n → core-api ตรง | เพิ่ม HTTP Request node ใน workflow เรียก `/api/v1/robot/interact` พร้อม `robot_slug` (n8n ควบคุม multi-robot ได้เอง) |
 | MCP → core-api ตรง | MCP → n8n → core-api | เพิ่ม MCP client node ใน n8n (n8n รองรับ MCP node) ให้ n8n เป็น proxy กลางระหว่าง agent กับ robot |
 | n8n ไม่รู้ `command_history`/`/api/v1/robots` | n8n เป็นศูนย์ audit/dispatch | เพิ่ม workflow ที่เรียก `/api/v1/command-history` และ `/api/v1/robots` เพื่อทำสถานะ/รายงาน |

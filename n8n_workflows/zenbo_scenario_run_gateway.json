@@ -1,0 +1,57 @@
+{
+  "name": "Zenbo Scenario Run Gateway",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zenbo-scenario-run",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "scenario-run-webhook",
+      "name": "Receive Scenario Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "webhookId": "zenbo-scenario-run"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CORE_API_URL }}/api/v1/scenario-runs",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "create-run",
+      "name": "Create Pending Run in Core",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-pending",
+      "name": "Return Pending Run",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [780, 300]
+    }
+  ],
+  "connections": {
+    "Receive Scenario Request": {
+      "main": [[{ "node": "Create Pending Run in Core", "type": "main", "index": 0 }]]
+    },
+    "Create Pending Run in Core": {
+      "main": [[{ "node": "Return Pending Run", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "zenbo" }, { "name": "scenario" }, { "name": "safe-gateway" }]
+}

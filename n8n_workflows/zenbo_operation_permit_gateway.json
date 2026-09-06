@@ -1,0 +1,29 @@
+{
+  "name": "Zenbo L20 Operation Permit Gateway",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "zenbo-operation-permit", "responseMode": "responseNode", "options": {}},
+      "id": "operation-permit-webhook", "name": "Receive Reviewed Permit Request", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [260, 300], "webhookId": "zenbo-operation-permit"
+    },
+    {
+      "parameters": {
+        "method": "POST", "url": "={{ $env.CORE_API_URL }}/api/v1/autonomy/operation-permits", "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-Scenario-Registry-Token", "value": "={{ $env.SCENARIO_REGISTRY_TOKEN }}"}]},
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ route_id: $json.body.route_id, robot_slug: $json.body.robot_slug, zone_reservation_id: $json.body.zone_reservation_id, authorization_id: $json.body.authorization_id, ttl_seconds: $json.body.ttl_seconds || 300, note: $json.body.note || '' }) }}",
+        "options": {"timeout": 10000}
+      },
+      "id": "issue-operation-permit", "name": "Issue L20 Permit in Core", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [540, 300]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": {}},
+      "id": "respond-operation-permit", "name": "Return Permit State", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [800, 300]
+    }
+  ],
+  "connections": {
+    "Receive Reviewed Permit Request": {"main": [[{"node": "Issue L20 Permit in Core", "type": "main", "index": 0}]]},
+    "Issue L20 Permit in Core": {"main": [[{"node": "Return Permit State", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}, "staticData": null,
+  "tags": [{"name": "zenbo"}, {"name": "safety"}, {"name": "l20"}]
+}

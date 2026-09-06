@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Booky Command Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="/liff/liff-config.js"></script>
   <script src="/liff/liff.js"></script>
+  <script src="/liff/shared/zenbo-common.js"></script>
   <style>
     html { background: #020617; }
-    body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    body { font-family: 'Prompt', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-white font-sans">
+<body class="min-h-screen bg-slate-950 text-white font-sans pb-20">
   <header class="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur">
     <div class="mx-auto flex max-w-2xl items-center justify-between gap-3">
       <a href="/liff/" class="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-slate-100 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300"><i class="fa-solid fa-chevron-left text-slate-400"></i> Zenbo Control</a>
@@ -25,6 +29,7 @@
       </div>
     </div>
   </header>
+  <div id="user-profile-bar" class="mx-auto flex max-w-2xl justify-end px-4 pt-2"></div>
 
   <main class="mx-auto max-w-2xl space-y-4 p-4 pb-10">
     <section class="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/80 to-slate-900 p-5 shadow-xl shadow-violet-950/20">
@@ -32,7 +37,7 @@
         <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-xl">🤖</div>
         <div>
           <h1 class="text-lg font-bold">สั่ง Booky ด้วยภาษาธรรมชาติ</h1>
-          <p class="mt-1 text-xs leading-relaxed text-slate-300">พูดหรือพิมพ์คำสั่ง แล้วให้ KKU IntelSphere สกัดเป็น JSON ก่อนยืนยันส่ง</p>
+          <p class="mt-1 text-xs leading-relaxed text-slate-300">เรียก “สวัสดี Booky” แล้วพูดคำสั่งถัดไปได้เลย; “หยุด” ทำงานได้ทุกเวลา</p>
         </div>
       </div>
     </section>
@@ -53,6 +58,13 @@
         <button id="analyse-button" type="button" onclick="analyseCommand()" class="min-h-12 rounded-xl bg-violet-600 text-sm font-bold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i><span id="analyse-label">วิเคราะห์คำสั่ง</span></button>
       </div>
       <p id="input-status" role="status" aria-live="polite" class="mt-2 min-h-4 text-[11px] text-slate-400">คำสั่งจะยังไม่ถูกส่งจนกด “ยืนยันส่งให้ Zenbo”</p>
+    </section>
+
+    <section class="rounded-2xl border border-cyan-500/25 bg-slate-900 p-4">
+      <div class="flex items-start gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cyan-900 text-lg" aria-hidden="true">🎵</span><div><h2 class="text-sm font-bold text-cyan-100">เพลงตามอารมณ์</h2><p class="mt-1 text-[11px] leading-relaxed text-slate-400">รายการเพลงมาจาก playlist ที่ผู้ดูแล review ใน n8n และจะสุ่มเป็น preview ก่อนเสมอ</p></div></div>
+      <label for="playlist-select" class="mt-3 block text-xs font-semibold text-slate-300">เลือก playlist<select id="playlist-select" class="mt-2 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-white focus:border-cyan-400 focus:outline-none"><option value="">กำลังโหลด playlist...</option></select></label>
+      <button id="playlist-button" type="button" onclick="pickPlaylist()" class="mt-3 min-h-12 w-full rounded-xl bg-cyan-700 text-sm font-bold text-white hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-60"><i class="fa-solid fa-shuffle mr-1"></i>สุ่มเพลงเพื่อดูตัวอย่าง</button>
+      <p id="playlist-status" role="status" aria-live="polite" class="mt-2 min-h-4 text-[11px] text-slate-400">ยังไม่ส่งคำสั่งเล่นเพลง</p>
     </section>
 
     <section id="preview-card" hidden class="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4">
@@ -82,13 +94,55 @@
     </details>
   </main>
 
+  <!-- Sticky Bottom Navigation Bar for Mobile -->
+  <nav aria-label="แถบเมนูล่าง" class="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex items-center justify-around max-w-lg mx-auto shadow-2xl">
+    <a href="/liff/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-house text-sm"></i>
+      </div>
+      <span>หน้าหลัก</span>
+    </a>
+    <a href="/liff/control/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-gamepad text-sm"></i>
+      </div>
+      <span>จอยสติ๊ก</span>
+    </a>
+    <a href="/liff/scenario/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-wand-sparkles text-sm"></i>
+      </div>
+      <span>สถานการณ์</span>
+    </a>
+    <a href="/liff/command/" class="flex flex-col items-center gap-1 text-violet-400 text-[10px] font-semibold">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-violet-950/80 border border-violet-500/40 shadow-sm">
+        <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+      </div>
+      <span>สั่งงาน AI</span>
+    </a>
+    <a href="/liff/history/" class="flex flex-col items-center gap-1 text-slate-400 hover:text-amber-300 text-[10px] font-medium transition">
+      <div class="grid h-8 w-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700/60">
+        <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+      </div>
+      <span>ประวัติ</span>
+    </a>
+  </nav>
+
   <script>
     const API_BASE = `${window.location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
     let selectedRobot = '';
     let compiledPayload = null;
     let recognition = null;
     let listening = false;
+    const dialogueSessionId = sessionStorage.getItem('booky-dialogue-session') || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+    sessionStorage.setItem('booky-dialogue-session', dialogueSessionId);
     window.ZenboLiff.init();
+    if (typeof ZenboCommon !== 'undefined') {
+      ZenboCommon.ensureAuth().then(() => ZenboCommon.refreshUser().then(() => {
+        ZenboCommon.applyRoleGating();
+        ZenboCommon.renderUserBar('user-profile-bar');
+      }));
+    }
 
     const status = (id, message, isError = false) => {
       const element = document.getElementById(id);
@@ -112,6 +166,26 @@
         status('robot-status', robots.length ? 'เลือก Zenbo ที่ต้องการสั่งงาน' : 'ยังไม่พบ Zenbo ออนไลน์', !robots.length);
       } catch (error) {
         status('robot-status', 'ติดต่อ Core API ไม่ได้', true);
+      }
+    }
+
+    async function loadPlaylists() {
+      const select = document.getElementById('playlist-select');
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/music-playlists`);
+        const data = await response.json();
+        if (!response.ok) throw new Error('โหลด playlist ไม่สำเร็จ');
+        const playlists = data.playlists || [];
+        select.innerHTML = '<option value="">เลือก playlist ที่ review แล้ว...</option>';
+        playlists.forEach(playlist => {
+          const option = document.createElement('option');
+          option.value = playlist.id;
+          option.textContent = `${playlist.title} · ${playlist.mood} · ${playlist.track_count} เพลง`;
+          select.appendChild(option);
+        });
+        status('playlist-status', playlists.length ? 'เลือกอารมณ์เพลงเพื่อสุ่ม preview' : 'ยังไม่มี playlist ที่ review และเผยแพร่จาก n8n', !playlists.length);
+      } catch (error) {
+        status('playlist-status', 'ติดต่อ playlist registry ไม่ได้', true);
       }
     }
 
@@ -179,22 +253,47 @@
       const button = document.getElementById('analyse-button');
       button.disabled = true;
       document.getElementById('analyse-label').textContent = 'กำลังวิเคราะห์...';
-      status('input-status', 'กำลังส่งข้อความให้ Compiler วิเคราะห์ — ยังไม่ส่งหุ่นยนต์');
+      status('input-status', 'กำลังตรวจ wake word และ safety policy — ยังไม่ส่งหุ่นยนต์');
       try {
-        const response = await fetch(`${API_BASE}/api/v1/commands/compile`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({command, robot_slug: selectedRobot}) });
+        const response = await fetch(`${API_BASE}/api/v1/dialogue/interpret`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: dialogueSessionId, text: command, robot_slug: selectedRobot}) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
-        compiledPayload = data.compiled_payload;
-        document.getElementById('json-preview').textContent = JSON.stringify(compiledPayload, null, 2);
-        document.getElementById('compiler-source').textContent = data.compiler_source === 'kku_intelsphere' ? 'KKU IntelSphere' : data.compiler_source === 'shared_v1' ? 'Shared Zenbo compiler' : 'Local fallback';
-        document.getElementById('preview-summary').textContent = compiledPayload.emergency ? 'ตรวจพบคำสั่งหยุด — ยืนยันเพื่อหยุด Zenbo ที่เลือก' : 'ตรวจ JSON แล้วกดยืนยันเมื่อพร้อมส่งไปยัง Zenbo';
-        document.getElementById('preview-card').hidden = false;
+        if (!data.compiled_payload) { clearPreview(); status('input-status', data.reply || data.state, data.state === 'GATED'); return; }
+        showPreview(data.compiled_payload, data.intent || 'Dialogue policy', data.reply);
         status('input-status', 'วิเคราะห์เสร็จแล้ว — ตรวจ JSON ก่อนยืนยันส่ง');
       } catch (error) {
         status('input-status', `วิเคราะห์ไม่สำเร็จ: ${error.message}`, true);
       } finally {
         button.disabled = false;
         document.getElementById('analyse-label').textContent = 'วิเคราะห์คำสั่ง';
+      }
+    }
+
+    function showPreview(payload, source, summary) {
+      compiledPayload = payload;
+      document.getElementById('json-preview').textContent = JSON.stringify(compiledPayload, null, 2);
+      document.getElementById('compiler-source').textContent = source;
+      document.getElementById('preview-summary').textContent = summary || (compiledPayload.emergency ? 'ตรวจพบคำสั่งหยุด — ยืนยันเพื่อหยุด Zenbo ที่เลือก' : 'ตรวจ JSON แล้วกดยืนยันเมื่อพร้อมส่งไปยัง Zenbo');
+      document.getElementById('preview-card').hidden = false;
+    }
+
+    async function pickPlaylist() {
+      if (!selectedRobot) return status('playlist-status', 'เลือก Zenbo ก่อนสุ่มเพลง', true);
+      const playlistId = document.getElementById('playlist-select').value;
+      if (!playlistId) return status('playlist-status', 'เลือก playlist ก่อนสุ่มเพลง', true);
+      const button = document.getElementById('playlist-button');
+      button.disabled = true;
+      status('playlist-status', 'กำลังสุ่มเพลงจาก playlist ที่ review แล้ว...');
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/music-playlists/${encodeURIComponent(playlistId)}/pick`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({robot_slug:selectedRobot})});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || 'สุ่มเพลงไม่สำเร็จ');
+        showPreview(data.command, `Playlist · ${data.playlist.mood}`, `สุ่มได้ “${data.track.title}” จาก ${data.playlist.title} — ยังไม่เล่นจนกด ยืนยันส่งให้ Zenbo`);
+        status('playlist-status', 'ได้ preview แล้ว — ตรวจ JSON และยืนยันก่อนเล่น');
+      } catch (error) {
+        status('playlist-status', `สุ่มเพลงไม่สำเร็จ: ${error.message}`, true);
+      } finally {
+        button.disabled = false;
       }
     }
 
@@ -246,6 +345,7 @@
     }
 
     loadRobots();
+    loadPlaylists();
   </script>
 </body>
 </html>

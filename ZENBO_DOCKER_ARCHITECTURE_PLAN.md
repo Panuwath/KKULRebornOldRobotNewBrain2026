@@ -45,6 +45,7 @@ flowchart TB
 ระบบจะถูกแบ่งออกเป็น 4 คอนเทนเนอร์หลักที่ทำงานร่วมกันผ่าน Docker Internal Network:
 
 ### 2.1 📡 MQTT Broker Container (`mqtt-broker`)
+
 * **เทคโนโลยี**: Eclipse Mosquitto (Official Alpine Image)
 * **หน้าที่**:
   * เป็นตัวกลางในการรับ-ส่งคำสั่งแบบ Real-time และสองทิศทาง (Bi-directional) ระหว่าง Server กับ Zenbo
@@ -54,6 +55,7 @@ flowchart TB
   * `9001`: MQTT over WebSocket (สำหรับ Web Dashboard)
 
 ### 2.2 🔊 Neural TTS Service Container (`zenbo-tts-service`)
+
 * **เทคโนโลยี**: Python (FastAPI + Edge-TTS + VachanaTTS + Uvicorn)
 * **หน้าที่**:
   * สังเคราะห์เสียงพูดภาษาไทยที่เป็นธรรมชาติสูง (Neural Studio Quality)
@@ -63,6 +65,7 @@ flowchart TB
   * `8000`: HTTP REST API & Audio File Server
 
 ### 2.3 🌐 Core Gateway & Webhook Server Container (`zenbo-core-api`)
+
 * **เทคโนโลยี**: Python (FastAPI + Paho-MQTT + Pydantic)
 * **หน้าที่**:
   * รับ HTTP REST API / Webhook จากระบบภายนอก (เช่น เว็บแอป, เซนเซอร์ภายนอก, n8n)
@@ -72,6 +75,7 @@ flowchart TB
   * `5000`: HTTP Webhook & REST API
 
 ### 2.4 ⚡ n8n Workflow Automation Container (`n8n-automation`) *(แนะนำ)*
+
 * **เทคโนโลยี**: n8n Official Image (Node.js)
 * **หน้าที่**:
   * เป็นตัวร้อยเรียง Scenario สำหรับการแข่งขัน Hackathon แบบ Low-Code
@@ -95,14 +99,16 @@ flowchart TB
 | `zenbo/cmd/stop` | Server $\rightarrow$ Zenbo | `{"emergency": true}` | คำสั่งหยุดฉุกเฉินทุกลำดับการเคลื่อนที่ |
 | `zenbo/status/heartbeat` | Zenbo $\rightarrow$ Server | `{"robot_id": "zenbo_01", "battery": 85, "state": "idle"}` | สัญญาณชีพและสถานะแบตเตอรี่ |
 | `zenbo/status/sensors` | Zenbo $\rightarrow$ Server | `{"sonar": [...], "drop_laser": [...], "touch": 1}` | ข้อมูลเซนเซอร์จากตัวหุ่นยนต์ |
-| `zenbo/status/action_done`| Zenbo $\rightarrow$ Server | `{"command_id": "cmd_123", "status": "SUCCESS"}` | แจ้งเตือนเมื่อ Action หรือเสียงพูดจบลง |
+| `zenbo/status/action_done` | Zenbo $\rightarrow$ Server | `{"command_id": "cmd_123", "status": "SUCCESS"}` | แจ้งเตือนเมื่อ Action หรือเสียงพูดจบลง |
 
 ---
 
 ### 3.2 รายการ REST API & Webhook Endpoints (Core Gateway)
 
 #### 1. สั่งให้หุ่นยนต์พูดพร้อมทำท่าทาง (`POST /api/v1/zenbo/interact`)
+
 * **Request Body**:
+
   ```json
   {
     "text": "สวัสดีครับอาจารย์  วันนี้ผมพร้อมนำเสนอระบบแล้วครับผมม",
@@ -119,6 +125,7 @@ flowchart TB
     }
   }
   ```
+
 * **ขั้นตอนการทำงาน (Flow)**:
   1. Gateway ส่งข้อความไปให้ `TTS Service` เพื่อเรนเดอร์ไฟล์เสียง MP3/WAV
   2. `TTS Service` คืนค่า URL ของไฟล์เสียง (เช่น `http://192.168.1.100:8000/audio/hash123.mp3`)
@@ -126,7 +133,9 @@ flowchart TB
   4. Zenbo รับ MQTT $\rightarrow$ เล่นไฟล์เสียง + เปลี่ยนหน้าตา + หมุนตัวตามท่าทาง
 
 #### 2. สั่งเคลื่อนที่โดยตรง (`POST /api/v1/zenbo/move`)
+
 * **Request Body**:
+
   ```json
   {
     "x": 0.5,
@@ -137,7 +146,9 @@ flowchart TB
   ```
 
 #### 3. สังเคราะห์ไฟล์เสียงตรง (`POST /api/v1/tts/synthesize`)
+
 * **Request Body**:
+
   ```json
   {
     "text": "ข้อความที่ต้องการให้แปลงเป็นเสียง",
@@ -146,6 +157,7 @@ flowchart TB
     "pitch": "+2Hz"
   }
   ```
+
 * **Response**: Binary Audio Streaming (audio/mpeg หรือ audio/wav)
 
 ---

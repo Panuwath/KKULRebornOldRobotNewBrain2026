@@ -1,0 +1,2 @@
+ALTER TABLE web_users
+    ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'libsso';

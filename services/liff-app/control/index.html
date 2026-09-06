@@ -3,180 +3,611 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Zenbo Joystick Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="/liff/liff-config.js"></script>
   <script src="/liff/liff.js"></script>
+  <script src="/liff/shared/zenbo-common.js"></script>
+  <script src="/liff/shared/zenbo-drive-control.js"></script>
   <style>
-    html { background: #0f172a; }
-    body { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-    .joystick { touch-action: none; }
-    .joystick-knob { transition: transform 110ms ease-out; will-change: transform; }
-    .joystick.is-dragging .joystick-knob { transition: none; }
-    .control-button:active { transform: scale(.94); }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0f172a;
+      overscroll-behavior: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    body {
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    /* เมื่อตรึงหน้าจอ ปิดการเลื่อน 100% บนมือถือ */
+    body.screen-locked,
+    body.screen-locked #control-scroll {
+      overflow-y: hidden !important;
+      touch-action: none !important;
+      overscroll-behavior: none !important;
+    }
+    body.is-controlling,
+    body.is-controlling #control-scroll {
+      overflow-y: hidden !important;
+      touch-action: none !important;
+    }
+    #control-scroll {
+      scrollbar-gutter: stable;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    #control-status, #safety-status, #target-detail, #natural-command-status {
+      overflow-wrap: anywhere;
+    }
+    .joystick, .joystick-knob, .control-button, [data-control], #stop-button {
+      touch-action: none !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      -webkit-user-drag: none;
+    }
+    .joystick-knob {
+      transition: transform 110ms ease-out;
+      will-change: transform;
+    }
+    .joystick.is-dragging .joystick-knob {
+      transition: none;
+    }
+    .control-button:active, .control-button.is-pressed {
+      transform: scale(.93);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="min-h-screen bg-slate-900 pb-10 font-sans text-white">
-  <header class="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-700 bg-slate-800 px-4 py-3 shadow-lg">
-    <a href="/liff/" class="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400">
-      <i class="fa-solid fa-chevron-left mr-2" aria-hidden="true"></i>หน้าหลัก
+<body class="screen-locked flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-900 font-sans text-white">
+  <!-- Header พร้อมปุ่มตรึงหน้าจอ -->
+  <header class="z-30 flex shrink-0 items-center gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2 shadow-lg">
+    <a href="/liff/" aria-label="กลับหน้าหลัก" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-slate-200 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+      <i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span class="sr-only">หน้าหลัก</span>
     </a>
-    <div class="flex items-center gap-3">
-      <a href="https://lib.kku.ac.th/map/" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center rounded-lg bg-cyan-700 px-3 text-xs font-bold text-white hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-300"><i class="fa-solid fa-map-location-dot mr-1.5" aria-hidden="true"></i><span class="hidden sm:inline">แผนที่</span></a>
-      <a href="/liff/present/" class="inline-flex min-h-11 items-center rounded-lg bg-emerald-700 px-3 text-xs font-bold text-white hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300"><i class="fa-solid fa-wand-sparkles mr-1.5" aria-hidden="true"></i>Present</a>
-      <a href="/liff/history/" class="inline-flex min-h-11 items-center rounded-lg bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"><i class="fa-solid fa-clock-rotate-left mr-1.5" aria-hidden="true"></i>ประวัติ</a>
-      <div class="text-right">
-        <h1 class="text-sm font-bold">จอยสติ๊ก Zenbo</h1>
-        <p id="connection-state" class="text-[11px] text-slate-400">กำลังค้นหาหุ่นยนต์...</p>
-      </div>
+    <div class="min-w-0 flex-1">
+      <h1 class="truncate text-sm font-bold">Control Zenbo</h1>
+      <p id="connection-state" class="truncate text-[11px] text-slate-400">กำลังค้นหาหุ่นยนต์...</p>
     </div>
+
+    <!-- ปุ่มตรึง/ปลดล็อกหน้าจอ -->
+    <button id="toggle-lock-scroll" type="button" aria-pressed="true" title="ตรึงหน้าจอ / ปลดล็อกการเลื่อน" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-400/50 bg-emerald-600/30 px-2.5 text-xs font-bold text-emerald-300 shadow-sm hover:bg-emerald-600/40 focus:outline-none focus:ring-2 focus:ring-emerald-400 active:scale-95">
+      <i id="lock-scroll-icon" class="fa-solid fa-lock text-emerald-400" aria-hidden="true"></i>
+      <span id="lock-scroll-label" class="text-[11px]">ตรึงจอ</span>
+    </button>
+
+    <nav class="flex shrink-0 items-center gap-1" aria-label="เมนู Control">
+      <a href="https://lib.kku.ac.th/map/" target="_blank" rel="noopener noreferrer" aria-label="แผนที่" title="แผนที่" class="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-cyan-700 text-xs font-bold text-white hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-300"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i></a>
+      <a href="/liff/scenario/" aria-label="สถานการณ์" title="สถานการณ์" class="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300"><i class="fa-solid fa-wand-sparkles" aria-hidden="true"></i></a>
+      <a href="/liff/history/" aria-label="ประวัติคำสั่ง" title="ประวัติคำสั่ง" class="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-slate-700 text-xs font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></a>
+    </nav>
   </header>
 
-  <main class="mx-auto max-w-4xl p-4">
-    <section class="rounded-2xl border border-slate-700 bg-slate-800/80 p-4 shadow-xl" aria-labelledby="target-title">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 id="target-title" class="text-sm font-semibold text-slate-200"><i class="fa-solid fa-robot mr-2 text-emerald-400" aria-hidden="true"></i>เลือก Zenbo</h2>
-          <p class="mt-1 text-xs text-slate-400">คำสั่งจะส่งเฉพาะเครื่องที่เลือก</p>
-        </div>
-        <button id="refresh-robots" type="button" class="control-button min-h-11 rounded-lg bg-slate-700 px-3 text-xs font-semibold hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"><i class="fa-solid fa-rotate mr-1.5" aria-hidden="true"></i>ค้นหาใหม่</button>
-      </div>
-      <label for="robot-select" class="sr-only">เลือก Zenbo ที่ออนไลน์</label>
-      <select id="robot-select" class="mt-3 min-h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400">
-        <option value="">เลือก Zenbo ที่ออนไลน์...</option>
-      </select>
-      <p id="target-detail" class="mt-2 min-h-5 text-xs text-slate-400" role="status">เลือกหุ่นยนต์ก่อนเริ่มควบคุม</p>
-    </section>
+  <!-- แท็บเลือกโหมดการควบคุม: ช่วยให้จอยอยู่พอดีจอ 100dvh โดยไม่ต้องเลื่อน -->
+  <nav class="z-20 shrink-0 border-b border-slate-700/80 bg-slate-800/95 px-2 py-1.5 backdrop-blur" aria-label="สลับโหมดควบคุม">
+    <div class="no-scrollbar flex items-center gap-1 overflow-x-auto" role="tablist">
+      <button type="button" role="tab" id="tab-btn-base" aria-selected="true" data-tab="tab-base" class="mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow transition focus:outline-none focus:ring-2 focus:ring-blue-300">
+        <i class="fa-solid fa-gamepad" aria-hidden="true"></i><span>ล้อ (Base)</span>
+      </button>
+      <button type="button" role="tab" id="tab-btn-head" aria-selected="false" data-tab="tab-head" class="mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-violet-300">
+        <i class="fa-solid fa-head-side-virus text-violet-400" aria-hidden="true"></i><span>ศีรษะ (Head)</span>
+      </button>
+      <button type="button" role="tab" id="tab-btn-ai" aria-selected="false" data-tab="tab-ai" class="mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-amber-300">
+        <i class="fa-solid fa-wand-magic-sparkles text-amber-400" aria-hidden="true"></i><span>คำสั่ง AI</span>
+      </button>
+      <button type="button" role="tab" id="tab-btn-settings" aria-selected="false" data-tab="tab-settings" class="mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-emerald-300">
+        <i class="fa-solid fa-robot text-emerald-400" aria-hidden="true"></i><span>เลือกหุ่น/Safety</span>
+      </button>
+      <button type="button" role="tab" id="tab-btn-all" aria-selected="false" data-tab="tab-all" class="mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-slate-300">
+        <i class="fa-solid fa-table-cells-large" aria-hidden="true"></i><span>ทั้งหมด</span>
+      </button>
+    </div>
+  </nav>
 
-    <section class="mt-5 rounded-2xl border border-violet-400/30 bg-slate-800/80 p-4 shadow-xl" aria-labelledby="natural-command-title">
-      <div class="flex items-start gap-3">
-        <div class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-600 text-lg" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-        <div>
-          <h2 id="natural-command-title" class="text-base font-bold text-slate-100">สั่ง Booky ด้วยภาษาธรรมชาติ</h2>
-          <p class="mt-1 text-xs leading-relaxed text-slate-400">พิมพ์หรือพูดคำสั่ง แล้วตรวจ JSON ก่อนยืนยันส่งให้ Zenbo ที่เลือก</p>
-        </div>
-      </div>
-      <label for="natural-command-text" class="sr-only">คำสั่งภาษาธรรมชาติ</label>
-      <textarea id="natural-command-text" rows="3" maxlength="1000" placeholder="เช่น ให้ Zenbo กล่าวต้อนรับ 10 วินาที ส่ายหัวแล้วยิ้ม" class="mt-4 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm leading-relaxed text-white placeholder:text-slate-500 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/30"></textarea>
-      <div class="mt-3 grid grid-cols-2 gap-2">
-        <button id="natural-voice-button" type="button" onclick="toggleNaturalVoiceInput()" aria-pressed="false" class="min-h-12 rounded-xl border border-slate-600 bg-slate-700 text-sm font-bold text-slate-100 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300 active:scale-95"><i id="natural-voice-icon" class="fa-solid fa-microphone mr-1.5" aria-hidden="true"></i><span id="natural-voice-label">พูดเป็นข้อความ</span></button>
-        <button id="natural-analyse-button" type="button" onclick="analyseNaturalCommand()" class="min-h-12 rounded-xl bg-violet-600 text-sm font-bold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"><i class="fa-solid fa-code mr-1.5" aria-hidden="true"></i><span id="natural-analyse-label">วิเคราะห์คำสั่ง</span></button>
-      </div>
-      <p id="natural-command-status" role="status" aria-live="polite" class="mt-2 min-h-5 text-xs text-slate-400">คำสั่งจะยังไม่ถูกส่งจนกดยืนยัน</p>
-      <div id="natural-preview" hidden class="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-950/30 p-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <p class="text-xs font-bold text-emerald-200"><i class="fa-solid fa-code mr-1" aria-hidden="true"></i>JSON ที่วิเคราะห์ได้</p>
-          <span id="natural-compiler-source" class="rounded-full bg-slate-900 px-2 py-1 text-[10px] text-slate-300"></span>
-        </div>
-        <pre id="natural-json-preview" class="mt-2 max-h-48 overflow-auto rounded-lg border border-slate-700 bg-slate-950 p-2 text-[11px] leading-relaxed text-emerald-200"></pre>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <button type="button" onclick="clearNaturalPreview()" class="min-h-11 rounded-xl border border-slate-600 bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300">แก้คำสั่ง</button>
-          <button id="natural-dispatch-button" type="button" onclick="dispatchNaturalCommand()" class="min-h-11 rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"><i class="fa-solid fa-paper-plane mr-1" aria-hidden="true"></i><span id="natural-dispatch-label">ยืนยันส่ง</span></button>
-        </div>
-      </div>
-    </section>
+  <!-- แถบแจ้งเตือนสถานะหุ่นยนต์ที่เลือกแบบ Compact -->
+  <div id="quick-robot-bar" class="z-10 flex shrink-0 items-center justify-between border-b border-slate-700/60 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300">
+    <div class="flex min-w-0 items-center gap-1.5">
+      <span class="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span id="quick-robot-name" class="truncate font-semibold text-emerald-300">กำลังค้นหาหุ่นยนต์...</span>
+    </div>
+    <button type="button" onclick="switchTab('tab-settings')" class="shrink-0 text-[11px] text-cyan-400 hover:underline">
+      เปลี่ยนหุ่น <i class="fa-solid fa-angle-right ml-0.5"></i>
+    </button>
+  </div>
 
-    <section class="mt-5 grid gap-5 lg:grid-cols-2" aria-label="Zenbo joystick controls">
-      <article class="rounded-2xl border border-slate-700 bg-slate-800/80 p-4 shadow-xl" aria-labelledby="base-title">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="base-title" class="text-base font-bold text-slate-100"><i class="fa-solid fa-gamepad mr-2 text-blue-400" aria-hidden="true"></i>ล้อและทิศทาง</h2>
-            <p class="mt-1 text-xs text-slate-400">ลากจอยเพื่อเดินหรือหมุน · ปล่อยนิ้วเพื่อหยุด</p>
-          </div>
-          <span class="rounded-full border border-blue-400/40 bg-blue-400/10 px-2 py-1 text-[11px] font-semibold text-blue-200">BASE</span>
-        </div>
-        <div class="mt-5 flex justify-center">
-          <div id="base-joystick" class="joystick relative grid h-56 w-56 place-items-center rounded-full border-8 border-slate-600 bg-slate-900 shadow-inner shadow-black/40" role="application" aria-label="จอยสติ๊กควบคุมล้อ: ลากขึ้นเพื่อเดินหน้า ลงเพื่อถอย ซ้ายหรือขวาเพื่อหมุน">
-            <span class="pointer-events-none absolute top-3 text-xs font-bold text-slate-400">เดินหน้า</span>
-            <span class="pointer-events-none absolute bottom-3 text-xs font-bold text-slate-400">ถอยหลัง</span>
-            <span class="pointer-events-none absolute left-3 text-xs font-bold text-slate-400">หมุน</span>
-            <span class="pointer-events-none absolute right-3 text-xs font-bold text-slate-400">หมุน</span>
-            <div class="pointer-events-none h-px w-full bg-slate-700"></div><div class="pointer-events-none absolute h-full w-px bg-slate-700"></div>
-            <div class="joystick-knob pointer-events-none absolute grid h-20 w-20 place-items-center rounded-full border-4 border-blue-300 bg-blue-600 shadow-lg shadow-blue-950/80"><i class="fa-solid fa-arrows-up-down-left-right text-2xl" aria-hidden="true"></i></div>
-          </div>
-        </div>
-        <div class="mx-auto mt-4 grid max-w-xs grid-cols-3 gap-2" aria-label="ปุ่มควบคุมล้อสำรอง">
-          <span></span><button type="button" data-control="base:FORWARD" class="control-button min-h-12 rounded-xl bg-blue-700 text-xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="เดินหน้า"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button><span></span>
-          <button type="button" data-control="base:TURN_LEFT" class="control-button min-h-12 rounded-xl bg-slate-700 text-xl hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="หมุนซ้าย"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
-          <button id="stop-button" type="button" class="control-button min-h-12 rounded-xl border border-red-400/50 bg-red-700 text-sm font-bold hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">หยุด</button>
-          <button type="button" data-control="base:TURN_RIGHT" class="control-button min-h-12 rounded-xl bg-slate-700 text-xl hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="หมุนขวา"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
-          <span></span><button type="button" data-control="base:BACKWARD" class="control-button min-h-12 rounded-xl bg-blue-700 text-xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="ถอยหลัง"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button><span></span>
-        </div>
-      </article>
+  <main id="control-scroll" class="screen-locked min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-4">
+    <div class="mx-auto max-w-4xl">
 
-      <article class="rounded-2xl border border-slate-700 bg-slate-800/80 p-4 shadow-xl" aria-labelledby="head-title">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="head-title" class="text-base font-bold text-slate-100"><i class="fa-solid fa-head-side-virus mr-2 text-violet-400" aria-hidden="true"></i>ศีรษะ Zenbo</h2>
-            <p class="mt-1 text-xs text-slate-400">ลากเพื่อหันหรือก้มเงย · ปล่อยนิ้วเพื่อหยุด</p>
+      <!-- แท็บ: บังคับล้อและทิศทาง (BASE) - พอดีหน้าจอมือถือ 100dvh ไม่ต้องเลื่อน -->
+      <section id="pane-base" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-base">
+        <article class="rounded-2xl border border-slate-700 bg-slate-800/90 p-3 sm:p-4 shadow-xl" data-require-role="operator" aria-labelledby="base-title">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h2 id="base-title" class="text-sm sm:text-base font-bold text-slate-100">
+                <i class="fa-solid fa-gamepad mr-2 text-blue-400" aria-hidden="true"></i>ล้อและทิศทาง
+              </h2>
+              <p class="mt-0.5 text-[11px] text-slate-400">ลากจอยหรือกดปุ่มเพื่อเดิน · ปล่อยนิ้วเพื่อหยุด</p>
+            </div>
+            <span class="shrink-0 rounded-full border border-blue-400/40 bg-blue-400/10 px-2 py-0.5 text-[10px] font-semibold text-blue-200">SDK REMOTE</span>
           </div>
-          <span class="rounded-full border border-violet-400/40 bg-violet-400/10 px-2 py-1 text-[11px] font-semibold text-violet-200">HEAD</span>
-        </div>
-        <div class="mt-5 flex justify-center">
-          <div id="head-joystick" class="joystick relative grid h-56 w-56 place-items-center rounded-full border-8 border-slate-600 bg-slate-900 shadow-inner shadow-black/40" role="application" aria-label="จอยสติ๊กศีรษะ: ลากขึ้นเพื่องย ลงเพื่อก้ม ซ้ายหรือขวาเพื่อหัน">
-            <span class="pointer-events-none absolute top-3 text-xs font-bold text-slate-400">เงย</span>
-            <span class="pointer-events-none absolute bottom-3 text-xs font-bold text-slate-400">ก้ม</span>
-            <span class="pointer-events-none absolute left-3 text-xs font-bold text-slate-400">ซ้าย</span>
-            <span class="pointer-events-none absolute right-3 text-xs font-bold text-slate-400">ขวา</span>
-            <div class="pointer-events-none h-px w-full bg-slate-700"></div><div class="pointer-events-none absolute h-full w-px bg-slate-700"></div>
-            <div class="joystick-knob pointer-events-none absolute grid h-20 w-20 place-items-center rounded-full border-4 border-violet-300 bg-violet-600 shadow-lg shadow-violet-950/80"><i class="fa-solid fa-arrows-up-down-left-right text-2xl" aria-hidden="true"></i></div>
-          </div>
-        </div>
-        <div class="mx-auto mt-4 grid max-w-xs grid-cols-3 gap-2" aria-label="ปุ่มควบคุมศีรษะสำรอง">
-          <span></span><button type="button" data-control="head:UP" class="control-button min-h-12 rounded-xl bg-violet-700 text-xl hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="เงยศีรษะ"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button><span></span>
-          <button type="button" data-control="head:LEFT" class="control-button min-h-12 rounded-xl bg-slate-700 text-xl hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="หันศีรษะซ้าย"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
-          <button type="button" data-control="head:STOP" class="control-button min-h-12 rounded-xl border border-violet-300/30 bg-slate-700 text-sm font-bold hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300">หยุดหัว</button>
-          <button type="button" data-control="head:RIGHT" class="control-button min-h-12 rounded-xl bg-slate-700 text-xl hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="หันศีรษะขวา"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-          <span></span><button type="button" data-control="head:DOWN" class="control-button min-h-12 rounded-xl bg-violet-700 text-xl hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="ก้มศีรษะ"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button><span></span>
-        </div>
-      </article>
-    </section>
+          <div id="control-speed-deck" class="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 p-2.5"></div>
 
-    <section class="mt-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100" aria-label="ข้อควรระวัง">
-      <i class="fa-solid fa-triangle-exclamation mr-2" aria-hidden="true"></i><strong>ความปลอดภัย:</strong> ปล่อยนิ้วจากจอย, ปิดหน้า, หรือสลับแอป ระบบจะส่งคำสั่งหยุดทันที ตรวจพื้นที่รอบหุ่นยนต์ก่อนใช้งาน
-    </section>
-    <p id="control-status" class="mt-4 min-h-6 text-center text-sm text-slate-300" role="status" aria-live="polite">พร้อมใช้งานเมื่อเลือก Zenbo</p>
+          <!-- จอยสติ๊กล้อ: touch-action: none เด็ดขาด -->
+          <div class="mt-3 flex justify-center">
+            <div id="base-joystick" class="joystick relative grid h-48 w-48 sm:h-56 sm:w-56 place-items-center rounded-full border-8 border-slate-600 bg-slate-950 shadow-inner shadow-black/60 select-none" role="application" aria-label="จอยสติ๊กควบคุมล้อ: ลากขึ้นเพื่อเดินหน้า ลงเพื่อถอย ซ้ายหรือขวาเพื่อหมุน">
+              <span class="pointer-events-none absolute top-2 text-[11px] font-bold text-slate-400">เดินหน้า</span>
+              <span class="pointer-events-none absolute bottom-2 text-[11px] font-bold text-slate-400">ถอยหลัง</span>
+              <span class="pointer-events-none absolute left-2 text-[11px] font-bold text-slate-400">หมุน</span>
+              <span class="pointer-events-none absolute right-2 text-[11px] font-bold text-slate-400">หมุน</span>
+              <div class="pointer-events-none h-px w-full bg-slate-700/60"></div>
+              <div class="pointer-events-none absolute h-full w-px bg-slate-700/60"></div>
+              <div class="joystick-knob pointer-events-none absolute grid h-16 w-16 sm:h-20 sm:w-20 place-items-center rounded-full border-4 border-blue-300 bg-blue-600 shadow-lg shadow-blue-950/80">
+                <i class="fa-solid fa-arrows-up-down-left-right text-xl sm:text-2xl" aria-hidden="true"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- ปุ่มควบคุมล้อสำรอง: กดค้างเดิน ปล่อยหยุด จอไม่เลื่อน -->
+          <div class="mx-auto mt-3 grid max-w-xs grid-cols-3 gap-2" aria-label="ปุ่มควบคุมล้อสำรอง">
+            <span></span>
+            <button type="button" data-control="base:FORWARD" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-blue-700 text-xl font-bold text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 active:bg-blue-800" aria-label="เดินหน้า">
+              <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+            </button>
+            <span></span>
+
+            <button type="button" data-control="base:TURN_LEFT" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-300 active:bg-slate-800" aria-label="หมุนซ้าย">
+              <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+            </button>
+            <button id="stop-button" type="button" class="control-button flex min-h-12 items-center justify-center rounded-xl border border-red-400/50 bg-red-700 text-sm font-bold text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 active:bg-red-800 shadow-lg shadow-red-950/50">
+              หยุด
+            </button>
+            <button type="button" data-control="base:TURN_RIGHT" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-300 active:bg-slate-800" aria-label="หมุนขวา">
+              <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+            </button>
+
+            <span></span>
+            <button type="button" data-control="base:BACKWARD" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-blue-700 text-xl font-bold text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 active:bg-blue-800" aria-label="ถอยหลัง">
+              <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+            </button>
+            <span></span>
+          </div>
+
+          <p id="lock-status-badge" class="mt-2 text-center text-xs font-medium text-emerald-300">
+            🔒 ตรึงหน้าจอ: หน้าจอจะไม่เลื่อนขณะควบคุม
+          </p>
+        </article>
+      </section>
+
+      <!-- แท็บ: ควบคุมศีรษะ (HEAD) -->
+      <section id="pane-head" class="tab-pane hidden" role="tabpanel" aria-labelledby="tab-btn-head">
+        <article class="rounded-2xl border border-slate-700 bg-slate-800/90 p-3 sm:p-4 shadow-xl" data-require-role="operator" aria-labelledby="head-title">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h2 id="head-title" class="text-sm sm:text-base font-bold text-slate-100">
+                <i class="fa-solid fa-head-side-virus mr-2 text-violet-400" aria-hidden="true"></i>ศีรษะ Zenbo
+              </h2>
+              <p class="mt-0.5 text-[11px] text-slate-400">ลากเพื่อหันหรือก้มเงย · ปล่อยนิ้วเพื่อหยุด</p>
+            </div>
+            <span class="shrink-0 rounded-full border border-violet-400/40 bg-violet-400/10 px-2 py-0.5 text-[10px] font-semibold text-violet-200">HEAD</span>
+          </div>
+
+          <div class="mt-3 flex justify-center">
+            <div id="head-joystick" class="joystick relative grid h-48 w-48 sm:h-56 sm:w-56 place-items-center rounded-full border-8 border-slate-600 bg-slate-950 shadow-inner shadow-black/60 select-none" role="application" aria-label="จอยสติ๊กศีรษะ: ลากขึ้นเพื่องย ลงเพื่อก้ม ซ้ายหรือขวาเพื่อหัน">
+              <span class="pointer-events-none absolute top-2 text-[11px] font-bold text-slate-400">เงย</span>
+              <span class="pointer-events-none absolute bottom-2 text-[11px] font-bold text-slate-400">ก้ม</span>
+              <span class="pointer-events-none absolute left-2 text-[11px] font-bold text-slate-400">ซ้าย</span>
+              <span class="pointer-events-none absolute right-2 text-[11px] font-bold text-slate-400">ขวา</span>
+              <div class="pointer-events-none h-px w-full bg-slate-700/60"></div>
+              <div class="pointer-events-none absolute h-full w-px bg-slate-700/60"></div>
+              <div class="joystick-knob pointer-events-none absolute grid h-16 w-16 sm:h-20 sm:w-20 place-items-center rounded-full border-4 border-violet-300 bg-violet-600 shadow-lg shadow-violet-950/80">
+                <i class="fa-solid fa-arrows-up-down-left-right text-xl sm:text-2xl" aria-hidden="true"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="mx-auto mt-3 grid max-w-xs grid-cols-3 gap-2" aria-label="ปุ่มควบคุมศีรษะสำรอง">
+            <span></span>
+            <button type="button" data-control="head:UP" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-violet-700 text-xl font-bold text-white hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="เงยศีรษะ">
+              <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+            </button>
+            <span></span>
+
+            <button type="button" data-control="head:LEFT" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="หันศีรษะซ้าย">
+              <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            </button>
+            <button type="button" data-control="head:STOP" class="control-button flex min-h-12 items-center justify-center rounded-xl border border-violet-300/30 bg-slate-700 text-sm font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300">
+              หยุดหัว
+            </button>
+            <button type="button" data-control="head:RIGHT" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="หันศีรษะขวา">
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </button>
+
+            <span></span>
+            <button type="button" data-control="head:DOWN" class="control-button flex min-h-12 items-center justify-center rounded-xl bg-violet-700 text-xl font-bold text-white hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-300" aria-label="ก้มศีรษะ">
+              <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+            </button>
+            <span></span>
+          </div>
+        </article>
+      </section>
+
+      <!-- แท็บ: สั่งด้วยภาษาธรรมชาติ (AI) -->
+      <section id="pane-ai" class="tab-pane hidden" role="tabpanel" aria-labelledby="tab-btn-ai">
+        <article class="rounded-2xl border border-violet-400/30 bg-slate-800/90 p-3 sm:p-4 shadow-xl" data-require-role="operator" aria-labelledby="natural-command-title">
+          <div class="flex items-start gap-3">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-600 text-lg" aria-hidden="true">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <h2 id="natural-command-title" class="text-base font-bold text-slate-100">สั่ง Booky ด้วยภาษาธรรมชาติ</h2>
+              <p class="mt-0.5 text-xs text-slate-400">พิมพ์หรือพูดคำสั่ง แล้วตรวจ JSON ก่อนยืนยันส่งให้ Zenbo</p>
+            </div>
+          </div>
+          <label for="natural-command-text" class="sr-only">คำสั่งภาษาธรรมชาติ</label>
+          <textarea id="natural-command-text" rows="3" maxlength="1000" placeholder="เช่น ให้ Zenbo กล่าวต้อนรับ 10 วินาที ส่ายหัวแล้วยิ้ม" class="mt-3 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm leading-relaxed text-white placeholder:text-slate-500 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/30"></textarea>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button id="natural-voice-button" type="button" onclick="toggleNaturalVoiceInput()" aria-pressed="false" class="flex min-h-12 items-center justify-center rounded-xl border border-slate-600 bg-slate-700 text-sm font-bold text-slate-100 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300 active:scale-95">
+              <i id="natural-voice-icon" class="fa-solid fa-microphone mr-1.5" aria-hidden="true"></i><span id="natural-voice-label">พูดเป็นข้อความ</span>
+            </button>
+            <button id="natural-analyse-button" type="button" onclick="analyseNaturalCommand()" class="flex min-h-12 items-center justify-center rounded-xl bg-violet-600 text-sm font-bold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-60 active:scale-95">
+              <i class="fa-solid fa-code mr-1.5" aria-hidden="true"></i><span id="natural-analyse-label">วิเคราะห์คำสั่ง</span>
+            </button>
+          </div>
+          <p id="natural-command-status" role="status" aria-live="polite" class="mt-2 min-h-5 text-xs text-slate-400">คำสั่งจะยังไม่ถูกส่งจนกดยืนยัน</p>
+
+          <div id="natural-preview" hidden class="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-950/30 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-xs font-bold text-emerald-200"><i class="fa-solid fa-code mr-1" aria-hidden="true"></i>JSON ที่วิเคราะห์ได้</p>
+              <span id="natural-compiler-source" class="rounded-full bg-slate-900 px-2 py-1 text-[10px] text-slate-300"></span>
+            </div>
+            <pre id="natural-json-preview" class="mt-2 max-h-48 overflow-auto rounded-lg border border-slate-700 bg-slate-950 p-2 text-[11px] leading-relaxed text-emerald-200"></pre>
+            <div class="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" onclick="clearNaturalPreview()" class="min-h-11 rounded-xl border border-slate-600 bg-slate-700 px-3 text-xs font-bold text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300">แก้คำสั่ง</button>
+              <button id="natural-dispatch-button" type="button" onclick="dispatchNaturalCommand()" class="min-h-11 rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-60">
+                <i class="fa-solid fa-paper-plane mr-1" aria-hidden="true"></i><span id="natural-dispatch-label">ยืนยันส่ง</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- แท็บ: เลือกหุ่นยนต์ และ Safety Guard -->
+      <section id="pane-settings" class="tab-pane hidden space-y-3" role="tabpanel" aria-labelledby="tab-btn-settings">
+        <!-- เลือก Zenbo -->
+        <article class="rounded-2xl border border-slate-700 bg-slate-800/90 p-4 shadow-xl" aria-labelledby="target-title">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 id="target-title" class="text-sm font-semibold text-slate-200"><i class="fa-solid fa-robot mr-2 text-emerald-400" aria-hidden="true"></i>เลือก Zenbo</h2>
+              <p class="mt-1 text-xs text-slate-400">คำสั่งจะส่งเฉพาะเครื่องที่เลือก</p>
+            </div>
+            <button id="refresh-robots" type="button" class="control-button min-h-11 rounded-lg bg-slate-700 px-3 text-xs font-semibold hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+              <i class="fa-solid fa-rotate mr-1.5" aria-hidden="true"></i>ค้นหาใหม่
+            </button>
+          </div>
+          <fieldset class="mt-3">
+            <legend class="text-xs font-semibold text-slate-300">Zenbo ที่ออนไลน์</legend>
+            <div id="robot-menu" class="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-describedby="target-detail" aria-label="เลือก Zenbo ที่ออนไลน์" aria-busy="true">
+              <div class="min-h-20 animate-pulse rounded-xl border border-slate-700 bg-slate-900/70 p-3"><div class="h-3 w-24 rounded bg-slate-700"></div><div class="mt-3 h-2 w-36 rounded bg-slate-800"></div></div>
+            </div>
+          </fieldset>
+          <p id="target-detail" class="mt-2 min-h-5 text-xs text-slate-400" role="status">เลือกหุ่นยนต์ก่อนเริ่มควบคุม</p>
+        </article>
+
+        <!-- Safety Guard -->
+        <article class="rounded-2xl border border-emerald-400/35 bg-emerald-950/25 p-4 shadow-xl" aria-labelledby="safety-title">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="safety-title" class="text-base font-bold text-emerald-100"><i class="fa-solid fa-shield-heart mr-2" aria-hidden="true"></i>Safety Guard</h2>
+              <p class="mt-1 text-xs leading-relaxed text-emerald-100/75">โหมดงานหน้างาน: ปลดล็อกล้อเป็นค่าเริ่มต้น ใช้ปุ่มด้านล่างเฉพาะเมื่อต้องการหยุดฉุกเฉิน</p>
+            </div>
+            <span class="rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-200">FIELD</span>
+          </div>
+          <div class="mt-3 grid gap-2 sm:grid-cols-2">
+            <button id="apply-safety" type="button" class="control-button min-h-12 rounded-xl bg-emerald-700 text-sm font-bold hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+              <i class="fa-solid fa-unlock mr-1"></i>ปลดล็อกล้อ
+            </button>
+            <button id="safety-stop" type="button" class="control-button min-h-12 rounded-xl border border-red-400/50 bg-red-900/60 text-sm font-bold hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-300">
+              <i class="fa-solid fa-hand mr-1"></i>หยุดฉุกเฉิน
+            </button>
+          </div>
+          <p id="safety-status" class="mt-2 min-h-5 text-xs text-emerald-100/75" role="status">Safety policy จะถูกบังคับบน APK ไม่ใช่แค่หน้าเว็บ</p>
+        </article>
+      </section>
+
+      <!-- ข้อควรระวังความปลอดภัย & สถานะ -->
+      <section class="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-2.5 sm:p-3 text-xs text-amber-100" aria-label="ข้อควรระวัง">
+        <i class="fa-solid fa-triangle-exclamation mr-1.5" aria-hidden="true"></i><strong>ความปลอดภัย:</strong> ปล่อยนิ้วจากจอย, ปิดหน้า, หรือสลับแอป ระบบจะส่งคำสั่งหยุดทันที
+      </section>
+      <p id="control-status" class="mt-3 min-h-6 text-center text-xs sm:text-sm text-slate-300" role="status" aria-live="polite">พร้อมใช้งานเมื่อเลือก Zenbo</p>
+    </div>
   </main>
 
   <script>
     const API_BASE = `${window.location.origin}${window.ZENBO_LIFF_CONFIG?.apiBase || ''}`;
-    let selectedRobot = sessionStorage.getItem('zenbo-control-robot') || '';
-    let robots = [];
-    window.ZenboLiff.init();
+    function apiFetch(url, options) {
+      if (typeof ZenboCommon !== 'undefined' && ZenboCommon.api) {
+        return ZenboCommon.api(url, options).then(res => {
+          if (res === null) throw new Error('redirecting_to_login');
+          return res;
+        });
+      }
+      return fetch(url, options);
+    }
 
+    let selectedRobot = (typeof ZenboCommon !== 'undefined' && ZenboCommon.loadRobotSelection ? ZenboCommon.loadRobotSelection() : sessionStorage.getItem('zenbo-control-robot')) || '';
+    let robots = [];
+    let isScreenLocked = true; // ตรึงหน้าจอเป็นค่าเริ่มต้น
+    let currentTab = 'tab-base';
+
+    function renderLegacySpeedDeck() {
+      window.ZenboDriveControl.mount(document.getElementById('control-speed-deck'), {
+        mode: 'remote',
+        robotSelected: !!selectedRobot,
+        requestedLevel: 1,
+        label: 'ระดับความเร็วรีโมตแบบทิศทาง'
+      });
+    }
+
+    window.ZenboLiff.init();
+    if (typeof ZenboCommon !== 'undefined') {
+      ZenboCommon.ensureAuth().then(() => ZenboCommon.refreshUser().then(() => ZenboCommon.applyRoleGating()));
+    }
+
+    // ==========================================
+    // การตรึงหน้าจอ (Screen Lock)
+    // ==========================================
+    function setScreenLock(locked) {
+      isScreenLocked = locked;
+      const body = document.body;
+      const scrollEl = document.getElementById('control-scroll');
+      const lockIcon = document.getElementById('lock-scroll-icon');
+      const lockLabel = document.getElementById('lock-scroll-label');
+      const lockBtn = document.getElementById('toggle-lock-scroll');
+      const lockBadge = document.getElementById('lock-status-badge');
+
+      if (locked) {
+        body.classList.add('screen-locked');
+        scrollEl.classList.add('screen-locked');
+        lockBtn.setAttribute('aria-pressed', 'true');
+        lockBtn.className = 'inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-400/50 bg-emerald-600/30 px-2.5 text-xs font-bold text-emerald-300 shadow-sm hover:bg-emerald-600/40 focus:outline-none focus:ring-2 focus:ring-emerald-400 active:scale-95';
+        lockIcon.className = 'fa-solid fa-lock text-emerald-400';
+        if (lockLabel) lockLabel.textContent = 'ตรึงจอ';
+        if (lockBadge) {
+          lockBadge.textContent = '🔒 ตรึงหน้าจอ: หน้าจอจะไม่เลื่อนขณะควบคุม';
+          lockBadge.className = 'mt-2 text-center text-xs font-medium text-emerald-300';
+        }
+      } else {
+        body.classList.remove('screen-locked');
+        scrollEl.classList.remove('screen-locked');
+        lockBtn.setAttribute('aria-pressed', 'false');
+        lockBtn.className = 'inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700/80 px-2.5 text-xs font-bold text-slate-300 shadow-sm hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400 active:scale-95';
+        lockIcon.className = 'fa-solid fa-lock-open text-slate-400';
+        if (lockLabel) lockLabel.textContent = 'ปลดล็อก';
+        if (lockBadge) {
+          lockBadge.textContent = '🔓 เลื่อนหน้าจอได้อิสระ';
+          lockBadge.className = 'mt-2 text-center text-xs font-medium text-slate-400';
+        }
+      }
+    }
+
+    document.getElementById('toggle-lock-scroll').addEventListener('click', () => {
+      setScreenLock(!isScreenLocked);
+    });
+
+    // ป้องกันการ scroll ล้น/bounce ขณะตรึงหน้าจอ
+    document.getElementById('control-scroll').addEventListener('touchmove', (e) => {
+      if (isScreenLocked) {
+        if (e.cancelable) e.preventDefault();
+      }
+    }, { passive: false });
+
+    // ==========================================
+    // การสลับแท็บโหมดควบคุม (Segmented View)
+    // ==========================================
+    function switchTab(tabId) {
+      currentTab = tabId;
+      const tabs = ['tab-base', 'tab-head', 'tab-ai', 'tab-settings', 'tab-all'];
+      tabs.forEach(id => {
+        const btn = document.getElementById(`tab-btn-${id.replace('tab-', '')}`);
+        if (!btn) return;
+        const isActive = id === tabId;
+        btn.setAttribute('aria-selected', String(isActive));
+        if (isActive) {
+          btn.className = 'mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow transition focus:outline-none focus:ring-2 focus:ring-blue-300';
+        } else {
+          btn.className = 'mode-tab inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition focus:outline-none focus:ring-2 focus:ring-blue-300';
+        }
+      });
+
+      const panes = {
+        'tab-base': ['pane-base'],
+        'tab-head': ['pane-head'],
+        'tab-ai': ['pane-ai'],
+        'tab-settings': ['pane-settings'],
+        'tab-all': ['pane-base', 'pane-head', 'pane-ai', 'pane-settings']
+      };
+
+      const allPanes = ['pane-base', 'pane-head', 'pane-ai', 'pane-settings'];
+      const activePanes = panes[tabId] || ['pane-base'];
+
+      allPanes.forEach(paneId => {
+        const el = document.getElementById(paneId);
+        if (!el) return;
+        if (activePanes.includes(paneId)) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+
+      // ถ้าอยู่ในโหมดล้อหรือศีรษะ ให้ล็อกหน้าจออัตโนมัติเพื่อความเสถียร
+      if (tabId === 'tab-base' || tabId === 'tab-head') {
+        setScreenLock(true);
+      } else if (tabId === 'tab-ai' || tabId === 'tab-settings' || tabId === 'tab-all') {
+        setScreenLock(false);
+      }
+    }
+
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // ==========================================
+    // สถานะและการเลือกหุ่นยนต์
+    // ==========================================
     function setStatus(message, isError = false) {
       const el = document.getElementById('control-status');
       el.textContent = message;
-      el.className = `mt-4 min-h-6 text-center text-sm ${isError ? 'text-red-300' : 'text-emerald-300'}`;
+      el.className = `mt-3 min-h-6 text-center text-xs sm:text-sm ${isError ? 'text-red-300' : 'text-emerald-300'}`;
     }
     function robotLabel(robot) { return `${robot.robot_slug} · ${robot.client_ip || robot.ip || 'ไม่ทราบ IP'}`; }
     function selectedRobotData() { return robots.find(robot => robot.robot_slug === selectedRobot); }
-    function renderRobots() {
-      const select = document.getElementById('robot-select');
-      select.innerHTML = '<option value="">เลือก Zenbo ที่ออนไลน์...</option>';
-      robots.forEach(robot => { const option = document.createElement('option'); option.value = robot.robot_slug; option.textContent = robotLabel(robot); select.appendChild(option); });
-      if (selectedRobotData()) select.value = selectedRobot;
-      else { selectedRobot = ''; sessionStorage.removeItem('zenbo-control-robot'); }
+
+    function updateQuickRobotBar() {
+      const barText = document.getElementById('quick-robot-name');
       const robot = selectedRobotData();
+      if (robot) {
+        barText.textContent = `${robot.robot_slug} (${robot.client_ip || robot.ip || 'เชื่อมต่อแล้ว'})`;
+        barText.className = 'truncate font-bold text-emerald-300';
+      } else if (robots.length > 0) {
+        barText.textContent = `ยังไม่ได้เลือก (พบออนไลน์ ${robots.length} เครื่อง)`;
+        barText.className = 'truncate font-bold text-amber-300';
+      } else {
+        barText.textContent = 'ยังไม่พบ Zenbo ออนไลน์';
+        barText.className = 'truncate font-bold text-slate-400';
+      }
+    }
+
+    function chooseRobot(robotSlug) {
+      selectedRobot = robotSlug;
+      if (selectedRobot) {
+        sessionStorage.setItem('zenbo-control-robot', selectedRobot);
+        if (typeof ZenboCommon !== 'undefined' && ZenboCommon.saveRobotSelection) ZenboCommon.saveRobotSelection(selectedRobot);
+      } else {
+        sessionStorage.removeItem('zenbo-control-robot');
+      }
+      clearNaturalPreview();
+      renderRobots();
+      updateQuickRobotBar();
+      renderLegacySpeedDeck();
+      setStatus(selectedRobot ? `พร้อมควบคุม ${selectedRobot} — ลากจอยเพื่อเริ่ม` : 'เลือก Zenbo ก่อนควบคุม', !selectedRobot);
+      if (selectedRobot && currentTab === 'tab-settings') {
+        // เมื่อเลือกหุ่นยนต์แล้ว สลับกลับมาแท็บล้ออัตโนมัติ
+        setTimeout(() => switchTab('tab-base'), 300);
+      }
+    }
+
+    function renderRobots() {
+      const menu = document.getElementById('robot-menu');
+      menu.replaceChildren();
+      if (!selectedRobotData()) { selectedRobot = ''; sessionStorage.removeItem('zenbo-control-robot'); }
+      const robot = selectedRobotData();
+      if (!robots.length) {
+        const empty = document.createElement('p');
+        empty.className = 'rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-400 sm:col-span-2';
+        empty.textContent = 'ยังไม่พบ Zenbo client ที่ส่ง heartbeat';
+        menu.appendChild(empty);
+      } else {
+        robots.forEach(item => {
+          const isSelected = item.robot_slug === selectedRobot;
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.robotSlug = item.robot_slug;
+          button.setAttribute('role', 'radio');
+          button.setAttribute('aria-checked', String(isSelected));
+          button.className = `control-button min-h-20 rounded-xl border p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-emerald-300 active:scale-[.98] ${isSelected ? 'border-emerald-400 bg-emerald-950/50 shadow-sm shadow-emerald-950' : 'border-slate-700 bg-slate-900 hover:border-slate-500 hover:bg-slate-700/60'}`;
+          const header = document.createElement('span');
+          header.className = 'flex items-center justify-between gap-2';
+          const name = document.createElement('span');
+          name.className = 'min-w-0 truncate text-sm font-bold text-slate-100';
+          name.textContent = item.robot_slug;
+          const state = document.createElement('span');
+          state.className = isSelected ? 'shrink-0 rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-bold text-emerald-200' : 'shrink-0 rounded-full bg-slate-700 px-2 py-1 text-[10px] font-bold text-slate-300';
+          state.textContent = isSelected ? 'กำลังควบคุม' : 'ออนไลน์';
+          const detail = document.createElement('span');
+          detail.className = 'mt-2 block truncate text-[11px] text-slate-400';
+          detail.textContent = item.client_ip || item.ip || 'เชื่อมต่อแล้ว';
+          header.append(name, state);
+          button.append(header, detail);
+          button.addEventListener('click', () => chooseRobot(item.robot_slug));
+          menu.appendChild(button);
+        });
+      }
+      menu.setAttribute('aria-busy', 'false');
       document.getElementById('connection-state').textContent = robot ? 'พร้อมควบคุม' : (robots.length ? 'เลือก Zenbo เพื่อเริ่ม' : 'ยังไม่พบ Zenbo ออนไลน์');
       document.getElementById('target-detail').textContent = robot ? `กำลังควบคุม ${robotLabel(robot)}` : 'เลือกหุ่นยนต์ก่อนเริ่มควบคุม';
+      updateQuickRobotBar();
     }
+
     async function discoverRobots() {
       document.getElementById('connection-state').textContent = 'กำลังค้นหาหุ่นยนต์...';
       try {
-        const res = await fetch(`${API_BASE}/api/v1/robots`);
+        const res = await apiFetch(`${API_BASE}/api/v1/robots`);
         const data = await res.json();
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         robots = data.robots || [];
         renderRobots();
       } catch (error) {
+        document.getElementById('robot-menu').setAttribute('aria-busy', 'false');
         document.getElementById('connection-state').textContent = 'ติดต่อ Core API ไม่ได้';
         document.getElementById('target-detail').textContent = 'ลองค้นหาใหม่อีกครั้ง';
         setStatus(`ค้นหา Zenbo ไม่สำเร็จ: ${error.message}`, true);
+        updateQuickRobotBar();
       }
     }
 
+    async function applySafetyPolicy(unlockWheels = true) {
+      if (!selectedRobot) { setStatus('เลือก Zenbo ก่อนตั้ง Safety Guard', true); return; }
+      const button = document.getElementById(unlockWheels ? 'apply-safety' : 'safety-stop');
+      button.disabled = true;
+      try {
+        if (!unlockWheels) {
+          await emergencyStop();
+          setStatus('ส่งคำสั่งหยุดฉุกเฉินแล้ว');
+          return;
+        }
+        const policy = { base_motion_enabled: true, collision_guard_enabled: false, fall_guard_enabled: false, max_distance_m: 0.75, max_speed: 7, auto_stop_ms: 3000 };
+        const response = await apiFetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/safety`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(policy) });
+        const data = await response.json(); if (!response.ok) throw new Error(data.detail?.message || `HTTP ${response.status}`);
+        document.getElementById('safety-status').textContent = 'ปลดล็อกล้อแล้ว — สามารถควบคุมจาก LIFF ได้';
+        setStatus('ปลดล็อกล้อแล้ว');
+      } catch (error) { document.getElementById('safety-status').textContent = `ตั้ง Safety Guard ไม่สำเร็จ: ${error.message}`; setStatus('ตั้ง Safety Guard ไม่สำเร็จ', true); }
+      finally { button.disabled = false; }
+    }
+
+    async function refreshSafetyTelemetry() {
+      if (!selectedRobot) return;
+      try {
+        const response = await apiFetch(`${API_BASE}/api/v1/robots`);
+        const data = await response.json();
+        const robot = (data.robots || []).find(item => item.robot_slug === selectedRobot);
+        const stopEvent = robot && robot.last_safety_stop;
+        if (stopEvent && stopEvent.data) {
+          const stopped = stopEvent.data;
+          document.getElementById('safety-status').textContent = `ล่าสุดหยุดด้วย sensor: ${stopped.reason} ที่ ${Number(stopped.meters).toFixed(3)} m`;
+          return;
+        }
+        const safety = robot && robot.safety;
+        if (!safety || !safety.data) return;
+        const sample = safety.data;
+        if (sample.state === 'SENSOR_SAMPLE') document.getElementById('safety-status').textContent = `${sample.sensor}: ${Number(sample.meters).toFixed(3)} m · ใช้ค่านี้ปรับ threshold ก่อน field test`;
+        else if (sample.state === 'SENSOR_STOP') document.getElementById('safety-status').textContent = `หยุดด้วย sensor: ${sample.reason} ที่ ${Number(sample.meters).toFixed(3)} m`;
+        else document.getElementById('safety-status').textContent = `APK safety: ${sample.state}${sample.detail ? ` · ${sample.detail}` : ''}`;
+      } catch (error) { /* ignore transient failure */ }
+    }
+
+    // ==========================================
+    // คำสั่งเสียงและภาษาธรรมชาติ (AI)
+    // ==========================================
     let naturalRecognition = null;
     let naturalListening = false;
     let naturalPayload = null;
@@ -194,8 +625,8 @@
       document.getElementById('natural-voice-icon').className = next ? 'fa-solid fa-stop mr-1.5' : 'fa-solid fa-microphone mr-1.5';
       button.setAttribute('aria-pressed', String(next));
       button.className = next
-        ? 'min-h-12 rounded-xl border border-red-400 bg-red-600 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-red-300 active:scale-95 animate-pulse'
-        : 'min-h-12 rounded-xl border border-slate-600 bg-slate-700 text-sm font-bold text-slate-100 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300 active:scale-95';
+        ? 'flex min-h-12 items-center justify-center rounded-xl border border-red-400 bg-red-600 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-red-300 active:scale-95 animate-pulse'
+        : 'flex min-h-12 items-center justify-center rounded-xl border border-slate-600 bg-slate-700 text-sm font-bold text-slate-100 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-300 active:scale-95';
     }
 
     function disableNaturalVoiceInput() {
@@ -207,7 +638,7 @@
       button.title = 'LINE บน iPhone ไม่รองรับการแปลงเสียงเป็นข้อความ';
       document.getElementById('natural-voice-label').textContent = 'พิมพ์คำสั่งแทน';
       document.getElementById('natural-voice-icon').className = 'fa-solid fa-keyboard mr-1.5';
-      button.className = 'min-h-12 rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-slate-400 opacity-70 cursor-not-allowed';
+      button.className = 'flex min-h-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-slate-400 opacity-70 cursor-not-allowed';
       setNaturalStatus('LINE บน iPhone ไม่รองรับ Voice-to-Text ในขณะนี้ — พิมพ์คำสั่งแล้วกดวิเคราะห์ได้เลย');
     }
 
@@ -277,7 +708,7 @@
       document.getElementById('natural-analyse-label').textContent = 'กำลังวิเคราะห์...';
       setNaturalStatus('กำลังให้ Compiler สกัดคำสั่งเป็น JSON — ยังไม่ส่งหุ่นยนต์');
       try {
-        const response = await fetch(`${API_BASE}/api/v1/commands/compile`, {
+        const response = await apiFetch(`${API_BASE}/api/v1/commands/compile`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command, robot_slug: selectedRobot })
         });
@@ -304,12 +735,12 @@
       try {
         let response;
         if (naturalPayload.emergency) {
-          response = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, { method: 'POST' });
+          response = await apiFetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, { method: 'POST' });
         } else {
           const payload = { ...naturalPayload, robot_slug: selectedRobot, source: 'liff_control_natural' };
           Object.assign(payload, window.ZenboLiff.identity());
           delete payload.emergency;
-          response = await fetch(`${API_BASE}/api/v1/robot/interact`, {
+          response = await apiFetch(`${API_BASE}/api/v1/robot/interact`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
           });
         }
@@ -324,70 +755,211 @@
       }
     }
 
+    // ==========================================
+    // ส่งคำสั่งการเคลื่อนไหว (Remote Control)
+    // ==========================================
+    function manualOperatorSafety() {
+      return {
+        base_motion_enabled: true,
+        collision_guard_enabled: false,
+        fall_guard_enabled: false,
+        max_distance_m: 3.0,
+        max_speed: 7,
+        auto_stop_ms: 10000
+      };
+    }
+
+    let bodySafetyUnlocked = false;
+
     async function sendRemote(kind, direction, quiet = false) {
       if (!selectedRobot) { if (!quiet) setStatus('เลือก Zenbo ก่อนควบคุม', true); return false; }
-      const payload = { robot_slug: selectedRobot, source: 'liff_joystick', remote_control: { [kind]: direction } };
+      const payload = {
+        robot_slug: selectedRobot,
+        source: 'liff_joystick',
+        face: null,
+        remote_control: { [kind]: direction }
+      };
+      if (kind === 'body' && direction !== 'STOP' && !bodySafetyUnlocked) {
+        payload.safety = manualOperatorSafety();
+        bodySafetyUnlocked = true;
+      }
+      if (kind === 'body' && direction === 'STOP') bodySafetyUnlocked = false;
       Object.assign(payload, window.ZenboLiff.identity());
       try {
-        const response = await fetch(`${API_BASE}/api/v1/robot/interact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const response = await apiFetch(`${API_BASE}/api/v1/robot/interact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail?.message || `HTTP ${response.status}`);
         if (!quiet) setStatus(direction === 'STOP' ? 'ส่งคำสั่งหยุดแล้ว' : `กำลังสั่ง ${kind === 'body' ? 'ล้อ' : 'ศีรษะ'}: ${direction}`);
         return true;
       } catch (error) { if (!quiet) setStatus(`ส่งคำสั่งไม่สำเร็จ: ${error.message}`, true); return false; }
     }
+
     async function emergencyStop() {
       if (!selectedRobot) { setStatus('เลือก Zenbo ก่อนสั่งหยุด', true); return; }
       try {
-        const response = await fetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, { method: 'POST' });
+        const response = await apiFetch(`${API_BASE}/api/v1/robots/${encodeURIComponent(selectedRobot)}/stop`, { method: 'POST' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         setStatus('ส่งคำสั่งหยุดฉุกเฉินแล้ว');
       } catch (error) { setStatus(`ส่งคำสั่งหยุดไม่สำเร็จ: ${error.message}`, true); }
     }
+
     function directionFor(dx, dy, kind) {
       if (Math.hypot(dx, dy) < 22) return 'STOP';
       const vertical = Math.abs(dy) >= Math.abs(dx);
       if (kind === 'body') return vertical ? (dy < 0 ? 'FORWARD' : 'BACKWARD') : (dx < 0 ? 'TURN_LEFT' : 'TURN_RIGHT');
       return vertical ? (dy < 0 ? 'UP' : 'DOWN') : (dx < 0 ? 'LEFT' : 'RIGHT');
     }
+
+    // ==========================================
+    // ติดตั้ง Joystick พร้อมป้องกันหน้าจอเลื่อน 100%
+    // ==========================================
     function installJoystick(id, kind) {
       const joystick = document.getElementById(id);
+      if (!joystick) return () => {};
       const knob = joystick.querySelector('.joystick-knob');
       let pointerId = null;
       let lastDirection = 'STOP';
       let keepaliveTimer = null;
+
+      // ดัก touchmove/touchstart ด้วย { passive: false } เพื่อไม่ให้ Safari/Chrome เลื่อนหน้าจอ
+      joystick.addEventListener('touchstart', (e) => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+      joystick.addEventListener('touchmove', (e) => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+      joystick.addEventListener('touchend', (e) => {
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+
       function reset({ silent = false } = {}) {
         if (pointerId === null) return;
-        pointerId = null; lastDirection = 'STOP'; clearInterval(keepaliveTimer); keepaliveTimer = null; joystick.classList.remove('is-dragging'); knob.style.transform = 'translate(0px, 0px)';
+        pointerId = null;
+        lastDirection = 'STOP';
+        clearInterval(keepaliveTimer);
+        keepaliveTimer = null;
+        joystick.classList.remove('is-dragging');
+        document.body.classList.remove('is-controlling');
+        knob.style.transform = 'translate(0px, 0px)';
         sendRemote(kind, 'STOP', silent);
       }
+
       function move(event) {
         if (event.pointerId !== pointerId) return;
+        if (event.cancelable) event.preventDefault();
         const rect = joystick.getBoundingClientRect();
-        const max = Math.max(1, rect.width / 2 - 48);
+        const max = Math.max(1, rect.width / 2 - 40);
         let dx = event.clientX - (rect.left + rect.width / 2);
         let dy = event.clientY - (rect.top + rect.height / 2);
         const length = Math.hypot(dx, dy);
         if (length > max) { dx = dx / length * max; dy = dy / length * max; }
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
         const direction = directionFor(dx, dy, kind);
-        if (direction !== lastDirection) { lastDirection = direction; sendRemote(kind, direction); }
+        if (direction !== lastDirection) {
+          lastDirection = direction;
+          sendRemote(kind, direction);
+        }
       }
-      joystick.addEventListener('pointerdown', event => { event.preventDefault(); if (pointerId !== null) reset({ silent: true }); pointerId = event.pointerId; joystick.setPointerCapture(pointerId); joystick.classList.add('is-dragging'); move(event); keepaliveTimer = setInterval(() => { if (pointerId !== null && lastDirection !== 'STOP') sendRemote(kind, lastDirection, true); }, 350); });
+
+      joystick.addEventListener('pointerdown', event => {
+        if (event.cancelable) event.preventDefault();
+        event.stopPropagation();
+        if (pointerId !== null) reset({ silent: true });
+        pointerId = event.pointerId;
+        try { joystick.setPointerCapture(pointerId); } catch (_) {}
+        joystick.classList.add('is-dragging');
+        document.body.classList.add('is-controlling');
+        move(event);
+        keepaliveTimer = setInterval(() => {
+          if (pointerId !== null && lastDirection !== 'STOP') {
+            sendRemote(kind, lastDirection, true);
+          }
+        }, 200);
+      });
+
       joystick.addEventListener('pointermove', move);
       joystick.addEventListener('pointerup', () => reset());
       joystick.addEventListener('pointercancel', () => reset());
+
       return () => reset({ silent: true });
     }
+
     const resetBase = installJoystick('base-joystick', 'body');
     const resetHead = installJoystick('head-joystick', 'head');
-    document.querySelectorAll('[data-control]').forEach(button => button.addEventListener('click', () => { const [kind, direction] = button.dataset.control.split(':'); sendRemote(kind === 'base' ? 'body' : 'head', direction); }));
-    document.getElementById('stop-button').addEventListener('click', emergencyStop);
+
+    // ==========================================
+    // ติดตั้งปุ่มทิศทาง: กดค้างเดิน ปล่อยหยุด จอไม่เลื่อน
+    // ==========================================
+    function installButtonControls() {
+      document.querySelectorAll('[data-control]').forEach(button => {
+        const [kind, direction] = button.dataset.control.split(':');
+        const remoteKind = kind === 'base' ? 'body' : 'head';
+        let holdTimer = null;
+        let isDown = false;
+
+        button.addEventListener('touchstart', (e) => {
+          if (e.cancelable) e.preventDefault();
+        }, { passive: false });
+        button.addEventListener('touchmove', (e) => {
+          if (e.cancelable) e.preventDefault();
+        }, { passive: false });
+
+        function startHold(e) {
+          if (e && e.cancelable) e.preventDefault();
+          if (isDown) return;
+          isDown = true;
+          button.classList.add('is-pressed');
+          document.body.classList.add('is-controlling');
+          sendRemote(remoteKind, direction);
+          clearInterval(holdTimer);
+          holdTimer = setInterval(() => {
+            if (isDown) sendRemote(remoteKind, direction, true);
+          }, 200);
+        }
+
+        function stopHold(e) {
+          if (!isDown) return;
+          isDown = false;
+          button.classList.remove('is-pressed');
+          document.body.classList.remove('is-controlling');
+          clearInterval(holdTimer);
+          holdTimer = null;
+          sendRemote(remoteKind, 'STOP');
+        }
+
+        button.addEventListener('pointerdown', startHold);
+        button.addEventListener('pointerup', stopHold);
+        button.addEventListener('pointercancel', stopHold);
+        button.addEventListener('pointerleave', stopHold);
+      });
+
+      const stopBtn = document.getElementById('stop-button');
+      if (stopBtn) {
+        stopBtn.addEventListener('touchstart', (e) => {
+          if (e.cancelable) e.preventDefault();
+        }, { passive: false });
+        stopBtn.addEventListener('pointerdown', (e) => {
+          if (e.cancelable) e.preventDefault();
+          emergencyStop();
+        });
+      }
+    }
+
+    installButtonControls();
+
+    document.getElementById('apply-safety').addEventListener('click', () => applySafetyPolicy(true));
+    document.getElementById('safety-stop').addEventListener('click', () => applySafetyPolicy(false));
     document.getElementById('refresh-robots').addEventListener('click', discoverRobots);
-    document.getElementById('robot-select').addEventListener('change', event => { selectedRobot = event.target.value; if (selectedRobot) sessionStorage.setItem('zenbo-control-robot', selectedRobot); else sessionStorage.removeItem('zenbo-control-robot'); clearNaturalPreview(); renderRobots(); setStatus(selectedRobot ? 'พร้อมควบคุม — ลากจอยเพื่อเริ่ม' : 'เลือก Zenbo ก่อนควบคุม', !selectedRobot); });
+
     window.addEventListener('pagehide', () => { resetBase(); resetHead(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { resetBase(); resetHead(); } });
+
+    // กำหนดค่าเริ่มต้น: เริ่มที่แท็บบังคับล้อ และตรึงหน้าจอ
+    switchTab('tab-base');
+    setScreenLock(true);
+    renderLegacySpeedDeck();
     discoverRobots();
+    setInterval(refreshSafetyTelemetry, 1500);
   </script>
 </body>
 </html>

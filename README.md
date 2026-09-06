@@ -10,7 +10,7 @@ command compiler เข้าด้วยกัน
   Zenbo Robot SDK
 - `services/core-api/` — API gateway, heartbeat และ command dispatch
 - `services/liff-app/` — LIFF control, joystick, command studio และ
-  presentation mode
+  หน้าสถานการณ์ (`/liff/scenario/`)
 - `services/tts-service/` — Thai text-to-speech service
 - `services/compiler-service/` — แปลงคำสั่งภาษาธรรมชาติเป็น Zenbo actions
 - `Map-Navigation/` — ส่วนเชื่อมการนำทางและแผนที่ห้องสมุด

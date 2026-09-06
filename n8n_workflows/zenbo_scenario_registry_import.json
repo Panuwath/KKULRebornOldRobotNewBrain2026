@@ -1,0 +1,11 @@
+{
+  "name": "Zenbo Scenario Registry Import",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"zenbo-scenario-registry-import","responseMode":"responseNode","options":{}},"id":"registry-webhook","name":"Receive Reviewed L0 through L7 Scenario","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[260,300],"webhookId":"zenbo-scenario-registry-import"},
+    {"parameters":{"method":"POST","url":"={{ $env.CORE_API_URL }}/api/v1/scenario-definitions","sendHeaders":true,"headerParameters":{"parameters":[{"name":"X-Scenario-Registry-Token","value":"={{ $env.SCENARIO_REGISTRY_TOKEN }}"}]},"sendBody":true,"specifyBody":"json","jsonBody":"={{ JSON.stringify($json.body) }}","options":{"timeout":10000}},"id":"import-scenario","name":"Import L0 through L7 Scenario into Core","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[540,300]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{}},"id":"respond-import","name":"Return Published Metadata","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.1,"position":[800,300]}
+  ],
+  "connections":{"Receive Reviewed L0 through L7 Scenario":{"main":[[{"node":"Import L0 through L7 Scenario into Core","type":"main","index":0}]]},"Import L0 through L7 Scenario into Core":{"main":[[{"node":"Return Published Metadata","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"staticData":null,
+  "tags":[{"name":"zenbo"},{"name":"scenario"},{"name":"registry"}]
+}

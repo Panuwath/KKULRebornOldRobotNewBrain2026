@@ -1,0 +1,88 @@
+/**
+ * Zenbo Holo-Console Design System
+ * Theme Tokens, Glassmorphism, Neon Accents, and Micro-animations
+ */
+
+:root {
+  --zenbo-bg: #030712;
+  --zenbo-card-bg: rgba(15, 23, 42, 0.75);
+  --zenbo-card-border: rgba(51, 65, 85, 0.6);
+  --zenbo-card-hover: rgba(30, 41, 59, 0.85);
+
+  --zenbo-cyan: #06b6d4;
+  --zenbo-cyan-glow: rgba(6, 182, 212, 0.25);
+  --zenbo-emerald: #10b981;
+  --zenbo-emerald-glow: rgba(16, 185, 129, 0.25);
+  --zenbo-amber: #f59e0b;
+  --zenbo-amber-glow: rgba(245, 158, 11, 0.25);
+  --zenbo-rose: #f43f5e;
+  --zenbo-rose-glow: rgba(244, 63, 94, 0.25);
+  --zenbo-purple: #a855f7;
+  --zenbo-purple-glow: rgba(168, 85, 247, 0.25);
+}
+
+/* Glass Panels */
+.zenbo-glass-panel {
+  background: var(--zenbo-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--zenbo-card-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.zenbo-glass-card {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.zenbo-glass-card:hover {
+  background: var(--zenbo-card-hover);
+  border-color: rgba(100, 116, 139, 0.7);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+/* Status Glow Utilities */
+.zenbo-glow-cyan {
+  box-shadow: 0 0 15px var(--zenbo-cyan-glow);
+}
+
+.zenbo-glow-emerald {
+  box-shadow: 0 0 15px var(--zenbo-emerald-glow);
+}
+
+.zenbo-glow-amber {
+  box-shadow: 0 0 15px var(--zenbo-amber-glow);
+}
+
+.zenbo-glow-rose {
+  box-shadow: 0 0 15px var(--zenbo-rose-glow);
+}
+
+/* Honesty Banner Pill */
+.zenbo-honesty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

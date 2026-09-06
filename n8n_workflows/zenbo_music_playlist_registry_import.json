@@ -1,0 +1,11 @@
+{
+  "name": "Zenbo Music Playlist Registry Import",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"zenbo-music-playlist-import","responseMode":"responseNode","options":{}},"id":"playlist-webhook","name":"Receive Reviewed Playlist","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[260,300],"webhookId":"zenbo-music-playlist-import"},
+    {"parameters":{"method":"POST","url":"={{ $env.CORE_API_URL }}/api/v1/music-playlists","sendHeaders":true,"headerParameters":{"parameters":[{"name":"X-Scenario-Registry-Token","value":"={{ $env.SCENARIO_REGISTRY_TOKEN }}"}]},"sendBody":true,"specifyBody":"json","jsonBody":"={{ JSON.stringify($json.body) }}","options":{"timeout":10000}},"id":"import-playlist","name":"Validate and Publish Playlist","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[540,300]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ JSON.stringify($json) }}","options":{}},"id":"respond-playlist","name":"Return Published Playlist Metadata","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.1,"position":[800,300]}
+  ],
+  "connections":{"Receive Reviewed Playlist":{"main":[[{"node":"Validate and Publish Playlist","type":"main","index":0}]]},"Validate and Publish Playlist":{"main":[[{"node":"Return Published Playlist Metadata","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"staticData":null,
+  "tags":[{"name":"zenbo"},{"name":"music"},{"name":"registry"}]
+}

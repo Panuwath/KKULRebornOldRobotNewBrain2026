@@ -1,0 +1,24 @@
+{
+  "size": { "width": 2500, "height": 1686 },
+  "selected": true,
+  "name": "Booky essential menu",
+  "chatBarText": "เมนู Booky",
+  "areas": [
+    {
+      "bounds": { "x": 0, "y": 0, "width": 1250, "height": 843 },
+      "action": { "type": "uri", "label": "สั่ง Booky", "uri": "https://libn.kku.ac.th/liff/scenario/" }
+    },
+    {
+      "bounds": { "x": 1250, "y": 0, "width": 1250, "height": 843 },
+      "action": { "type": "uri", "label": "ถามห้องสมุด", "uri": "https://lib.kku.ac.th/rag/" }
+    },
+    {
+      "bounds": { "x": 0, "y": 843, "width": 1250, "height": 843 },
+      "action": { "type": "uri", "label": "แผนที่และนำทาง", "uri": "https://libn.kku.ac.th/liff/navigation/" }
+    },
+    {
+      "bounds": { "x": 1250, "y": 843, "width": 1250, "height": 843 },
+      "action": { "type": "uri", "label": "ควบคุม Zenbo", "uri": "https://libn.kku.ac.th/liff/" }
+    }
+  ]
+}

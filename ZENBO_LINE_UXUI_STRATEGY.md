@@ -10,9 +10,9 @@
 
 | รูปแบบ (Approach) | รูปแบบ UI | จุดเด่น (Pros) | ข้อจำกัด (Cons) | เหมาะกับงานลักษณะใด |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. LINE Rich Menu & Flex Message** | เมนูปุ่มด้านล่าง + การ์ดข้อความโต้ตอบ | • เข้าถึงได้ทันที ไม่ต้องโหลดหน้าเว็บ<br/>• ไม่เปลืองเน็ต ใช้งานง่ายมาก | • ปรับแต่งแอนิเมชันหรือทำ Joystick เลื่อนสดๆ ไม่ได้ | คำสั่ง Preset ด่วน (เช่น ทักทาย, เต้น, สั่งหยุด, ตรวจแบต) |
-| **2. LIFF Web App (LINE Front-end Framework)** | เว็บแอปพลิเคชันที่เปิดขึ้นมาแบบ Seamless ใน LINE | • **ทำ Joystick ขยับหุ่นได้ Real-time**<br/>• มี Color Picker เลือกสีไฟ<br/>• มี Slider หันคอ/ปรับเสียง<br/>• แสดงกล้อง/เซนเซอร์สด | • ต้องใช้เวลาโหลดหน้าเว็บเล็กน้อยในครั้งแรก (1-2 วิ) | การควบคุมละเอียด (Remote Driving, จูนเสียง, เลือกสีหน้า) |
-| **3. Conversational AI (Chat & Voice)** | พิมพ์ข้อความอิสระ หรือส่งคลิปเสียง | • เป็นธรรมชาติที่สุด พูดสั่งงานได้อิสระ<br/>• ขับเคลื่อนด้วย AI / KKU IntelSphere | • ความแม่นยำขึ้นอยู่กับคำพูดของผู้ใช้ | การสั่งงานแบบ Multi-modal และงานบริการ |
+| **1. LINE Rich Menu & Flex Message** | เมนูปุ่มด้านล่าง + การ์ดข้อความโต้ตอบ | • เข้าถึงได้ทันที ไม่ต้องโหลดหน้าเว็บ; • ไม่เปลืองเน็ต ใช้งานง่ายมาก | • ปรับแต่งแอนิเมชันหรือทำ Joystick เลื่อนสดๆ ไม่ได้ | คำสั่ง Preset ด่วน (เช่น ทักทาย, เต้น, สั่งหยุด, ตรวจแบต) |
+| **2. LIFF Web App (LINE Front-end Framework)** | เว็บแอปพลิเคชันที่เปิดขึ้นมาแบบ Seamless ใน LINE | • **ทำ Joystick ขยับหุ่นได้ Real-time**; • มี Color Picker เลือกสีไฟ; • มี Slider หันคอ/ปรับเสียง; • แสดงกล้อง/เซนเซอร์สด | • ต้องใช้เวลาโหลดหน้าเว็บเล็กน้อยในครั้งแรก (1-2 วิ) | การควบคุมละเอียด (Remote Driving, จูนเสียง, เลือกสีหน้า) |
+| **3. Conversational AI (Chat & Voice)** | พิมพ์ข้อความอิสระ หรือส่งคลิปเสียง | • เป็นธรรมชาติที่สุด พูดสั่งงานได้อิสระ; • ขับเคลื่อนด้วย AI / KKU IntelSphere | • ความแม่นยำขึ้นอยู่กับคำพูดของผู้ใช้ | การสั่งงานแบบ Multi-modal และงานบริการ |
 
 ---
 
@@ -23,9 +23,9 @@
 ```mermaid
 flowchart TB
     subgraph LINE_CLIENT["LINE Official Account Interface"]
-        RICH_MENU["📊 Tier 1: Rich Menu (เมนูลัดถาวรด้านล่าง)<br/>[🎮 จอยควบคุม] [🗣️ สั่งพูด] [💃 สั่งเต้น] [🛑 หยุด]"]
-        CHAT_FLOW["💬 Tier 3: Conversational AI & Flex Cards<br/>- พิมพ์/ส่งเสียงสั่งงานด้วยภาษาธรรมชาติ<br/>- การ์ด Flex ตอบกลับสถานะแบบ Interactive"]
-        LIFF_APP["📱 Tier 2: LIFF Web App (Zenbo Control Center)<br/>- Virtual Joystick ขยับตัว Real-time<br/>- Slider หันคอ ก้ม-เงย<br/>- Palette เลือกสีหน้า 24 แบบ & ไฟล้อ"]
+        RICH_MENU["📊 Tier 1: Rich Menu (เมนูลัดถาวรด้านล่าง); [🎮 จอยควบคุม] [🗣️ สั่งพูด] [💃 สั่งเต้น] [🛑 หยุด]"]
+        CHAT_FLOW["💬 Tier 3: Conversational AI & Flex Cards; - พิมพ์/ส่งเสียงสั่งงานด้วยภาษาธรรมชาติ; - การ์ด Flex ตอบกลับสถานะแบบ Interactive"]
+        LIFF_APP["📱 Tier 2: LIFF Web App (Zenbo Control Center); - Virtual Joystick ขยับตัว Real-time; - Slider หันคอ ก้ม-เงย; - Palette เลือกสีหน้า 24 แบบ & ไฟล้อ"]
     end
 
     subgraph BACKEND["Backend & Docker Stack"]
@@ -47,9 +47,10 @@ flowchart TB
 ## 3. รายละเอียดการออกแบบ UI แต่ละส่วน (Wireframe & Layouts)
 
 ### 3.1 📊 Tier 1: LINE Rich Menu (เมนูปุ่มลัดถาวร)
+
 วางเป็นแถบเมนูด้านล่างของห้องแชต LINE แบ่งเป็น 4–6 ปุ่มหลัก:
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │                     LINE Chat Room                       │
 │                                                          │
@@ -70,9 +71,10 @@ flowchart TB
 ---
 
 ### 3.2 📱 Tier 2: LIFF Web App (Zenbo Mobile Control Center)
+
 พัฒนาด้วย **HTML5 + Tailwind CSS + Vue.js/React** ให้เปิดใช้งานใน LINE โดยไม่ต้องสลับแอป:
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │ 🤖 Zenbo Remote Controller (LIFF)           [🔋 85%] [🟢 Online] │
 ├──────────────────────────────────────────────────────────┤
@@ -98,7 +100,8 @@ flowchart TB
 └──────────────────────────────────────────────────────────┘
 ```
 
-#### คุณสมบัติเด่นของ LIFF Web App:
+#### คุณสมบัติเด่นของ LIFF Web App
+
 1. **Virtual D-Pad / Joystick**: แตะค้างเพื่อเดินหน้า/ถอยหลัง/หมุนตัวแบบ Real-time ผ่าน WebSocket หรือ HTTP Fetch
 2. **Interactive Face Picker**: จิ้มเปลี่ยนสีหน้าหุ่นยนต์ได้ทันทีทั้ง 24 รูปแบบ
 3. **Color Picker ไฟล้อ**: เลือกเฉดสี RGB เพื่อให้ไฟ LED ที่ล้อเปลี่ยนสีตามต้องการ
@@ -107,6 +110,7 @@ flowchart TB
 ---
 
 ### 3.3 💬 Tier 3: Interactive LINE Flex Messages (การ์ดโต้ตอบในแชต)
+
 เมื่อผู้ใช้สั่งงานผ่านเสียงหรือข้อความ ระบบ n8n จะส่ง **Flex Message** สวยงามกลับมาในแชต:
 
 ```json
@@ -157,7 +161,7 @@ flowchart TB
 | :--- | :--- | :--- |
 | **Frontend LIFF App** | HTML5 + Tailwind CSS + Vanilla JS / Vue 3 | เว็บแอปหน้าตาโมเดิร์น โหลดไว รันใน LINE Browser |
 | **Backend API Gateway** | FastAPI (รันบน Docker Port 5005) | รับ Request จาก LIFF App และส่งต่อเข้า MQTT |
-| **Workflow & LINE Webhook** | n8n (https://libn.kku.ac.th/) | รับ Webhook จาก LINE OA และเรียกใช้ Gemini / KKU IntelSphere |
+| **Workflow & LINE Webhook** | [n8n](https://libn.kku.ac.th/) | รับ Webhook จาก LINE OA และเรียกใช้ Gemini / KKU IntelSphere |
 | **Audio & TTS Engine** | FastAPI + Edge-TTS (Docker Port 8000) | สังเคราะห์เสียงพูดส่งให้ Zenbo เล่น |
 
 ---
@@ -165,8 +169,11 @@ flowchart TB
 ## 5. สรุปคำแนะนำสำหรับทีมพัฒนา
 
 1. **ควรสร้าง Web App (LIFF) หรือไม่?**
+
    * **คำตอบ: ควรสร้างอย่างยิ่ง!** เพราะ LIFF คือจุดขายสำคัญในการเดโมงาน Hackathon ทำให้กรรมการหรือผู้ใช้งานสามารถหยิบมือถือตัวเองสแกน QR Code แล้วควบคุมหุ่นยนต์ Zenbo ได้ทันทีโดยไม่ต้องลงแอปเพิ่ม
+
 2. **โครงสร้างที่แนะนำให้เริ่มทำทันที**:
+
    * **ขั้นที่ 1**: สร้างหน้าเว็บ LIFF แบบ Single-File HTML สำหรับเป็นหน้าจอ Remote Joystick
    * **ขั้นที่ 2**: เชื่อมปุ่มในหน้าเว็บเข้ากับ API `POST /api/v1/robot/interact`
    * **ขั้นที่ 3**: นำ URL หน้าเว็บไปผูกกับ LINE Developers Console ในเมนู LIFF App
