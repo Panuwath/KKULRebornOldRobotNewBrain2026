@@ -60,7 +60,7 @@ run_quality_gates() {
     python3 -m py_compile services/core-api/main.py
     # Keep safety-gate assertions deterministic even when the deployer's local
     # .env has field-tested autonomous movement enabled for production.
-    AUTONOMOUS_MOTION_ENABLED=false AUTONOMY_GOVERNANCE_REQUIRED=true \
+    DB_CONNECTION=sqlite AUTONOMOUS_MOTION_ENABLED=false AUTONOMY_GOVERNANCE_REQUIRED=true \
       python3 services/core-api/test_scenarios.py
     python3 services/compiler-service/test_dialogue.py
     git diff --check

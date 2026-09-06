@@ -91,14 +91,16 @@ public class SpeedLevelDriveControllerTest {
     }
 
     @Test
-    public void directionOrSpeedChangeStopsBeforeLatestMove() {
+    public void newMotionCannotQueueOrExtendActiveDeadline() {
         Fixture fixture = new Fixture();
         fixture.controller.submit(fixture.command("first", 1, 2, 7, 1500));
         fixture.controller.submit(fixture.command("second", 2, 3, 7, 1500));
 
         assertEquals("move:2", fixture.actuator.events.get(0));
-        assertEquals("stop", fixture.actuator.events.get(1));
-        assertEquals("move:3", fixture.actuator.events.get(2));
+        assertEquals(1, fixture.actuator.moveCount);
+        assertEquals(1, fixture.scheduler.delays.size());
+        assertEquals(SpeedLevelDriveController.RejectReason.MOTION_BUSY,
+                fixture.controller.submit(fixture.command("third", 3, 2, 7, 1500)).rejectReason);
     }
 
     @Test
@@ -131,6 +133,44 @@ public class SpeedLevelDriveControllerTest {
         fixture.scheduler.run(0);
         fixture.scheduler.run(0);
         assertEquals(1, fixture.actuator.stopCount);
+    }
+
+    @Test
+    public void busyCommandCannotResumeOnQosRetryAfterStop() {
+        Fixture fixture = new Fixture();
+        fixture.controller.submit(fixture.command("first", 1, 1, 1, 250));
+        SpeedLevelDriveController.Command busy = fixture.command("busy", 2, 1, 1, 250);
+        assertEquals(SpeedLevelDriveController.RejectReason.MOTION_BUSY,
+                fixture.controller.submit(busy).rejectReason);
+        fixture.controller.stop("stop");
+        assertEquals(SpeedLevelDriveController.RejectReason.DUPLICATE_COMMAND,
+                fixture.controller.submit(busy).rejectReason);
+        assertEquals(1, fixture.actuator.moveCount);
+    }
+
+    @Test
+    public void schedulerFailureStopsAndRejectsWithoutEffectiveSpeed() {
+        FakeActuator actuator = new FakeActuator();
+        SpeedLevelDriveController controller = new SpeedLevelDriveController(actuator,
+                () -> 1000, (task, delay) -> { throw new IllegalStateException("scheduler closed"); });
+        SpeedLevelDriveController.Acknowledgement ack = controller.submit(
+                new Fixture().command("scheduler-failure", 1, 1, 1, 1500));
+        assertEquals(SpeedLevelDriveController.State.REJECTED, ack.state);
+        assertNull(ack.effectiveSpeedLevel);
+        assertEquals(1, actuator.stopCount);
+        org.junit.Assert.assertFalse(controller.isActive());
+    }
+
+    @Test
+    public void terminalEventRetainsOriginalCommandAndDeadlineReason() {
+        Fixture fixture = new Fixture();
+        List<String> terminal = new ArrayList<>();
+        fixture.controller.setStopListener((command, reason) -> terminal.add(command.commandId + ":" + reason));
+        fixture.controller.submit(fixture.command("trace-me", 1, 1, 1, 250));
+        fixture.scheduler.run(0);
+        fixture.scheduler.run(0);
+        assertEquals(1, terminal.size());
+        assertEquals("trace-me:HARD_DEADLINE", terminal.get(0));
     }
 
     private static final class Fixture {

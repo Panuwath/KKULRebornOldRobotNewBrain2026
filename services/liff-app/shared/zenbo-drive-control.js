@@ -16,9 +16,10 @@
     if (mode === 'remote') return { enabled: false, reason: 'SDK_DIRECTION_ONLY', cap: 0 };
     if (!options.robotSelected) return { enabled: false, reason: 'NO_ROBOT', cap: 0 };
     if (!capability) return { enabled: false, reason: 'CAPABILITY_MISSING', cap: 0 };
-    if (!capability.supported) return { enabled: false, reason: 'UNSUPPORTED', cap: 0 };
-    if (!capability.robot_api_ready) return { enabled: false, reason: 'ROBOT_API_NOT_READY', cap: 0 };
+    if (capability.supported !== true) return { enabled: false, reason: 'UNSUPPORTED', cap: 0 };
+    if (capability.robot_api_ready !== true) return { enabled: false, reason: 'ROBOT_API_NOT_READY', cap: 0 };
     if (!Number.isFinite(capability.reported_at_ms)
+        || capability.reported_at_ms > nowMs
         || nowMs - capability.reported_at_ms > staleAfterMs) {
       return { enabled: false, reason: 'STALE_HEARTBEAT', cap: 0 };
     }

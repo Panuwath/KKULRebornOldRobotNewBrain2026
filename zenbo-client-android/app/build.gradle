@@ -107,6 +107,8 @@ android {
         // Zenbo firmware can repeatedly report stale proximity readings while
         // stationary. Keep this field build quiet until the sensor calibration
         // is audited on the physical robot.
+        // Remains OFF until installed-artifact S5 calibration is accepted.
+        buildConfigField "boolean", "RELATIVE_MOTION_ENABLED", "false"
         buildConfigField "boolean", "SAFETY_MONITOR_ENABLED", "false"
         // Zenbo is operated on the campus network. Provision from Core through
         // its private IP first, then use the authenticated TCP broker remap.

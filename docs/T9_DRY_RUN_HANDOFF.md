@@ -46,7 +46,8 @@ SQLite schema is initialized by the existing adapter; PostgreSQL uses
 multiworker concurrency in an isolated PostgreSQL instance before deploying
 there. The local SQLite tests do not establish PostgreSQL runtime parity.
 
-Physical release still needs supervised T8 evidence, production controller
-wiring and STOP behavior, installed safety-enabled APK, trusted heartbeat
-transport, and artifact/session/policy binding. Current APK reports relative
-motion unsupported and no hard watchdog guarantee, so field gates remain closed.
+Physical release still needs supervised T8 evidence, verified production STOP behavior, installed safety-enabled APK, trusted heartbeat
+transport, and artifact/session/policy binding. The controller integration is now compiled behind an OFF flag; deployed APK
+readiness still requires a fresh readback. Default builds report relative motion
+unsupported and no physical hard watchdog guarantee, so field gates remain closed.
+See `RELATIVE_MOTION_RELEASE_2026-09-06.md` for field preparation and evidence status.

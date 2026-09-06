@@ -144,12 +144,26 @@
         const values = row.querySelectorAll('p, span, dd');
         values[0].textContent = summarize(item.payload || {});
         values[1].textContent = time;
-        values[2].textContent = item.status === 'MQTT_PUBLISHED' ? 'ส่ง MQTT แล้ว' : 'สั่งหยุดแล้ว';
+        const motionLabels = {MQTT_PUBLISHED: 'Gateway ส่ง MQTT แล้ว', APK_RECEIVED: 'APK รับคำสั่งแล้ว',
+          SDK_SUBMITTED: 'ส่งเข้า SDK แล้ว', REJECTED: 'ปฏิเสธคำสั่ง', SDK_STOP_REQUESTED: 'ร้องขอหยุดผ่าน SDK แล้ว',
+          STOP_PUBLISHED: 'ส่งคำสั่งหยุดแล้ว'};
+        values[2].textContent = motionLabels[item.status] || item.status;
         values[2].className = `rounded-full border px-2 py-1 text-[10px] font-bold ${item.status === 'MQTT_PUBLISHED' ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : 'border-red-500/40 bg-red-950/30 text-red-200'}`;
         values[3].textContent = item.robot_slug || 'ทุกเครื่อง';
         values[4].textContent = time;
         values[5].textContent = item.source || 'liff';
         values[6].textContent = latency;
+        const ack = item.payload?.acknowledgement;
+        if (ack?.command_id) {
+          const trace = document.createElement('p');
+          trace.className = 'mt-3 break-all text-xs text-slate-300';
+          trace.textContent = `Command: ${ack.command_id} · ขอ L${ack.requested_speed_level ?? '—'} · cap L${ack.policy_max_speed_level ?? '—'} · ${ack.reject_reason || ack.stop_reason || 'ยังไม่มีหลักฐานความเร็วหรือการหยุดจริง'}`;
+          row.appendChild(trace);
+          const artifact = document.createElement('p');
+          artifact.className = 'mt-1 break-all text-[11px] text-slate-400';
+          artifact.textContent = `APK: ${ack.apk_version || item.payload.apk_version || '—'} · SHA256: ${ack.apk_sha256 || item.payload.apk_sha256 || '—'}`;
+          row.appendChild(artifact);
+        }
         historyList.appendChild(row);
       });
     }

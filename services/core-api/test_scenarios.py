@@ -35,6 +35,27 @@ class ScenarioRunContractTest(unittest.TestCase):
         cls.core.db.close()
         cls.temp_dir.cleanup()
 
+    def test_motion_capability_freshness_is_not_renewed_by_ack_or_retained_heartbeat(self):
+        slug = "freshness-regression"
+        self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"robot_slug":"spoofed"}')
+        self.assertEqual(slug, self.core.robot_registry[slug]["robot_slug"])
+        self.core.robot_registry[slug]["last_seen"] = 1
+        self.core._remember_robot(f"zenbo/{slug}/status/robot_state", '{"state":"READY"}')
+        self.assertEqual(1, self.core.robot_registry[slug]["last_seen"])
+        self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"last_seen":9999999999}', retained=True)
+        self.assertEqual(0, self.core.robot_registry[slug]["last_seen"])
+
+    def test_relative_ack_is_persisted_as_apk_evidence_without_physical_claim(self):
+        from unittest.mock import patch
+        with patch.object(self.core, "record_command_history") as record:
+            self.core._remember_robot("zenbo/ack-regression/status/motion_ack",
+                '{"command_id":"trace-1","state":"SDK_STOP_REQUESTED"}')
+        args = record.call_args.args
+        self.assertEqual("apk_motion_ack", args[1])
+        self.assertEqual("SDK_STOP_REQUESTED", args[2])
+        self.assertEqual("trace-1", args[3]["acknowledgement"]["command_id"])
+        self.assertFalse(args[3]["physical_velocity_verified"])
+
     def test_intro_scenario_requires_confirmation_and_is_idempotent(self):
         request = self.core.ScenarioRunRequest(
             scenario_id="intro_booky",
