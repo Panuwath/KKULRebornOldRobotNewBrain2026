@@ -44,7 +44,14 @@ def on_message(current, userdata, message):
     except json.JSONDecodeError:
         payload = {}
     command = message.topic.rsplit("/", 1)[-1]
-    if command == "interact" and payload.get("text"):
+    if command == "interact" and payload.get("control_mode") == "RELATIVE_BODY":
+        later(1, "relative_motion", {
+            "command_id": payload.get("command_id"),
+            "state": "ACCEPTED",
+            "effective_speed_level": payload.get("motion", {}).get("requested_speed_level"),
+            "simulated": True,
+        })
+    elif command == "interact" and payload.get("text"):
         later(1, "action_done", {"state": "DONE", "command": "interact"})
     elif command == "youtube":
         publish("youtube", {"state": "PLAYING"})
