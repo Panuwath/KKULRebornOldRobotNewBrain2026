@@ -43,3 +43,9 @@ Map-Navigation/_archive/
 *.wav
 *.pcap
 *.onnx
+
+# Local artifacts
+*.log
+*.pdf
+nmv
+nprintf
