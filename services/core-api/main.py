@@ -1276,7 +1276,7 @@ def _remember_robot(topic: str, payload: str, retained: bool = False) -> None:
             for key in ("motion", "robot_api_ready", "safety_guard", "safety_monitor",
                         "safety_monitor_active", "artifact", "apk_sha256", "version_name",
                         "applied_policy", "boot_session_id", "heartbeat_seq", "timestamp_ms",
-                        "liveness", "capabilities", "client_id"):
+                        "liveness", "capabilities", "client_id", "client_ip", "topic_prefix"):
                 robot.pop(key, None)
             robot.update(data)
             # Capability freshness only advances on a live heartbeat. Other
