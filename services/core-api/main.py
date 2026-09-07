@@ -1254,12 +1254,18 @@ def _remember_robot(topic: str, payload: str, retained: bool = False) -> None:
     slug = "/".join(parts[1:-2])
     if not slug:
         return
+    is_heartbeat = parts[-1] == "heartbeat"
+    payload_state = "VALID"
     try:
         data = json.loads(payload)
     except json.JSONDecodeError:
-        data = {"raw": payload}
+        payload_state = "INVALID_JSON"
+        data = {} if is_heartbeat else {"raw": payload}
     if not isinstance(data, dict):
-        return
+        if not is_heartbeat:
+            return
+        payload_state = "INVALID_SHAPE"
+        data = {}
     with robot_registry_lock:
         existing = robot_registry.get(slug, {})
         robot = {
@@ -1276,9 +1282,13 @@ def _remember_robot(topic: str, payload: str, retained: bool = False) -> None:
             for key in ("motion", "robot_api_ready", "safety_guard", "safety_monitor",
                         "safety_monitor_active", "artifact", "apk_sha256", "version_name",
                         "applied_policy", "boot_session_id", "heartbeat_seq", "timestamp_ms",
-                        "liveness", "capabilities", "client_id", "client_ip", "topic_prefix"):
+                        "liveness", "capabilities", "client_id", "client_ip", "topic_prefix", "raw"):
                 robot.pop(key, None)
             robot.update(data)
+            # Core owns parse status. Malformed heartbeats are live transport
+            # evidence only; never recover readiness with a permissive parser.
+            robot["heartbeat_payload_state"] = payload_state
+            robot.pop("raw", None)
             # Capability freshness only advances on a live heartbeat. Other
             # telemetry and retained broker replay cannot renew motion eligibility.
             robot["robot_slug"] = slug

@@ -201,6 +201,7 @@
         side: window.THREE.DoubleSide
       });
       var shieldMesh = new window.THREE.Mesh(shieldGeo, shieldMat);
+      shieldMesh.visible = false;
       shieldMesh.rotation.x = Math.PI / 2;
       shieldMesh.position.y = 0.05 + s * 0.02;
       this.robotGroup.add(shieldMesh);
@@ -276,6 +277,7 @@
 
   ZenboTwin.prototype.update = function(robot) {
     this.currentRobot = robot;
+    this.updateGuards();
     if (!robot || this.isDisposed) return;
 
     // Battery / Energy Ring
@@ -286,19 +288,21 @@
       this.energyRingMesh.material.emissive.setHex(battColor);
     }
 
-    // Safety Guards / Shields
-    var sg = robot.safety_guard || {};
-    if (this.shieldMeshes.length >= 3) {
-      this.shieldMeshes[0].visible = (sg.collision_guard_enabled !== false);
-      this.shieldMeshes[1].visible = (sg.fall_guard_enabled !== false);
-      this.shieldMeshes[2].visible = (sg.base_motion_enabled !== false);
-    }
 
     // Sonar safety state
     if (this.sonarMesh && robot.safety) {
       var isStop = (robot.safety.state === 'SENSOR_STOP' || (robot.safety.data && robot.safety.data.state === 'SENSOR_STOP'));
       this.sonarMesh.material.color.setHex(isStop ? 0xf43f5e : 0x06b6d4);
       this.sonarMesh.material.opacity = isStop ? 0.6 : 0.2;
+    }
+  };
+
+  ZenboTwin.prototype.updateGuards = function() {
+    var report = window.ZenboDeviceEvidence ? window.ZenboDeviceEvidence.guards(this.currentRobot) : {};
+    if (this.shieldMeshes.length >= 3) {
+      this.shieldMeshes[0].visible = report.collision === true;
+      this.shieldMeshes[1].visible = report.fall === true;
+      this.shieldMeshes[2].visible = report.base === true;
     }
   };
 
@@ -347,6 +351,7 @@
       self.animId = requestAnimationFrame(render);
 
       if (document.visibilityState === 'hidden') return;
+      self.updateGuards();
 
       var dt = (time - self.lastRenderTime) * 0.001;
       self.lastRenderTime = time;

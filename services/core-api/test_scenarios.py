@@ -115,6 +115,24 @@ class ScenarioRunContractTest(unittest.TestCase):
             self.assertNotIn(key, robot)
         self.assertFalse(self.core._field_calibration_for_permit(robot)["ready"])
 
+    def test_malformed_heartbeat_withdraws_readiness_without_exposing_raw_payload(self):
+        slug = "malformed-heartbeat"
+        for payload, state in [('{"summary":"LAN\nWSS"}', "INVALID_JSON"), ('[]', "INVALID_SHAPE"), ('null', "INVALID_SHAPE")]:
+            self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"robot_api_ready":true,"version_name":"test","raw":"private"}')
+            self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", payload)
+            robot = self.core.robot_registry[slug]
+            self.assertEqual(state, robot["heartbeat_payload_state"])
+            self.assertNotIn("raw", robot)
+            self.assertNotIn("robot_api_ready", robot)
+            self.assertNotIn("version_name", robot)
+            self.assertGreater(robot["heartbeat_received_at_ms"], 0)
+            self.assertFalse(self.core._field_calibration_for_permit(robot)["ready"])
+        self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"heartbeat_payload_state":"INVALID_JSON","robot_api_ready":true}')
+        self.assertEqual("VALID", self.core.robot_registry[slug]["heartbeat_payload_state"])
+        self.assertTrue(self.core.robot_registry[slug]["robot_api_ready"])
+        self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", 'broken', retained=True)
+        self.assertEqual(0, self.core.robot_registry[slug]["heartbeat_received_at_ms"])
+
     def test_trace_api_returns_correlated_receipts_and_heartbeat_timestamp(self):
         from fastapi.testclient import TestClient
         client = TestClient(self.core.app)

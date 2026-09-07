@@ -6,6 +6,16 @@
   function reportedBoolean(value) {
     return value === true ? 'รายงานว่าใช่' : value === false ? 'รายงานว่าไม่ใช่' : 'ยังไม่รายงาน';
   }
+  function guards(robot, now = Date.now()) {
+    const received = robot?.heartbeat_received_at_ms;
+    const fresh = Number.isFinite(received) && received > 0 && now >= received && now - received <= 10000
+      && !['INVALID_JSON','INVALID_SHAPE'].includes(robot?.heartbeat_payload_state);
+    const guard = fresh ? robot?.safety_guard : null;
+    const collision = typeof guard?.collision_guard_enabled === 'boolean' ? guard.collision_guard_enabled : null;
+    const fall = typeof guard?.fall_guard_enabled === 'boolean' ? guard.fall_guard_enabled : null;
+    return {collision, fall, base: fresh && guard?.base_motion_enabled === true,
+      state: collision === null || fall === null ? 'UNKNOWN' : collision && fall ? 'ON' : !collision && !fall ? 'OFF' : 'PARTIAL'};
+  }
   function describe(robots, selected, now = Date.now()) {
     if (selected.length !== 1) return {summary: 'เลือกหุ่นหนึ่งเครื่องเพื่อดูข้อมูล APK', rows: []};
     const robot = robots.find(item => item.robot_slug === selected[0]);
@@ -14,6 +24,8 @@
     const age = now - received;
     if (!Number.isFinite(received) || received <= 0 || age < 0 || age > 10000)
       return {summary: 'ข้อมูลของ ' + selected[0] + ' หมดอายุหรือยังไม่มี heartbeat สด กรุณารอข้อมูลใหม่', rows: []};
+    if (['INVALID_JSON', 'INVALID_SHAPE'].includes(robot.heartbeat_payload_state))
+      return {summary: 'รับ heartbeat จาก ' + selected[0] + ' แล้ว แต่รูปแบบ JSON ไม่ถูกต้อง ต้องตรวจหรืออัปเดตแอปบนหุ่น (' + robot.heartbeat_payload_state + ')', rows: []};
     const hash = typeof robot.apk_sha256 === 'string' && /^[a-f0-9]{64}$/i.test(robot.apk_sha256)
       ? robot.apk_sha256 : 'ยังไม่มี SHA256 ที่ถูกต้อง';
     const version = typeof robot.version_name === 'string' && robot.version_name.trim()
@@ -32,5 +44,5 @@
       ]
     };
   }
-  return {describe};
+  return {describe, guards};
 });

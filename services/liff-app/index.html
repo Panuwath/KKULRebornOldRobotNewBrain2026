@@ -163,7 +163,7 @@
             </div>
             <div class="flex items-center gap-1 bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-lg px-2 py-1 shadow">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span id="hb-safety-text" class="text-slate-300 font-semibold text-[10px]">Guard: ON</span>
+              <span id="hb-safety-text" class="text-slate-300 font-semibold text-[10px]">Guard: UNKNOWN</span>
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@
           <span class="text-xs font-semibold text-slate-200 flex items-center">
             <i class="fa-solid fa-shield-halved text-amber-400 mr-1.5"></i> โหมดความปลอดภัย (Drive Guard)
           </span>
-          <p class="text-[10px] text-amber-300/90" id="safety-status-desc">ปิดเป็นค่าเริ่มต้น (ปลดล็อกล้อ ควบคุมอิสระ ไม่ติดเซนเซอร์)</p>
+          <p class="text-[10px] text-amber-300/90" id="safety-status-desc">ยังไม่มีข้อมูลโหมดความปลอดภัยจากหุ่น</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer" id="safety-toggle-label">
           <input type="checkbox" id="safety-toggle" class="sr-only peer" onchange="toggleSafetyMode(this.checked)">
@@ -977,6 +977,7 @@
 
     function renderFieldReadiness() {
       renderDeviceEvidence();
+      updateSafetyToggleUI();
       if (!fieldReadinessReader) fieldReadinessReader = window.ZenboFieldReadiness.createReader({apiBase: API_BASE, fetch: window.fetch.bind(window)});
       fieldReadinessReader.select(selectedRobots.length === 1 ? selectedRobots[0] : null);
       const state = fieldReadinessReader.state();
@@ -2273,6 +2274,16 @@
       const desc = document.getElementById('safety-status-desc');
       const label = document.getElementById('safety-toggle-label');
       if (!toggle || !desc) return;
+      const reports = selectedRobots.map(slug => window.ZenboDeviceEvidence.guards(robots.find(r => r.robot_slug === slug)));
+      const states = new Set(reports.map(report => report.state));
+      const state = !reports.length || states.has('UNKNOWN') ? 'UNKNOWN' : states.size === 1 ? reports[0].state : 'MIXED';
+      const badge = document.getElementById('hb-safety-text');
+      if (badge) {
+        badge.textContent = 'Guard: ' + state;
+        badge.className = (state === 'ON' ? 'text-emerald-300' : 'text-amber-300') + ' font-semibold text-[10px]';
+      }
+      toggle.checked = state === 'ON';
+      toggle.indeterminate = !['ON','OFF'].includes(state);
       if (!selectedRobots.length) {
         toggle.disabled = true;
         if (label) label.classList.add('opacity-50', 'cursor-not-allowed');
@@ -2283,15 +2294,11 @@
       toggle.disabled = false;
       if (label) label.classList.remove('opacity-50', 'cursor-not-allowed');
 
-      // Check if any selected robot has collision_guard_enabled or fall_guard_enabled active
-      const selectedRobotObjs = robots.filter(r => selectedRobots.includes(r.robot_slug));
-      const isGuardOn = selectedRobotObjs.some(r => r.safety_guard?.collision_guard_enabled === true || r.safety_guard?.fall_guard_enabled === true);
-      toggle.checked = isGuardOn;
       const countText = selectedRobots.length > 1 ? ` (${selectedRobots.length} เครื่อง)` : '';
-      desc.textContent = isGuardOn
-        ? `🛡️ เปิดโหมดความปลอดภัย: ตรวจสิ่งกีดขวาง${countText}`
-        : `🔓 ปิดโหมดความปลอดภัย: ปลดล็อกล้อ ควบคุมอิสระ${countText}`;
-      desc.className = isGuardOn ? 'text-[10px] text-emerald-300' : 'text-[10px] text-amber-300';
+      desc.textContent = ({ON:'หุ่นรายงานว่าเปิดป้องกันการชนและการตก', OFF:'หุ่นรายงานว่าปิดป้องกันการชนและการตก',
+        PARTIAL:'หุ่นรายงานว่าเปิดระบบป้องกันเพียงบางส่วน', MIXED:'หุ่นที่เลือกมีสถานะระบบป้องกันต่างกัน',
+        UNKNOWN:'ยังไม่มีข้อมูลระบบป้องกันที่ครบและสดจากหุ่น'})[state] + countText;
+      desc.className = state === 'ON' ? 'text-[10px] text-emerald-300' : 'text-[10px] text-amber-300';
     }
 
     async function toggleSafetyMode(enabled) {
@@ -2337,12 +2344,12 @@
           const countText = selectedRobots.length > 1 ? ` (${okCount}/${selectedRobots.length} เครื่อง)` : '';
           if (desc) {
             desc.textContent = enabled
-              ? `🛡️ เปิดโหมดความปลอดภัยแล้ว (ตรวจสิ่งกีดขวาง)${countText}`
-              : `🔓 ปิดโหมดความปลอดภัยแล้ว (ปลดล็อกล้อ ควบคุมอิสระ)${countText}`;
+              ? `ส่งคำขอเปิดระบบป้องกันแล้ว รอ heartbeat ยืนยัน${countText}`
+              : `ส่งคำขอปิดระบบป้องกันแล้ว รอ heartbeat ยืนยัน${countText}`;
             desc.className = enabled ? 'text-[10px] text-emerald-300' : 'text-[10px] text-amber-300';
           }
           if (typeof ZenboCommon !== 'undefined' && ZenboCommon.toast) {
-            ZenboCommon.toast(enabled ? `เปิดโหมดความปลอดภัยแล้ว${countText}` : `ปิดโหมดความปลอดภัยแล้ว (ควบคุมอิสระ)${countText}`, 'info');
+            ZenboCommon.toast(`ส่งคำขอแล้ว รอ heartbeat ยืนยัน${countText}`, 'info');
           }
         } else {
           if (toggle) toggle.checked = !enabled;
@@ -3000,14 +3007,7 @@
           }
         }
 
-        // Safety Guard telemetry
-        if (safetyEl) {
-          const guard = robot.safety_guard;
-          if (guard) {
-            safetyEl.textContent = guard.collision_guard_enabled ? 'Guard: ON' : 'Guard: OFF';
-            safetyEl.className = guard.collision_guard_enabled ? 'text-emerald-300 font-semibold text-[10px]' : 'text-amber-400 font-semibold text-[10px]';
-          }
-        }
+        // The selected-robot renderer owns the guard badge and its expiry.
       }
 
       return { init, update, triggerPulse };

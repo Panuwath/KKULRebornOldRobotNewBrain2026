@@ -82,8 +82,8 @@ android {
         applicationId "com.hackathon.zenboclient"
         minSdk 23
         targetSdk 33
-        versionCode 724
-        versionName "1.9.48"
+        versionCode 725
+        versionName "1.9.49"
         buildConfigField "String", "DEVICE_PROVISIONING_TOKEN", buildConfigString(deviceProvisioningToken)
         buildConfigField "String", "MQTT_PROVISIONING_URL", buildConfigString(mqttProvisioningUrl)
         buildConfigField "String", "MQTT_LIBN_PROVISIONING_URL", buildConfigString(mqttLibnProvisioningUrl)

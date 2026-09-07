@@ -2118,7 +2118,7 @@ void onFailed(String message);
     }
 
     private String escapeJson(String value) {
-        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+        return JsonStrings.escape(value);
     }
 
     private void createNotificationChannel() {
