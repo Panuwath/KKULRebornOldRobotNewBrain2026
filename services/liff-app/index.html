@@ -396,9 +396,9 @@
           <h2 id="drive-title" class="text-base font-bold text-slate-100"><i class="fa-solid fa-gamepad text-blue-400 mr-2" aria-hidden="true"></i>ควบคุมการเดิน</h2>
           <p class="mt-1 text-xs leading-relaxed text-slate-400">กดค้างเพื่อเคลื่อนที่ · ปล่อยนิ้วเพื่อหยุดทันที</p>
         </div>
-        <span class="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-200">RELATIVE STEP</span>
+        <span class="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-200">SDK REMOTE</span>
       </div>
-      <div id="motion-speed-deck" class="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 p-2.5"></div>
+      <p class="mt-3 text-xs text-slate-400">รีโมตกดค้างรับเฉพาะทิศทาง ไม่รองรับการเลือกระดับความเร็ว</p>
 
       <div class="mx-auto mt-4 grid w-full max-w-[19rem] grid-cols-3 gap-3" aria-label="ปุ่มควบคุมทิศทาง">
         <span aria-hidden="true"></span>
@@ -415,6 +415,23 @@
       </div>
       <p id="drive-status" role="status" aria-live="polite" class="mt-3 min-h-5 text-center text-xs font-medium text-blue-200">เลือก Zenbo แล้วกดค้างที่ปุ่มทิศทาง</p>
     </section>
+    <details class="rounded-2xl border border-slate-700 bg-slate-800 p-4" data-require-role="operator">
+      <summary class="cursor-pointer text-sm font-semibold text-blue-200">เคลื่อนที่แบบพิกัด L1–L7 (ทดสอบภาคสนาม)</summary>
+      <p class="mt-2 text-xs text-slate-400">เคลื่อนที่แบบระบุระยะหรือมุมต่อครั้ง เริ่มที่ L1 และใช้ permit ของหุ่นที่เลือก</p>
+        <div class="grid grid-cols-3 gap-2 mt-2">
+          <label class="text-[11px] text-slate-400">X m<input id="precise-x" type="number" step="0.1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
+          <label class="text-[11px] text-slate-400">Y m<input id="precise-y" type="number" step="0.1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
+          <label class="text-[11px] text-slate-400">Theta °<input id="precise-theta" type="number" step="1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
+        </div>
+      <div id="motion-speed-deck" class="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 p-2.5"></div>
+        <div class="mt-2 grid gap-2">
+          <label class="text-xs text-slate-400">รหัสอนุญาตปฏิบัติงาน<input id="relative-operation-permit" maxlength="128" autocomplete="off" oninput="renderMotionSpeedDeck()" class="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2 py-2"></label>
+          <label class="text-xs text-slate-400">รหัสอนุญาตทดสอบภาคสนาม<input id="relative-field-permit" maxlength="128" autocomplete="off" oninput="renderMotionSpeedDeck()" class="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2 py-2"></label>
+        </div>
+        <p id="relative-motion-readiness" class="mt-2 text-xs text-slate-400"></p>
+        <p id="relative-motion-status" role="status" aria-live="polite" class="mt-2 text-xs text-slate-400">ส่งได้เมื่อ Core และหุ่นพร้อม พร้อมรหัสอนุญาตทั้งสองรายการ</p>
+        <button id="relative-motion-submit" disabled onclick="sendPreciseMotion()" class="w-full mt-2 bg-blue-800 hover:bg-blue-700 py-2 rounded text-xs font-bold">สั่ง motion แบบพิกัด</button>
+    </details>
   </div>
 
   <!-- Panel Actions -->
@@ -855,12 +872,7 @@
         <summary class="cursor-pointer text-xs font-semibold text-blue-300">🎮 Remote control และ behavior</summary>
         <a href="#drive-control" class="mt-3 flex min-h-12 items-center justify-between rounded-xl border border-blue-400/40 bg-blue-950/40 px-3 text-xs font-bold text-blue-100 hover:bg-blue-900/60"><span><i class="fa-solid fa-gamepad mr-2"></i>กลับไปควบคุมทิศทางหน้าเดียว</span><i class="fa-solid fa-arrow-up"></i></a>
         <p class="mt-2 text-[11px] leading-relaxed text-slate-400">ปุ่มทิศทางหลักอยู่ด้านบนของหน้านี้และหยุดเมื่อปล่อยนิ้ว; จอยแบบลากอยู่ในเมนูสำหรับงานเฉพาะเท่านั้น</p>
-        <div class="grid grid-cols-3 gap-2 mt-2">
-          <label class="text-[11px] text-slate-400">X m<input id="precise-x" type="number" step="0.1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
-          <label class="text-[11px] text-slate-400">Y m<input id="precise-y" type="number" step="0.1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
-          <label class="text-[11px] text-slate-400">Theta °<input id="precise-theta" type="number" step="1" value="0" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"></label>
-        </div>
-        <button onclick="sendPreciseMotion()" class="w-full mt-2 bg-blue-800 hover:bg-blue-700 py-2 rounded text-xs font-bold">สั่ง motion แบบพิกัด</button>
+
         <div class="grid grid-cols-3 gap-2 mt-2">
           <button onclick="sendBehavior('look_at_user', true)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs">มองผู้ใช้</button><button onclick="sendBehavior('track_face', true)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded text-xs">ตามหน้า</button><button onclick="sendBehavior('follow_face', true)" class="bg-amber-700 hover:bg-amber-600 py-2 rounded text-xs">เดินตามหน้า</button>
           <button onclick="sendBehavior('follow_object', true)" class="bg-amber-700 hover:bg-amber-600 py-2 rounded text-xs">ตามวัตถุ</button><button onclick="sendBehavior('track_face', false)" class="bg-red-900/60 py-2 rounded text-xs">หยุดตามหน้า</button><button onclick="sendBehavior('follow_face', false)" class="bg-red-900/60 py-2 rounded text-xs">หยุดเดินตาม</button>
@@ -922,6 +934,21 @@
     let robots = [];
     let selectedRobots = [];
     let requestedMotionSpeed = 1;
+    let relativeMotionPolicy = null;
+    let relativeMotionBusy = false;
+    let relativeSourceSession = null;
+    let relativeSourceSequence = 0;
+    let relativeTargetKey = '';
+
+    function resetRelativeTarget() {
+      const key = selectedRobots.join('|');
+      if (key === relativeTargetKey) return;
+      relativeTargetKey = key;
+      requestedMotionSpeed = 1;
+      relativeSourceSession = null;
+      relativeSourceSequence = 0;
+      for (const id of ['relative-operation-permit', 'relative-field-permit']) document.getElementById(id).value = '';
+    }
 
     function selectedMotionCapability() {
       const robot = robots.find(item => selectedRobots.includes(item.robot_slug));
@@ -931,13 +958,26 @@
     function renderMotionSpeedDeck() {
       const target = document.getElementById('motion-speed-deck');
       if (!target) return;
-      window.ZenboDriveControl.mount(target, {
+      resetRelativeTarget();
+      const capability = selectedMotionCapability();
+      if (capability && relativeMotionPolicy) capability.policy_max_speed_level = Math.min(
+        capability.policy_max_speed_level, relativeMotionPolicy.max_body_speed_level);
+      const policyAge = Date.now() - relativeMotionPolicy?.reported_at_ms;
+      const model = window.ZenboDriveControl.mount(target, {
         mode: 'relative',
+        featureEnabled: relativeMotionPolicy?.enabled === true,
+        policyFresh: Number.isFinite(policyAge) && policyAge >= 0 && policyAge <= 10000,
+        moving: relativeMotionBusy,
         robotSelected: selectedRobots.length === 1,
-        capability: selectedMotionCapability(),
+        capability,
         requestedLevel: requestedMotionSpeed,
         onSelect(level) { requestedMotionSpeed = level; }
       });
+      const permitsReady = ['relative-operation-permit', 'relative-field-permit'].every(id => document.getElementById(id).value.trim());
+      document.getElementById('relative-motion-submit').disabled = !model.state.enabled || relativeMotionBusy || !permitsReady;
+      document.getElementById('relative-motion-readiness').textContent = !model.state.enabled
+        ? window.ZenboDriveControl.reasonText(model.state.reason)
+        : (relativeMotionBusy ? 'กำลังส่งคำสั่ง กรุณารอผล' : (!permitsReady ? 'กรอกรหัสอนุญาตทั้งสองรายการก่อนส่ง' : 'พร้อมตรวจสอบคำสั่งกับ Core'));
     }
 
     // Backwards compatibility for code expecting single selectedRobot
@@ -1144,6 +1184,7 @@
         if (!res) return; // auth redirect in progress
         const data = await res.json();
         robots = data.robots || [];
+        relativeMotionPolicy = data.relative_motion || null;
 
         // Retain currently selected robots that are online
         const onlineSlugs = new Set(robots.map(r => r.robot_slug));
@@ -1164,6 +1205,7 @@
         updateSafetyToggleUI(activeRobot);
       } catch (err) {
         robots = [];
+        relativeMotionPolicy = null;
         renderMotionSpeedDeck();
         document.getElementById('robot-list').innerHTML = '<p class="text-[11px] text-red-300">ติดต่อ Core API ไม่ได้</p>';
         if (window.ZenboTwinInstance) window.ZenboTwinInstance.update(null);
@@ -1228,8 +1270,43 @@
       };
     }
 
-    function sendMotion(x, y, theta) {
-      sendRequest({ face: null, safety: manualOperatorSafety(), motion: { x, y, theta, speed: requestedMotionSpeed } });
+    async function sendMotion(x, y, theta) {
+      if (relativeMotionBusy) return;
+      const status = document.getElementById('relative-motion-status');
+      let commandId = null;
+      try {
+        if (!relativeSourceSession) relativeSourceSession = crypto.randomUUID();
+        commandId = crypto.randomUUID();
+        const submission = window.ZenboDriveControl.prepareRelativeSubmission({
+          robotSlugs: selectedRobots.slice(), capability: selectedMotionCapability(),
+          corePolicy: relativeMotionPolicy, nowMs: Date.now(),
+          operationPermitId: document.getElementById('relative-operation-permit').value,
+          fieldPermitId: document.getElementById('relative-field-permit').value,
+          commandId, sourceSessionId: relativeSourceSession, sourceSeq: ++relativeSourceSequence,
+          requestedLevel: requestedMotionSpeed, xMeters: x, yMeters: y, thetaDegrees: theta
+        });
+        relativeMotionBusy = true;
+        renderMotionSpeedDeck();
+        status.textContent = `กำลังส่งคำสั่ง ${commandId}`;
+        const response = await fetch(API_BASE + submission.path, {
+          method: 'POST', headers: submission.headers, body: JSON.stringify(submission.body)
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          status.textContent = `ไม่อนุญาต: ${result.detail?.code || response.status} · ${commandId}`;
+        } else {
+          status.textContent = result.published
+            ? `Gateway ส่งแล้ว · ${commandId} · ตรวจ ACK ในประวัติ ยังไม่ยืนยันการเคลื่อนที่จริง`
+            : `ปฏิเสธ: ${result.acknowledgement?.reject_reason || 'NOT_PUBLISHED'} · ${commandId}`;
+        }
+      } catch (error) {
+        status.textContent = relativeMotionBusy
+          ? `ไม่ทราบผลการส่ง · ${commandId} · ตรวจประวัติก่อนส่งใหม่ ไม่มีการ retry อัตโนมัติ`
+          : window.ZenboDriveControl.reasonText(error.message);
+      } finally {
+        relativeMotionBusy = false;
+        renderMotionSpeedDeck();
+      }
     }
 
     function updateHeadVal() {
@@ -1845,7 +1922,7 @@
       const y = Number(document.getElementById('precise-y').value);
       const theta = Number(document.getElementById('precise-theta').value);
       if (![x, y, theta].every(Number.isFinite)) return setCommandStatus('กรอกพิกัด motion เป็นตัวเลข', true);
-      sendRequest({ safety: manualOperatorSafety(), motion: { x, y, theta, speed: requestedMotionSpeed } });
+      return sendMotion(x, y, theta);
     }
 
     function sendBehavior(action, enabled) {
