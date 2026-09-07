@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ตรวจไฟล์ผลทดลอง | Zenbo</title>
+<script src="/liff/liff-config.js"></script><script src="/liff/liff.js"></script><script src="/liff/shared/zenbo-common.js"></script>
+<script src="/liff/shared/zenbo-calibration-evidence.js"></script>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#020617;color:#e2e8f0}body{margin:0;padding:24px 16px}main{max-width:850px;margin:auto}a{color:#67e8f9}h1{font-size:1.6rem}p{line-height:1.7;color:#94a3b8}section{border:1px solid #334155;border-radius:16px;background:#0f172a;padding:20px;margin-top:20px}button,select,input{font:inherit;min-height:44px;border:1px solid #475569;border-radius:8px;background:#1e293b;color:#f1f5f9;padding:8px 12px;box-sizing:border-box}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}.actions{display:flex;flex-wrap:wrap;gap:12px}label{display:block;margin:14px 0}input{width:100%;max-width:100%}li{margin:8px 0;overflow-wrap:anywhere}#summary{color:#a5f3fc}small{color:#94a3b8}
+</style></head><body><main>
+<a href="/liff/#tab-drive">← กลับหน้าควบคุม</a><h1>ตรวจไฟล์ผลทดลองการเคลื่อนที่</h1>
+<p>ตรวจความครบถ้วนของหลักฐาน S5/T8 ในเบราว์เซอร์ ไฟล์ไม่ถูกอัปโหลดหรือบันทึกบนเซิร์ฟเวอร์ ผลตรวจไม่ใช่การรับรองความปลอดภัยหรืออนุญาตให้เคลื่อนที่</p>
+<section aria-label="เลือกไฟล์และขอบเขต">
+<div class="actions"><button id="template">ดาวน์โหลดแบบฟอร์ม CSV</button><button id="blank">ตรวจแบบฟอร์มว่าง</button></div>
+<label>ขอบเขตข้อมูลที่จะตรวจ (ไม่ใช่ระดับที่อนุญาตให้ใช้)<select id="scope"><option value="1">L1</option><option value="2">L1–L2</option><option value="3">L1–L3</option><option value="4">L1–L4</option><option value="5">L1–L5</option><option value="6">L1–L6</option><option value="7">L1–L7</option></select></label>
+<label>เลือกไฟล์ CSV ไม่เกิน 1 MB<input id="file" type="file" accept=".csv,text/csv"></label>
+<p>แต่ละระดับมี 4 ทิศทาง × 3 ครั้ง ใช้ความเร็วขนาดบวก: เดินหน้า/ถอยหลังเป็น m/s และหมุนซ้าย/ขวาเป็น °/s ระยะหยุดและระยะเกินเป้าหมายใช้ m สำหรับการเดิน และ ° สำหรับการหมุน ระบุเวลาเป็นมิลลิวินาทีบนฐานเวลาเดียวกัน พร้อมเครื่องมือ ผู้วัด ผู้สังเกตการณ์ และไฟล์หลักฐาน</p>
+<small>result ใช้ PASS หรือ FAIL; sensor_ok, no_overlap, no_resume ใช้ true หรือ false; source_sha ใช้ Git SHA เต็ม 40 ตัว และ apk_sha256 ใช้ hash 64 ตัว</small>
+</section>
+<section aria-label="ผลตรวจไฟล์"><p id="summary" role="status" aria-live="polite">ยังไม่ได้เลือกไฟล์</p><p id="counts"></p><ul id="issues"></ul><div class="actions"><button id="download" disabled>ดาวน์โหลดรายงาน JSON</button><button id="clear">ล้างข้อมูลในหน้านี้</button></div></section>
+<p>ค่าที่บันทึกยังต้องตรวจเทียบหลักฐานจริง ไม่คำนวณ p95 จากการทดลองเพียง 3 ครั้ง และรายงานนี้ไม่เปลี่ยน feature flag หรือ permit</p>
+</main><script src="/liff/calibration/review.js"></script></body></html>
