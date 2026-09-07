@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {describe}=createRequire(import.meta.url)('./zenbo-connection-status.js');
+assert.match(describe({}),/ยังไม่มีข้อมูล/);
+assert.match(describe({mqtt:{connected:false,state:'CONNECT_FAILED'}}),/ยังไม่เชื่อมต่อ/);
+assert.match(describe({mqtt:{connected:true,subscribed:false}}),/ยังไม่ยืนยัน/);
+const ready={connected:true,subscribed:true,retained_heartbeat_count:3,last_live_heartbeat_at_ms:null};
+assert.match(describe({mqtt:ready},10000),/ข้อมูลเก่า/);
+assert.match(describe({mqtt:{...ready,last_live_heartbeat_at_ms:9000}},10000),/พบ heartbeat สด/);
+assert.match(describe({mqtt:{...ready,last_live_heartbeat_at_ms:9000}},20001),/ยังไม่พบ heartbeat สด/);
+assert.match(describe({mqtt:{...ready,last_live_heartbeat_at_ms:30000}},20000),/ยังไม่พบ heartbeat สด/);
+console.log('Connection status tests passed: transport, subscription and fresh heartbeat are distinct.');

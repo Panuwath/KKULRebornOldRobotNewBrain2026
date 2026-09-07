@@ -12,6 +12,7 @@ import re
 import secrets
 from urllib.parse import quote, urlparse
 from threading import Lock
+from mqtt_telemetry import TelemetryConnection
 from typing import Optional, Dict, Any, List, Literal, Union
 from fastapi import FastAPI, HTTPException, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -960,6 +961,7 @@ mqtt_client = mqtt.Client(
     client_id=MQTT_CLIENT_ID,
     transport=_mqtt_transport,
 )
+mqtt_telemetry = TelemetryConnection()
 robot_registry: Dict[str, Dict[str, Any]] = {}
 robot_registry_lock = Lock()
 command_history_lock = Lock()
@@ -1268,6 +1270,7 @@ def _remember_robot(topic: str, payload: str, retained: bool = False) -> None:
         }
         event_kind = parts[-1]
         if event_kind == "heartbeat":
+            mqtt_telemetry.heartbeat(retained)
             # Every heartbeat must supply its own readiness evidence. A legacy
             # or incomplete heartbeat must not renew an earlier executable claim.
             for key in ("motion", "robot_api_ready", "safety_guard", "safety_monitor",
@@ -1381,13 +1384,16 @@ def startup_event():
     init_command_history()
     try:
         configure_mqtt_auth()
-        mqtt_client.connect(MQTT_HOST, MQTT_PORT, 60)
-        mqtt_client.subscribe("zenbo/+/status/#", qos=1)
+        mqtt_telemetry.bind(mqtt_client)
         mqtt_client.on_message = on_mqtt_message
+        mqtt_telemetry.starting()
+        mqtt_client.reconnect_delay_set(min_delay=1, max_delay=30)
+        mqtt_client.connect_async(MQTT_HOST, MQTT_PORT, 60)
         mqtt_client.loop_start()
-        print(f"[*] Connected to MQTT Broker at {MQTT_HOST}:{MQTT_PORT}")
+        print("[*] MQTT connection loop started; waiting for CONNACK and SUBACK")
     except Exception as e:
-        print(f"[!] MQTT connection error: {e}")
+        mqtt_telemetry.configuration_error()
+        print(f"[!] MQTT setup error: {type(e).__name__}")
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -1958,7 +1964,7 @@ class UserRobotBindingRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "zenbo-core-api"}
+    return {"status": "ok", "service": "zenbo-core-api", "mqtt": mqtt_telemetry.snapshot()}
 
 
 def compile_with_intelsphere_agent(raw_command: str, robot_slug: Optional[str] = None) -> Dict[str, Any]:
@@ -3924,7 +3930,9 @@ async def list_robots():
         robot["age_seconds"] = round(now - robot.get("last_seen", now))
         robot.pop("last_seen", None)
     robots.sort(key=lambda robot: robot["robot_slug"])
-    return {"robots": robots, "count": len(robots), "relative_motion": {
+    return {"robots": robots, "count": len(robots),
+            "mqtt": mqtt_telemetry.snapshot(),
+            "configured_robot_slug": ZENBO_DEVICE_ROBOT_SLUG or None, "relative_motion": {
         "enabled": RELATIVE_MOTION_ENABLED,
         "reported_at_ms": int(now * 1000),
         "max_body_speed_level": min(RELATIVE_MOTION_MAX_SPEED, FIELD_ROLLOUT_MAX_LEVEL),
