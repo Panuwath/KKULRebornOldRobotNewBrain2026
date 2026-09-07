@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {describe, createReader} = createRequire(import.meta.url)('./zenbo-field-readiness.js');
+let now = 10000;
+const report = {robot_slug:'one', ready:true, blockers:[], checked_at_ms:now};
+assert.equal(describe(report,'one',now).status,'ready');
+assert.match(describe(report,'one',now).summary,/ยังไม่ใช่ผลสอบเทียบ/);
+for (const change of [{ready:'true'}, {ready:false}, {blockers:[null]}, {robot_slug:'other'}, {checked_at_ms:0}]) {
+  assert.equal(describe({...report,...change},'one',now).status,'invalid');
+}
+assert.equal(describe(report,'one',21001).status,'stale');
+assert.equal(describe(report,'one',9999).status,'stale');
+const blocked = describe({...report,ready:false,blockers:['APK_HASH_MISMATCH','NEW_GATE']},'one',now);
+assert.equal(blocked.status,'blocked');
+assert.match(blocked.blockers[0],/APK/);
+assert.match(blocked.blockers[1],/NEW_GATE/);
+const calls = [];
+let resolve;
+const reader = createReader({apiBase:'/liff-api', now:()=>now, fetch: (...args)=>{
+  calls.push(args); return new Promise(r=>{resolve=r;});
+}});
+await reader.refresh(); assert.equal(calls.length,0);
+reader.select('one');
+const pending = reader.refresh();
+assert.equal(reader.state().status,'loading');
+await reader.refresh(); assert.equal(calls.length,1);
+assert.equal(calls[0][0],'/liff-api/api/v1/robots/one/field-calibration');
+assert.deepEqual(calls[0][1],{method:'GET',cache:'no-store'});
+reader.select('two');
+resolve({ok:true,json:async()=>report}); await pending;
+assert.equal(reader.state().status,'unchecked','old target response must be discarded');
+reader.select('one');
+const next = reader.refresh(); resolve({ok:true,json:async()=>report}); await next;
+assert.equal(reader.state().status,'ready');
+now=21001; assert.equal(reader.state().status,'stale');
+const error = createReader({apiBase:'',fetch:async()=>({ok:false,status:404})});
+error.select('one'); await error.refresh(); assert.equal(error.state().status,'error');
+const failed = createReader({apiBase:'',fetch:async()=>{throw new Error('network');}});
+failed.select('one'); await failed.refresh(); assert.equal(failed.state().status,'error');
+console.log('Field readiness tests passed: GET only, freshness, invalid reports, failures, target races.');
