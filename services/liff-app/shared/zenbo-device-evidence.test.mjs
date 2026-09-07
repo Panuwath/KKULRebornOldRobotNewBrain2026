@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const {describe} = createRequire(import.meta.url)('./zenbo-device-evidence.js');
+const {describe, guards} = createRequire(import.meta.url)('./zenbo-device-evidence.js');
 const now = 20000;
 const minimal = {robot_slug:'booky-1', heartbeat_received_at_ms:now - 1000};
 const view = (robot=minimal, selected=['booky-1']) => describe([robot], selected, now);
@@ -27,4 +27,17 @@ for (const received of [0,null,undefined,'19000',now+1,now-10001])
 assert.equal(view({...full,heartbeat_received_at_ms:now-10000}).rows.length,8);
 assert.equal(describe([], ['booky-1'], now).rows.length,0);
 assert.equal(view(minimal).rows[1][1], 'ยังไม่มี SHA256 ที่ถูกต้อง');
+for (const state of ['INVALID_JSON','INVALID_SHAPE']) {
+  const invalid = {...full,heartbeat_payload_state:state};
+  assert.match(view(invalid).summary, /รูปแบบ JSON ไม่ถูกต้อง/);
+  assert.equal(view(invalid).rows.length,0);
+  assert.match(view({...invalid,heartbeat_received_at_ms:1}).summary, /หมดอายุ/);
+}
+assert.equal(view({...full,heartbeat_payload_state:'VALID'}).rows[1][1],hash);
+for (const [collision,fall,state] of [[true,true,'ON'],[false,false,'OFF'],[true,false,'PARTIAL'],[false,true,'PARTIAL'],[true,undefined,'UNKNOWN'],['true',true,'UNKNOWN']]) {
+  assert.equal(guards({...minimal,safety_guard:{collision_guard_enabled:collision,fall_guard_enabled:fall}},now).state,state);
+}
+for (const robot of [null,{}, {...full,heartbeat_received_at_ms:0}, {...full,heartbeat_received_at_ms:now+1}, {...full,heartbeat_received_at_ms:now-10001}, {...full,heartbeat_payload_state:'INVALID_JSON'}]) {
+  assert.deepEqual(guards(robot,now),{state:'UNKNOWN',collision:null,fall:null,base:false});
+}
 console.log('Device evidence tests passed: incomplete reports, strict booleans, artifact, selection and freshness.');
