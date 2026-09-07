@@ -179,3 +179,30 @@ def test_main_dry_route_honors_session_before_dispatch(fixture):
     assert result['decision'] == 'BLOCKED'
     assert result['gate']['code'] == 'SESSION_TERMINAL'
     assert len(dispatched) == 1
+
+
+def test_active_recovery_is_owner_scoped_and_survives_permit_revocation(fixture):
+    assert rollout.active('robot-a', ACTOR)['session'] is None
+    row = rollout.start('robot-a', fixture['permit_id'], ACTOR)
+    field_permit.revoke(fixture['permit_id'])
+    assert rollout.active('robot-a', ACTOR)['session'] == row
+    assert rollout.active('robot-b', ACTOR)['session'] is None
+    assert rollout.active('robot-a', {'sub': 'other', 'role': 'operator'})['session'] is None
+    assert rollout.active('robot-a', {'sub': 'admin', 'role': 'admin'})['session'] == row
+    rollout.transition(row['session_id'], 'robot-a', ACTOR, 0, rollback=True)
+    assert rollout.active('robot-a', ACTOR)['session'] is None
+    assert rollout.get(row['session_id'], 'robot-a', ACTOR)['state'] == 'ROLLED_BACK'
+
+
+def test_active_api_is_authenticated_and_precedes_session_route(fixture):
+    app = FastAPI(); app.include_router(router); client = TestClient(app)
+    path = '/api/v1/robots/robot-a/rollout-drills/active'
+    assert client.get(path).status_code == 403
+    app.dependency_overrides[operator] = lambda: ACTOR
+    row = rollout.start('robot-a', fixture['permit_id'], ACTOR)
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.json()['session']['session_id'] == row['session_id']
+    assert response.json()['mqtt_publish_attempted'] is False
+    assert response.json()['physical_authorized'] is False
+    assert rollout.get(row['session_id'], 'robot-a', ACTOR)['revision'] == 0

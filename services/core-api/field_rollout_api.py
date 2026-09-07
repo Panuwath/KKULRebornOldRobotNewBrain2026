@@ -37,6 +37,11 @@ def start(robot_slug: str, req: StartRequest, actor=Depends(operator)):
     return call(field_rollout.start, robot_slug, req.permit_id, actor)
 
 
+@router.get('/active')
+def active(robot_slug: str, actor=Depends(operator)):
+    return call(field_rollout.active, robot_slug, actor)
+
+
 @router.get('/{session_id}')
 def get(robot_slug: str, session_id: str, actor=Depends(operator)):
     return call(field_rollout.get, session_id, robot_slug, actor)

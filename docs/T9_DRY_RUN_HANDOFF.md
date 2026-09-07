@@ -11,6 +11,13 @@ creates a synthetic operator and permit, advances L1-L3, rolls back, and proves
 the old session cannot authorize another preview. It neither imports the main
 application nor constructs a broker client. Its evidence is synthetic only.
 
+## Recovering a lost response
+
+Open `/liff/rollout/` and enter the robot slug. GET `/{robot_slug}/rollout-drills/active`
+under `/api/v1/robots` finds the caller-owned open session (admins can read any).
+It works after permit expiry/revocation so the session can still be closed.
+Read closed sessions by their known ID. Never retry a mutation without readback.
+
 ## API workflow
 
 Authenticated operator routes under `/api/v1/robots/{robot_slug}/rollout-drills`:

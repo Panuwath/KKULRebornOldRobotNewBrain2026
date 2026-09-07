@@ -53,8 +53,25 @@ def get(session_id, robot_slug, actor):
         raise RolloutError('SESSION_NOT_FOUND')
     if row['operator_sub'] != actor['sub'] and actor['role'] != 'admin':
         raise RolloutError('SESSION_OWNER_REQUIRED')
+    return _snapshot(row)
+
+
+def _snapshot(row):
+    row = dict(row)
     row['events'] = json.loads(row.pop('events_json'))
     return {**row, 'dry_run': True, 'physical_authorized': False, 'mqtt_publish_attempted': False}
+
+
+def active(robot_slug, actor):
+    """Recover an open session after a lost response, without renewing its permit."""
+    _actor(actor)
+    owner = '' if actor['role'] == 'admin' else ' AND operator_sub = :owner'
+    params = {'robot': robot_slug}
+    if owner:
+        params['owner'] = actor['sub']
+    row = db.fetchone("SELECT * FROM field_rollout_sessions WHERE robot_slug = :robot AND state <> 'ROLLED_BACK'" + owner, params)
+    return {'session': _snapshot(row) if row else None, 'dry_run': True,
+            'physical_authorized': False, 'mqtt_publish_attempted': False}
 
 
 def start(robot_slug, permit_id, actor):
