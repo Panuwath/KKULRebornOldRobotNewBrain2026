@@ -15,6 +15,7 @@
   <script src="/liff/shared/zenbo-common.js"></script>
   <script src="/liff/shared/zenbo-drive-control.js"></script>
   <script src="/liff/shared/zenbo-connection-status.js"></script>
+  <script src="/liff/shared/zenbo-device-evidence.js"></script>
   <script src="/liff/shared/zenbo-field-readiness.js"></script>
   <link rel="stylesheet" href="/liff/shared/zenbo-theme.css">
   <script src="/liff/shared/zenbo-nav.js"></script>
@@ -190,6 +191,12 @@
 
       <p id="mqtt-connection-status" role="status" aria-live="polite" class="mb-2 text-xs text-slate-400">กำลังตรวจ Core และ MQTT</p>
       <div id="robot-list" class="grid gap-2 sm:grid-cols-2" role="group" aria-label="เลือก Zenbo ที่ออนไลน์"></div>
+      <details class="mt-3 rounded-lg border border-slate-700 bg-slate-900/50 p-3">
+        <summary class="cursor-pointer text-xs font-semibold text-blue-200">ข้อมูล APK และความพร้อมจากหุ่น</summary>
+        <p id="device-evidence-summary" class="mt-2 text-xs text-slate-300">เลือกหุ่นหนึ่งเครื่องเพื่อดูข้อมูล APK</p>
+        <dl id="device-evidence-rows" class="mt-2 space-y-2 text-xs"></dl>
+        <p class="mt-2 text-xs text-amber-200">ข้อมูลนี้เป็นรายงานจากแอป ยังไม่ยืนยัน APK ที่อนุมัติ ผลทดสอบเซนเซอร์ หรือการหยุดจริง</p>
+      </details>
       <p class="text-[11px] text-slate-400 mt-2 leading-relaxed" id="connect-hint">
         กดเพื่อเชื่อมต่อ Zenbo — หุ่นยนต์จะตอบกลับว่า <span class="text-green-400 font-semibold">"Bookyพร้อมครับ"</span> ด้วยเสียงเด็กผู้ชายน่ารัก
       </p>
@@ -969,6 +976,7 @@
     }
 
     function renderFieldReadiness() {
+      renderDeviceEvidence();
       if (!fieldReadinessReader) fieldReadinessReader = window.ZenboFieldReadiness.createReader({apiBase: API_BASE, fetch: window.fetch.bind(window)});
       fieldReadinessReader.select(selectedRobots.length === 1 ? selectedRobots[0] : null);
       const state = fieldReadinessReader.state();
@@ -980,6 +988,21 @@
       list.replaceChildren();
       for (const text of state.blockers) {
         const item = document.createElement('li'); item.textContent = text; list.appendChild(item);
+      }
+    }
+
+    function renderDeviceEvidence() {
+      const report = window.ZenboDeviceEvidence.describe(robots, selectedRobots);
+      document.getElementById('device-evidence-summary').textContent = report.summary;
+      const rows = document.getElementById('device-evidence-rows');
+      rows.replaceChildren();
+      for (const [label, value] of report.rows) {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-2 gap-2';
+        const name = document.createElement('dt'); name.textContent = label;
+        const detail = document.createElement('dd'); detail.textContent = value;
+        detail.className = 'min-w-0 break-all text-slate-300';
+        row.append(name, detail); rows.appendChild(row);
       }
     }
 

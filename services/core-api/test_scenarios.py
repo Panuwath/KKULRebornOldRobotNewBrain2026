@@ -105,12 +105,13 @@ class ScenarioRunContractTest(unittest.TestCase):
         slug = "incomplete-heartbeat"
         self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '''{
             "motion":{"body_relative":{"supported":true}}, "robot_api_ready":true,
-            "safety_monitor":{"active":true}, "apk_sha256":"approved", "version_name":"test"
+            "safety_monitor":{"active":true}, "apk_sha256":"approved", "version_name":"test",
+            "client_ip":"192.0.2.1", "topic_prefix":"zenbo/incomplete-heartbeat"
         }''')
         self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{}')
         robot = self.core.robot_registry[slug]
         self.assertGreater(robot["heartbeat_received_at_ms"], 0)
-        for key in ("motion", "robot_api_ready", "safety_monitor", "apk_sha256", "version_name"):
+        for key in ("motion", "robot_api_ready", "safety_monitor", "apk_sha256", "version_name", "client_ip", "topic_prefix"):
             self.assertNotIn(key, robot)
         self.assertFalse(self.core._field_calibration_for_permit(robot)["ready"])
 
