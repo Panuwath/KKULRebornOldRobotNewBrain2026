@@ -141,3 +141,17 @@ def test_field_rollout_jsonb_roundtrip_and_rollback_gate(postgres):
     with pytest.raises(field_rollout.RolloutError, match="SESSION_TERMINAL"):
         field_rollout.authorize_preview(session["session_id"], "booky", permit["permit_id"], actor, 1)
     assert session["physical_authorized"] is False
+
+
+def test_active_rollout_recovery_owner_scope_and_revocation(postgres):
+    import field_rollout as rollout
+    import field_permit
+    actor = {'sub': 'recovery-owner', 'role': 'operator'}
+    permit = field_permit.issue('recovery-robot', actor['sub'], level_max=3)
+    row = rollout.start('recovery-robot', permit['permit_id'], actor)
+    field_permit.revoke(permit['permit_id'])
+    assert rollout.active('recovery-robot', actor)['session'] == row
+    assert rollout.active('recovery-robot', {'sub': 'other', 'role': 'operator'})['session'] is None
+    assert rollout.active('recovery-robot', {'sub': 'admin', 'role': 'admin'})['session'] == row
+    rollout.transition(row['session_id'], 'recovery-robot', actor, 0, rollback=True)
+    assert rollout.active('recovery-robot', actor)['session'] is None
