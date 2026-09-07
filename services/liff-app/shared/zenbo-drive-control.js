@@ -25,6 +25,8 @@
     var nowMs = Number.isFinite(options.nowMs) ? options.nowMs : Date.now();
     var staleAfterMs = Number.isFinite(options.staleAfterMs) ? options.staleAfterMs : 10000;
     if (mode === 'remote') return { enabled: false, reason: 'SDK_DIRECTION_ONLY', cap: 0 };
+    if (options.featureEnabled === false) return { enabled: false, reason: 'RELATIVE_MOTION_DISABLED', cap: 0 };
+    if (options.policyFresh === false) return { enabled: false, reason: 'STALE_CORE_POLICY', cap: 0 };
     if (!options.robotSelected) return { enabled: false, reason: 'NO_ROBOT', cap: 0 };
     if (!capability) return { enabled: false, reason: 'CAPABILITY_MISSING', cap: 0 };
     if (capability.supported !== true) return { enabled: false, reason: 'UNSUPPORTED', cap: 0 };
@@ -43,6 +45,14 @@
 
   function reasonText(reason) {
     return {
+      RELATIVE_MOTION_DISABLED: 'ยังไม่เปิดการเคลื่อนที่ L1–L7 ต้องผ่านการทดสอบกับหุ่นจริงก่อน',
+      STALE_CORE_POLICY: 'ข้อมูล policy หมดอายุ รอการเชื่อมต่อ Core ใหม่',
+      SINGLE_ROBOT_REQUIRED: 'เลือกหุ่นเพียงหนึ่งเครื่องสำหรับการเคลื่อนที่แบบพิกัด',
+      OPERATION_PERMIT_REQUIRED: 'กรอกรหัสอนุญาตปฏิบัติงาน',
+      FIELD_PERMIT_REQUIRED: 'กรอกรหัสอนุญาตทดสอบภาคสนาม',
+      SPEED_EXCEEDS_POLICY: 'ระดับความเร็วเกิน policy ที่อนุญาต',
+      DISTANCE_EXCEEDS_POLICY: 'ระยะทางเกิน policy ที่อนุญาต',
+      INVALID_MOTION: 'กรอกระยะหรือมุมที่ถูกต้องและไม่เป็นศูนย์ทั้งหมด',
       SDK_DIRECTION_ONLY: 'รีโมตนี้รับเฉพาะทิศทาง SDK ไม่เปิดให้เลือกระดับความเร็ว',
       NO_ROBOT: 'เลือก Zenbo ก่อนเลือกระดับความเร็ว',
       CAPABILITY_MISSING: 'ยังไม่มีข้อมูลความสามารถจาก APK',
@@ -121,6 +131,39 @@
     return request;
   }
 
+  function prepareRelativeSubmission(options) {
+    var policy = options.corePolicy;
+    var now = options.nowMs;
+    function reject(code) { throw new Error(code); }
+    if (!policy || policy.enabled !== true) reject('RELATIVE_MOTION_DISABLED');
+    if (!Number.isFinite(now) || !Number.isFinite(policy.reported_at_ms)
+        || policy.reported_at_ms > now || now - policy.reported_at_ms > 10000) reject('STALE_CORE_POLICY');
+    if (!Array.isArray(options.robotSlugs) || options.robotSlugs.length !== 1
+        || typeof options.robotSlugs[0] !== 'string' || !options.robotSlugs[0]) reject('SINGLE_ROBOT_REQUIRED');
+    if (typeof options.operationPermitId !== 'string' || !options.operationPermitId.trim()) reject('OPERATION_PERMIT_REQUIRED');
+    if (typeof options.fieldPermitId !== 'string' || !options.fieldPermitId.trim()) reject('FIELD_PERMIT_REQUIRED');
+    var state = deriveState({robotSelected: true, capability: options.capability, nowMs: now});
+    if (!state.enabled) reject(state.reason);
+    if (!Number.isInteger(policy.max_body_speed_level) || policy.max_body_speed_level < 1
+        || policy.max_body_speed_level > 7 || !Number.isFinite(policy.max_distance_m)
+        || policy.max_distance_m <= 0 || !Number.isInteger(policy.hard_stop_after_ms)
+        || policy.hard_stop_after_ms < 1 || policy.hard_stop_after_ms > 3000) reject('POLICY_MISSING');
+    if (options.requestedLevel > Math.min(state.cap, policy.max_body_speed_level)) reject('SPEED_EXCEEDS_POLICY');
+    if (![options.xMeters, options.yMeters, options.thetaDegrees].every(Number.isFinite)
+        || Math.abs(options.thetaDegrees) > 360
+        || (options.xMeters === 0 && options.yMeters === 0 && options.thetaDegrees === 0)) reject('INVALID_MOTION');
+    if (Math.hypot(options.xMeters, options.yMeters) > policy.max_distance_m) reject('DISTANCE_EXCEEDS_POLICY');
+    return {
+      path: '/api/v1/robots/' + encodeURIComponent(options.robotSlugs[0]) + '/relative-motion',
+      headers: {'Content-Type': 'application/json',
+        'X-Operation-Permit-Id': options.operationPermitId.trim(),
+        'X-Field-Permit-Id': options.fieldPermitId.trim()},
+      body: createMotionRequest(Object.assign({}, options, {
+        issuedAtMs: now, expiresAtMs: now + policy.hard_stop_after_ms
+      }))
+    };
+  }
+
   function mount(element, options) {
     if (!element) throw new Error('speed selector mount element is required');
     options = options || {};
@@ -164,6 +207,7 @@
     capabilityFromRobot: capabilityFromRobot,
     createModel: createModel,
     createMotionRequest: createMotionRequest,
+    prepareRelativeSubmission: prepareRelativeSubmission,
     deriveState: deriveState,
     mount: mount,
     reasonText: reasonText,

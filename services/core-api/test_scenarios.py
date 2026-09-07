@@ -35,6 +35,20 @@ class ScenarioRunContractTest(unittest.TestCase):
         cls.core.db.close()
         cls.temp_dir.cleanup()
 
+    def test_robot_discovery_reports_authoritative_core_relative_policy(self):
+        from unittest.mock import patch
+        with patch.object(self.core, "RELATIVE_MOTION_ENABLED", False), \
+             patch.object(self.core, "RELATIVE_MOTION_MAX_SPEED", 7), \
+             patch.object(self.core, "FIELD_ROLLOUT_MAX_LEVEL", 2), \
+             patch.object(self.core.time, "time", return_value=100):
+            result = asyncio.run(self.core.list_robots())
+        policy = result["relative_motion"]
+        self.assertIs(False, policy["enabled"])
+        self.assertEqual(2, policy["max_body_speed_level"])
+        self.assertEqual(100000, policy["reported_at_ms"])
+        self.assertEqual(self.core.RELATIVE_MOTION_MAX_DISTANCE_M, policy["max_distance_m"])
+        self.assertEqual(self.core.RELATIVE_MOTION_HARD_STOP_MS, policy["hard_stop_after_ms"])
+
     def test_motion_capability_freshness_is_not_renewed_by_ack_or_retained_heartbeat(self):
         slug = "freshness-regression"
         self.core._remember_robot(f"zenbo/{slug}/status/heartbeat", '{"robot_slug":"spoofed"}')

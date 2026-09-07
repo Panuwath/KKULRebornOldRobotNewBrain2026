@@ -112,3 +112,33 @@ assert.equal(drive.deriveState({robotSelected: true, nowMs: 20001,
   capability: drive.capabilityFromRobot(apiRobot)}).reason, 'STALE_HEARTBEAT');
 assert.equal(drive.deriveState({robotSelected: true, nowMs: 10000,
   capability: drive.capabilityFromRobot({...apiRobot, heartbeat_received_at_ms: undefined})}).enabled, false);
+
+const submissionOptions = {
+  robotSlugs: ['booky-1'], capability: freshCapability, nowMs: 10000,
+  corePolicy: {enabled: true, reported_at_ms: 10000, max_body_speed_level: 3,
+    max_distance_m: 0.15, hard_stop_after_ms: 1500},
+  operationPermitId: 'operation-1', fieldPermitId: 'field-1',
+  commandId: 'command-1', sourceSessionId: 'session-1', sourceSeq: 1,
+  requestedLevel: 2, xMeters: 0.1, yMeters: 0, thetaDegrees: 0
+};
+const canonical = drive.prepareRelativeSubmission(submissionOptions);
+assert.equal(canonical.path, '/api/v1/robots/booky-1/relative-motion');
+assert.equal(canonical.headers['X-Field-Permit-Id'], 'field-1');
+assert.equal(canonical.headers['X-Operation-Permit-Id'], 'operation-1');
+assert.equal(canonical.body.motion_request.requested_speed_level, 2);
+assert.equal(canonical.body.expires_at_ms, 11500);
+assert.equal(canonical.body.safety, undefined);
+assert.equal(canonical.body.motion, undefined);
+for (const [change, reason] of [
+  [{corePolicy: {...submissionOptions.corePolicy, enabled: false}}, 'RELATIVE_MOTION_DISABLED'],
+  [{robotSlugs: ['one','two']}, 'SINGLE_ROBOT_REQUIRED'],
+  [{fieldPermitId: ''}, 'FIELD_PERMIT_REQUIRED'],
+  [{operationPermitId: ''}, 'OPERATION_PERMIT_REQUIRED'],
+  [{nowMs: 21001}, 'STALE_CORE_POLICY'],
+  [{requestedLevel: 4}, 'SPEED_EXCEEDS_POLICY'],
+  [{xMeters: 0.16}, 'DISTANCE_EXCEEDS_POLICY'],
+  [{thetaDegrees: 361}, 'INVALID_MOTION'],
+]) assert.throws(() => drive.prepareRelativeSubmission({...submissionOptions,...change}), new RegExp(reason));
+
+assert.equal(drive.deriveState({mode: 'remote', featureEnabled: false}).reason, 'SDK_DIRECTION_ONLY');
+assert.equal(drive.deriveState({featureEnabled: true, policyFresh: false}).reason, 'STALE_CORE_POLICY');

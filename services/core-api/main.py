@@ -3924,7 +3924,13 @@ async def list_robots():
         robot["age_seconds"] = round(now - robot.get("last_seen", now))
         robot.pop("last_seen", None)
     robots.sort(key=lambda robot: robot["robot_slug"])
-    return {"robots": robots, "count": len(robots)}
+    return {"robots": robots, "count": len(robots), "relative_motion": {
+        "enabled": RELATIVE_MOTION_ENABLED,
+        "reported_at_ms": int(now * 1000),
+        "max_body_speed_level": min(RELATIVE_MOTION_MAX_SPEED, FIELD_ROLLOUT_MAX_LEVEL),
+        "max_distance_m": RELATIVE_MOTION_MAX_DISTANCE_M,
+        "hard_stop_after_ms": RELATIVE_MOTION_HARD_STOP_MS,
+    }}
 
 
 FIELD_READY_CAPABILITIES = {"THAI_TTS", "EXPRESSION", "HEAD", "WHEEL_LIGHTS"}
