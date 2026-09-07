@@ -35,6 +35,33 @@ class ScenarioRunContractTest(unittest.TestCase):
         cls.core.db.close()
         cls.temp_dir.cleanup()
 
+    def test_mqtt_startup_binds_callbacks_before_async_connect(self):
+        from unittest.mock import Mock, patch
+        client = Mock()
+        def connect(*args):
+            self.assertTrue(callable(client.on_connect))
+            self.assertTrue(callable(client.on_subscribe))
+            self.assertIs(client.on_message, self.core.on_mqtt_message)
+        client.connect_async.side_effect = connect
+        with patch.object(self.core, "mqtt_client", client), \
+             patch.object(self.core, "configure_mqtt_auth"), \
+             patch.object(self.core.db, "init"), \
+             patch.object(self.core, "init_command_history"):
+            self.core.startup_event()
+        client.connect_async.assert_called_once_with(self.core.MQTT_HOST, self.core.MQTT_PORT, 60)
+        client.loop_start.assert_called_once()
+        client.connect.assert_not_called()
+        client.subscribe.assert_not_called()  # waits for successful CONNACK
+
+    def test_health_and_discovery_report_mqtt_without_credentials(self):
+        health = asyncio.run(self.core.health())
+        robots = asyncio.run(self.core.list_robots())
+        self.assertIn("subscribed", health["mqtt"])
+        self.assertIn("last_live_heartbeat_at_ms", robots["mqtt"])
+        self.assertEqual(self.core.ZENBO_DEVICE_ROBOT_SLUG or None, robots["configured_robot_slug"])
+        self.assertNotIn("username", health["mqtt"])
+        self.assertNotIn("token", health["mqtt"])
+
     def test_robot_discovery_reports_authoritative_core_relative_policy(self):
         from unittest.mock import patch
         with patch.object(self.core, "RELATIVE_MOTION_ENABLED", False), \

@@ -14,6 +14,7 @@
   <script src="/liff/liff.js"></script>
   <script src="/liff/shared/zenbo-common.js"></script>
   <script src="/liff/shared/zenbo-drive-control.js"></script>
+  <script src="/liff/shared/zenbo-connection-status.js"></script>
   <script src="/liff/shared/zenbo-field-readiness.js"></script>
   <link rel="stylesheet" href="/liff/shared/zenbo-theme.css">
   <script src="/liff/shared/zenbo-nav.js"></script>
@@ -187,6 +188,7 @@
         </div>
       </div>
 
+      <p id="mqtt-connection-status" role="status" aria-live="polite" class="mb-2 text-xs text-slate-400">กำลังตรวจ Core และ MQTT</p>
       <div id="robot-list" class="grid gap-2 sm:grid-cols-2" role="group" aria-label="เลือก Zenbo ที่ออนไลน์"></div>
       <p class="text-[11px] text-slate-400 mt-2 leading-relaxed" id="connect-hint">
         กดเพื่อเชื่อมต่อ Zenbo — หุ่นยนต์จะตอบกลับว่า <span class="text-green-400 font-semibold">"Bookyพร้อมครับ"</span> ด้วยเสียงเด็กผู้ชายน่ารัก
@@ -1219,6 +1221,7 @@
         if (!res) return; // auth redirect in progress
         const data = await res.json();
         robots = data.robots || [];
+        document.getElementById('mqtt-connection-status').textContent = window.ZenboConnectionStatus.describe(data);
         relativeMotionPolicy = data.relative_motion || null;
 
         // Retain currently selected robots that are online
@@ -1242,6 +1245,7 @@
         robots = [];
         relativeMotionPolicy = null;
         renderMotionSpeedDeck();
+        document.getElementById('mqtt-connection-status').textContent = 'ติดต่อ Core API ไม่ได้ จึงยังตรวจ MQTT และหุ่นไม่ได้';
         document.getElementById('robot-list').innerHTML = '<p class="text-[11px] text-red-300">ติดต่อ Core API ไม่ได้</p>';
         if (window.ZenboTwinInstance) window.ZenboTwinInstance.update(null);
         if (window.ZenboHeartbeat3D) window.ZenboHeartbeat3D.update(null);
